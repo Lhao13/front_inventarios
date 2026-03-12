@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/main.dart';
-
+import 'package:front_inventarios/auth/role_service.dart';
 /// Servicio de autenticación para manejar validaciones de sesión de usuario.
 /// 
 /// Este servicio proporciona métodos para:
@@ -49,6 +49,9 @@ class AuthService {
       if (response.session == null) {
         throw Exception('No se pudo establecer la sesión');
       }
+
+      // Fetch user role
+      await RoleService.fetchAndSetUserRole(response.session!.user.id);
 
       return true;
     } on AuthException catch (error) {

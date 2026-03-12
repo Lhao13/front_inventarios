@@ -58,10 +58,10 @@ class _HomePage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.inventory,
             size: 64,
-            color: Colors.green,
+            color: Colors.blue.shade800,
           ),
           const SizedBox(height: 16),
           const Text(

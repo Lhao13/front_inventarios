@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:front_inventarios/main.dart';
+import 'package:front_inventarios/auth/role_service.dart';
 
 /// Página de Gestión de Activos.
 ///
@@ -117,11 +118,6 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     });
   }
 
-  /// Inserta un activo y su registro en una sola tabla hija (según categoría).
-  ///
-  /// Esto respeta la regla de negocio que tienes en triggers:
-  /// - Debe existir en solo una tabla hija.
-  /// - La tabla hija debe coincidir con la categoría del activo.
   Future<void> _createAssetWithDetail({
     required int assetId,
     required String numeroSerie,
@@ -132,39 +128,65 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     int? codigo,
     String? ip,
   }) async {
-    await supabase.from('activo').insert({
-      'id': assetId,
-      'numero_serie': numeroSerie,
-      'id_tipo_activo': tipoActivoId,
-      'categoria_activo': categoria,
-      'nombre': (nombre == null || nombre.trim().isEmpty) ? null : nombre.trim(),
-      'codigo': codigo,
-      'ip': (ip == null || ip.trim().isEmpty) ? null : ip.trim(),
-    });
+    final Map<String, dynamic> params = {
+      'p_id': assetId,
+      'p_numero_serie': numeroSerie,
+      'p_id_tipo_activo': tipoActivoId,
+      'p_categoria_activo': categoria,
+      'p_nombre': (nombre == null || nombre.trim().isEmpty) ? null : nombre.trim(),
+      'p_codigo': codigo,
+      'p_ip': (ip == null || ip.trim().isEmpty) ? null : ip.trim(),
+      'p_detail_id': detailId, // Identificador para la tabla hija
+    };
 
-    String childTable;
+    String rpcName;
     switch (categoria) {
       case 'PC':
-        childTable = 'info_pc';
+        rpcName = 'crear_activo_pc';
         break;
       case 'SOFTWARE':
-        childTable = 'info_software';
+        rpcName = 'crear_activo_software';
         break;
       case 'COMUNICACION':
-        childTable = 'info_equipo_comunicacion';
+        rpcName = 'crear_activo_equipo_comunicacion';
         break;
       default:
-        childTable = 'info_equipo_generico';
+        rpcName = 'crear_activo_equipo_generico';
     }
 
+    // Call the respective RPC function
+    await supabase.rpc(rpcName, params: params);
+  }
+
+  /// Función para eliminar un activo.
+  Future<void> _deleteAsset(int id) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar activo'),
+        content: const Text('¿Estás seguro de que deseas eliminar este activo de manera permanente?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
     try {
-      await supabase.from(childTable).insert({
-        'id': detailId,
-        'id_activo': assetId,
-      });
-    } catch (error) {
-      await supabase.from('activo').delete().eq('id', assetId);
-      rethrow;
+      await supabase.rpc('eliminar_activo', params: {'p_id_activo': id});
+      if (mounted) context.showSnackBar('Activo eliminado correctamente.');
+      _loadAssets();
+    } catch (e) {
+      if (mounted) context.showSnackBar('Error al eliminar el activo: $e', isError: true);
     }
   }
 
@@ -603,6 +625,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
               DataColumn(label: Text('IP')),
               DataColumn(label: Text('Fecha adquisición')),
               DataColumn(label: Text('Fecha entrega')),
+              DataColumn(label: Text('Acciones')),
             ],
             rows: _filteredAssets.map((asset) {
               return DataRow(
@@ -615,6 +638,19 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                   DataCell(Text(asset.ip)),
                   DataCell(Text(asset.fechaAdquisicion)),
                   DataCell(Text(asset.fechaEntrega)),
+                  DataCell(
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (RoleService.currentRole != UserRole.ayudante)
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteAsset(asset.id),
+                            tooltip: 'Eliminar',
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
               );
             }).toList(),

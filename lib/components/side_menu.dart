@@ -27,7 +27,7 @@ class SideMenu extends StatelessWidget {
           /// Encabezado del drawer
           const DrawerHeader(
             decoration: BoxDecoration(
-              color: Colors.green,
+              color: Colors.blue, // Main blue color for header
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
