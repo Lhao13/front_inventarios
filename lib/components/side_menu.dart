@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:front_inventarios/auth/auth_service.dart';
+import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/login_page.dart';
 
 /// Widget de menú lateral (Drawer) para la navegación principal de la aplicación.
@@ -42,12 +43,18 @@ class SideMenu extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 8),
-                Text(
-                  'Gestión de Inventarios',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Gestión de Inventarios',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                    _RoleBadge(),
+                  ],
                 ),
               ],
             ),
@@ -75,16 +82,47 @@ class SideMenu extends StatelessWidget {
             },
           ),
 
-          /// Elemento: Mantenimientos
-          ListTile(
-            leading: const Icon(Icons.build),
-            title: const Text('Mantenimientos'),
-            selected: currentPageIndex == 2,
-            onTap: () {
-              onPageSelected(2);
-              Navigator.pop(context); // Cerrar drawer
-            },
-          ),
+          /// Elemento: Mantenimientos (Hidden for ayudante/PRESTADO)
+          if (RoleService.currentRole != UserRole.ayudante)
+            ListTile(
+              leading: const Icon(Icons.build),
+              title: const Text('Mantenimientos'),
+              selected: currentPageIndex == 2,
+              onTap: () {
+                onPageSelected(2);
+                Navigator.pop(context); // Cerrar drawer
+              },
+            ),
+
+          /// Elementos para ADMIN
+          if (RoleService.currentRole == UserRole.admin) ...[
+            const Divider(),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Administración',
+                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Tablas Maestras'),
+              selected: currentPageIndex == 3,
+              onTap: () {
+                onPageSelected(3);
+                Navigator.pop(context); // Cerrar drawer
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.group),
+              title: const Text('Usuarios'),
+              selected: currentPageIndex == 4,
+              onTap: () {
+                onPageSelected(4);
+                Navigator.pop(context); // Cerrar drawer
+              },
+            ),
+          ],
 
           /// Separador visual
           const Divider(),
@@ -160,6 +198,50 @@ class SideMenu extends StatelessWidget {
           /// Padding inferior
           const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+}
+
+class _RoleBadge extends StatelessWidget {
+  const _RoleBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    String roleText = 'Desconocido';
+    Color badgeColor = Colors.grey;
+
+    switch (RoleService.currentRole) {
+      case UserRole.admin:
+        roleText = 'ADMIN';
+        badgeColor = Colors.orange;
+        break;
+      case UserRole.ti:
+        roleText = 'TI';
+        badgeColor = Colors.green;
+        break;
+      case UserRole.ayudante:
+        roleText = 'PRESTADO';
+        badgeColor = Colors.purple;
+        break;
+      case UserRole.unknown:
+        roleText = 'N/A';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: badgeColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        roleText,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

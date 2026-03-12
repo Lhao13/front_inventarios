@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
+import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
 
 /// Página de Gestión de Activos.
 ///
@@ -119,43 +120,123 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   }
 
   Future<void> _createAssetWithDetail({
-    required int assetId,
     required String numeroSerie,
-    required int tipoActivoId,
     required String categoria,
-    required int detailId,
+    required int tipoActivoId,
+    required int condicionActivoId,
+    required int custodioId,
+    required int ciudadActivoId,
+    required int sedeActivoId,
+    required int areaActivoId,
+    required int proveedorId,
+    required String fechaAdquisicion,
+    required String fechaEntrega,
+    required String coordenada,
     String? nombre,
     int? codigo,
     String? ip,
+    int? marcaId,
+    String? modelo,
+    String? observaciones,
+    // PC Specific
+    String? procesador,
+    String? ram,
+    String? almacenamiento,
+    String? cargadorCodigo,
+    int? numPuertos,
+    // Communication Specific
+    String? tipoExtension,
+    // Generic Specific
+    int? numConexiones,
+    String? varImpresoraColor,
+    String? varMonitorTipoConexion,
+    // Software Specific
+    String? proveedorSoftware,
+    String? fechaInicio,
+    String? fechaFin,
   }) async {
-    final Map<String, dynamic> params = {
-      'p_id': assetId,
-      'p_numero_serie': numeroSerie,
+    Map<String, dynamic> baseParams = {
       'p_id_tipo_activo': tipoActivoId,
-      'p_categoria_activo': categoria,
-      'p_nombre': (nombre == null || nombre.trim().isEmpty) ? null : nombre.trim(),
+      'p_id_condicion_activo': condicionActivoId,
+      'p_id_custodio': custodioId,
+      'p_id_area_activo': areaActivoId,
+      'p_id_provedor': proveedorId,
+      'p_nombre': nombre,
       'p_codigo': codigo,
-      'p_ip': (ip == null || ip.trim().isEmpty) ? null : ip.trim(),
-      'p_detail_id': detailId, // Identificador para la tabla hija
+      'p_observaciones': observaciones,
     };
 
     String rpcName;
+
     switch (categoria) {
       case 'PC':
         rpcName = 'crear_activo_pc';
-        break;
-      case 'SOFTWARE':
-        rpcName = 'crear_activo_software';
+        baseParams.addAll({
+          'p_numero_serie': numeroSerie,
+          'p_id_ciudad_activo': ciudadActivoId,
+          'p_id_sede_activo': sedeActivoId,
+          'p_fecha_adquisicion': fechaAdquisicion,
+          'p_fecha_entrega': fechaEntrega,
+          'p_coordenada': coordenada,
+          'p_ip': ip,
+          'p_id_marca': marcaId,
+          'p_modelo': modelo,
+          'p_procesador': procesador,
+          'p_ram': ram,
+          'p_almacenamiento': almacenamiento,
+          'p_cargador_codigo': cargadorCodigo,
+          'p_num_puertos': numPuertos,
+        });
         break;
       case 'COMUNICACION':
         rpcName = 'crear_activo_equipo_comunicacion';
+        baseParams.addAll({
+          'p_numero_serie': numeroSerie,
+          'p_id_ciudad_activo': ciudadActivoId,
+          'p_id_sede_activo': sedeActivoId,
+          'p_fecha_adquisicion': fechaAdquisicion,
+          'p_fecha_entrega': fechaEntrega,
+          'p_coordenada': coordenada,
+          'p_ip': ip,
+          'p_id_marca': marcaId,
+          'p_modelo': modelo,
+          'p_num_puertos': numPuertos,
+          'p_tipo_extension': tipoExtension,
+        });
+        break;
+      case 'GENERICO':
+        rpcName = 'crear_activo_equipo_generico';
+        baseParams.addAll({
+          'p_numero_serie': numeroSerie,
+          'p_id_ciudad_activo': ciudadActivoId,
+          'p_id_sede_activo': sedeActivoId,
+          'p_fecha_adquisicion': fechaAdquisicion,
+          'p_fecha_entrega': fechaEntrega,
+          'p_coordenada': coordenada,
+          'p_id_marca': marcaId,
+          'p_modelo': modelo,
+          'p_cargador_codigo': cargadorCodigo,
+          'p_num_conexiones': numConexiones,
+          'p_var_impresora_color': varImpresoraColor,
+          'p_var_monitor_tipo_conexion': varMonitorTipoConexion,
+        });
+        break;
+      case 'SOFTWARE':
+        rpcName = 'crear_activo_software';
+        baseParams.addAll({
+          'p_proveedor': proveedorSoftware,
+          'p_fecha_inicio': fechaInicio,
+          'p_fecha_fin': fechaFin,
+        });
         break;
       default:
-        rpcName = 'crear_activo_equipo_generico';
+        throw Exception('Categoría no reconocida');
     }
 
-    // Call the respective RPC function
-    await supabase.rpc(rpcName, params: params);
+    // Limpiar nulos para evitar problemas en RPC si los parámetros no se definen
+    baseParams.removeWhere((key, value) => value == null || (value is String && value.trim().isEmpty));
+
+    await supabase.rpc(rpcName, params: baseParams);
   }
 
   /// Función para eliminar un activo.
@@ -192,219 +273,114 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
 
   /// Muestra formulario para agregar activo.
   Future<void> _showAddAssetDialog() async {
-    final formKey = GlobalKey<FormState>();
-
-    final idController = TextEditingController();
-    final detailIdController = TextEditingController();
-    final serieController = TextEditingController();
-    final tipoActivoController = TextEditingController();
-    final nombreController = TextEditingController();
-    final codigoController = TextEditingController();
-    final ipController = TextEditingController();
-
-    String categoria = 'PC';
-    bool saving = false;
-
     await showDialog(
       context: context,
       builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Agregar un activo'),
-              content: SizedBox(
-                width: 420,
-                child: Form(
-                  key: formKey,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextFormField(
-                          controller: idController,
-                          keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'ID de activo *'),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Campo requerido';
-                            }
-                            if (int.tryParse(value.trim()) == null) {
-                              return 'Debe ser numérico';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: detailIdController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'ID registro detalle *',
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Campo requerido';
-                            }
-                            if (int.tryParse(value.trim()) == null) {
-                              return 'Debe ser numérico';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: serieController,
-                          decoration: const InputDecoration(
-                            labelText: 'Número de serie *',
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Campo requerido';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: tipoActivoController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'ID tipo activo *',
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Campo requerido';
-                            }
-                            if (int.tryParse(value.trim()) == null) {
-                              return 'Debe ser numérico';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          value: categoria,
-                          items: const [
-                            DropdownMenuItem(value: 'PC', child: Text('PC')),
-                            DropdownMenuItem(
-                              value: 'SOFTWARE',
-                              child: Text('SOFTWARE'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'COMUNICACION',
-                              child: Text('COMUNICACIÓN'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'GENERICO',
-                              child: Text('GENÉRICO'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setDialogState(() {
-                              categoria = value;
-                            });
-                          },
-                          decoration:
-                              const InputDecoration(labelText: 'Categoría *'),
-                        ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: nombreController,
-                          decoration:
-                              const InputDecoration(labelText: 'Nombre (opcional)'),
-                        ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: codigoController,
-                          keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'Código (opcional)'),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return null;
-                            }
-                            if (int.tryParse(value.trim()) == null) {
-                              return 'Debe ser numérico';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: ipController,
-                          decoration:
-                              const InputDecoration(labelText: 'IP (opcional)'),
-                        ),
-                      ],
-                    ),
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: 600,
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Agregar un activo', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(dialogContext),
+                    )
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: DynamicAssetForm(
+                    onSave: ({
+                      required String numeroSerie,
+                      required String categoria,
+                      required int tipoActivoId,
+                      required int condicionActivoId,
+                      required int custodioId,
+                      required int ciudadActivoId,
+                      required int sedeActivoId,
+                      required int areaActivoId,
+                      required int proveedorId,
+                      required String fechaAdquisicion,
+                      required String fechaEntrega,
+                      required String coordenada,
+                      String? nombre,
+                      int? codigo,
+                      String? ip,
+                      int? marcaId,
+                      String? modelo,
+                      String? observaciones,
+                      String? procesador,
+                      String? ram,
+                      String? almacenamiento,
+                      String? cargadorCodigo,
+                      int? numPuertos,
+                      String? tipoExtension,
+                      int? numConexiones,
+                      String? varImpresoraColor,
+                      String? varMonitorTipoConexion,
+                      String? proveedorSoftware,
+                      String? fechaInicio,
+                      String? fechaFin,
+                    }) async {
+                      try {
+                        await _createAssetWithDetail(
+                          numeroSerie: numeroSerie,
+                          categoria: categoria,
+                          tipoActivoId: tipoActivoId,
+                          condicionActivoId: condicionActivoId,
+                          custodioId: custodioId,
+                          ciudadActivoId: ciudadActivoId,
+                          sedeActivoId: sedeActivoId,
+                          areaActivoId: areaActivoId,
+                          proveedorId: proveedorId,
+                          fechaAdquisicion: fechaAdquisicion,
+                          fechaEntrega: fechaEntrega,
+                          coordenada: coordenada,
+                          nombre: nombre,
+                          codigo: codigo,
+                          ip: ip,
+                          marcaId: marcaId,
+                          modelo: modelo,
+                          observaciones: observaciones,
+                          procesador: procesador,
+                          ram: ram,
+                          almacenamiento: almacenamiento,
+                          cargadorCodigo: cargadorCodigo,
+                          numPuertos: numPuertos,
+                          tipoExtension: tipoExtension,
+                          numConexiones: numConexiones,
+                          varImpresoraColor: varImpresoraColor,
+                          varMonitorTipoConexion: varMonitorTipoConexion,
+                          proveedorSoftware: proveedorSoftware,
+                          fechaInicio: fechaInicio,
+                          fechaFin: fechaFin,
+                        );
+
+                        if (!mounted) return;
+                        Navigator.pop(dialogContext);
+                        context.showSnackBar('Activo creado correctamente.');
+                        _loadAssets();
+                      } catch (error) {
+                        if (!mounted) return;
+                        context.showSnackBar('Error al crear el activo: $error', isError: true);
+                      }
+                    },
                   ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: saving ? null : () => Navigator.pop(dialogContext),
-                  child: const Text('Cancelar'),
-                ),
-                ElevatedButton(
-                  onPressed: saving
-                      ? null
-                      : () async {
-                          if (!formKey.currentState!.validate()) {
-                            return;
-                          }
-
-                          setDialogState(() {
-                            saving = true;
-                          });
-
-                          try {
-                            await _createAssetWithDetail(
-                              assetId: int.parse(idController.text.trim()),
-                              detailId: int.parse(detailIdController.text.trim()),
-                              numeroSerie: serieController.text.trim(),
-                              tipoActivoId:
-                                  int.parse(tipoActivoController.text.trim()),
-                              categoria: categoria,
-                              nombre: nombreController.text,
-                              codigo: codigoController.text.trim().isEmpty
-                                  ? null
-                                  : int.parse(codigoController.text.trim()),
-                              ip: ipController.text,
-                            );
-
-                            if (!mounted) return;
-                            Navigator.pop(dialogContext);
-                            context.showSnackBar('Activo creado correctamente.');
-                            await _loadAssets();
-                          } catch (error) {
-                            if (!mounted) return;
-                            context.showSnackBar(
-                              'No fue posible crear el activo: $error',
-                              isError: true,
-                            );
-                            setDialogState(() {
-                              saving = false;
-                            });
-                          }
-                        },
-                  child: Text(saving ? 'Guardando...' : 'Guardar'),
-                ),
               ],
-            );
-          },
+            ),
+          ),
         );
       },
     );
-
-    idController.dispose();
-    detailIdController.dispose();
-    serieController.dispose();
-    tipoActivoController.dispose();
-    nombreController.dispose();
-    codigoController.dispose();
-    ipController.dispose();
   }
 
   @override
