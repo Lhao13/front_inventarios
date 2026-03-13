@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
+import 'package:front_inventarios/pages/assets/pc_assets_page.dart';
+import 'package:front_inventarios/pages/assets/software_assets_page.dart';
+import 'package:front_inventarios/pages/assets/communication_assets_page.dart';
+import 'package:front_inventarios/pages/assets/generic_assets_page.dart';
 
 /// Página de Gestión de Activos.
 ///
@@ -428,124 +432,171 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
           ),
           const SizedBox(height: 10),
 
+          /// Accesos directos a Vistas Específicas
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ActionChip(
+                avatar: const Icon(Icons.computer, size: 16),
+                label: const Text('PCs'),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PcAssetsPage())),
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.developer_board, size: 16),
+                label: const Text('Software'),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SoftwareAssetsPage())),
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.router, size: 16),
+                label: const Text('Comunicación'),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommsAssetsPage())),
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.devices_other, size: 16),
+                label: const Text('Genéricos'),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GenericAssetsPage())),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
           /// Barra de filtros por campos.
           Card(
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  SizedBox(
-                    width: 120,
-                    child: TextField(
-                      controller: _idFilterController,
-                      decoration: const InputDecoration(
-                        labelText: 'ID',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (_) => _applyFilters(),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 190,
-                    child: TextField(
-                      controller: _serieFilterController,
-                      decoration: const InputDecoration(
-                        labelText: 'Número de serie',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (_) => _applyFilters(),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 190,
-                    child: TextField(
-                      controller: _nombreFilterController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (_) => _applyFilters(),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 140,
-                    child: TextField(
-                      controller: _codigoFilterController,
-                      decoration: const InputDecoration(
-                        labelText: 'Código',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (_) => _applyFilters(),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 160,
-                    child: TextField(
-                      controller: _ipFilterController,
-                      decoration: const InputDecoration(
-                        labelText: 'IP',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (_) => _applyFilters(),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 180,
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedCategoryFilter,
-                      decoration: const InputDecoration(
-                        labelText: 'Categoría',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'TODAS', child: Text('TODAS')),
-                        DropdownMenuItem(value: 'PC', child: Text('PC')),
-                        DropdownMenuItem(
-                          value: 'SOFTWARE',
-                          child: Text('SOFTWARE'),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+            child: ExpansionTile(
+              title: const Text(
+                'Filtros de Búsqueda',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              leading: const Icon(Icons.filter_list),
+              childrenPadding: const EdgeInsets.all(16),
+              children: [
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 120,
+                      child: TextField(
+                        controller: _idFilterController,
+                        decoration: const InputDecoration(
+                          labelText: 'ID',
+                          border: OutlineInputBorder(),
+                          isDense: true,
                         ),
-                        DropdownMenuItem(
-                          value: 'COMUNICACION',
-                          child: Text('COMUNICACIÓN'),
+                        onChanged: (_) => _applyFilters(),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 160,
+                      child: TextField(
+                        controller: _serieFilterController,
+                        decoration: const InputDecoration(
+                          labelText: 'Número de serie',
+                          border: OutlineInputBorder(),
+                          isDense: true,
                         ),
-                        DropdownMenuItem(
-                          value: 'GENERICO',
-                          child: Text('GENÉRICO'),
+                        onChanged: (_) => _applyFilters(),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 160,
+                      child: TextField(
+                        controller: _nombreFilterController,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre',
+                          border: OutlineInputBorder(),
+                          isDense: true,
                         ),
-                      ],
-                      onChanged: (value) {
-                        if (value == null) return;
+                        onChanged: (_) => _applyFilters(),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 120,
+                      child: TextField(
+                        controller: _codigoFilterController,
+                        decoration: const InputDecoration(
+                          labelText: 'Código',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onChanged: (_) => _applyFilters(),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 140,
+                      child: TextField(
+                        controller: _ipFilterController,
+                        decoration: const InputDecoration(
+                          labelText: 'IP',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onChanged: (_) => _applyFilters(),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 180,
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedCategoryFilter,
+                        decoration: const InputDecoration(
+                          labelText: 'Categoría',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'TODAS', child: Text('TODAS')),
+                          DropdownMenuItem(value: 'PC', child: Text('PC')),
+                          DropdownMenuItem(
+                            value: 'SOFTWARE',
+                            child: Text('SOFTWARE'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'COMUNICACION',
+                            child: Text('COMUNICACIÓN'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'GENERICO',
+                            child: Text('GENÉRICO'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() {
+                            _selectedCategoryFilter = value;
+                          });
+                          _applyFilters();
+                        },
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        _idFilterController.clear();
+                        _serieFilterController.clear();
+                        _nombreFilterController.clear();
+                        _codigoFilterController.clear();
+                        _ipFilterController.clear();
                         setState(() {
-                          _selectedCategoryFilter = value;
+                          _selectedCategoryFilter = 'TODAS';
                         });
                         _applyFilters();
                       },
+                      icon: const Icon(Icons.clear_all),
+                      label: const Text('Limpiar'),
                     ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      _idFilterController.clear();
-                      _serieFilterController.clear();
-                      _nombreFilterController.clear();
-                      _codigoFilterController.clear();
-                      _ipFilterController.clear();
-                      setState(() {
-                        _selectedCategoryFilter = 'TODAS';
-                      });
-                      _applyFilters();
-                    },
-                    icon: const Icon(Icons.clear_all),
-                    label: const Text('Limpiar filtros'),
-                  ),
-                  IconButton(
-                    tooltip: 'Recargar',
-                    onPressed: _loadAssets,
-                    icon: const Icon(Icons.refresh),
-                  ),
-                ],
-              ),
+                    IconButton(
+                      tooltip: 'Recargar',
+                      onPressed: _loadAssets,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 10),

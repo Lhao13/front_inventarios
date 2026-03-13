@@ -26,7 +26,7 @@ class RoleService {
           case 'TI':
             _currentRole = UserRole.ti;
             break;
-          case 'PRESTADO':
+          case 'PRESTAMO':
             _currentRole = UserRole.ayudante;
             break;
           default:

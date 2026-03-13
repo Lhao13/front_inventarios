@@ -132,10 +132,10 @@ class SideMenu extends StatelessWidget {
 
           /// Elemento: Cerrar Sesión (al fondo)
           ListTile(
-            leading: const Icon(Icons.logout, color: Colors.white),
+            leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text(
               'Cerrar Sesión',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
             ),
             onTap: () async {
               // Guardar referencias al Navigator antes de operaciones asincrónicas
@@ -221,7 +221,7 @@ class _RoleBadge extends StatelessWidget {
         badgeColor = Colors.green;
         break;
       case UserRole.ayudante:
-        roleText = 'PRESTADO';
+        roleText = 'PRESTAMO';
         badgeColor = Colors.purple;
         break;
       case UserRole.unknown:

@@ -14,19 +14,33 @@ void main() {
   group('Supabase RPC Integration Tests', () {
 
     test('Auth & Role Check', () async {
-      final res = await supabase.auth.signInWithPassword(
+      // Test Leandro
+      var res = await supabase.auth.signInWithPassword(
         email: 'leandrocoral.m@gmail.com',
         password: '123456',
       );
       expect(res.session, isNotNull);
       
-      final roleRes = await supabase
+      var dbRes = await supabase
           .from('usuario_rol')
-          .select('rol(nombre)')
-          .eq('user_id', res.session!.user.id)
-          .maybeSingle();
+          .select('*, rol(*)')
+          .eq('user_id', res.session!.user.id);
+      print('Leandro role details: $dbRes');
+      
+      await supabase.auth.signOut();
 
-      print('Role found for user: $roleRes');
+      // Test VeroFI
+      res = await supabase.auth.signInWithPassword(
+        email: 'verofi78111169@flosek.com',
+        password: '123456',
+      );
+      expect(res.session, isNotNull);
+
+      dbRes = await supabase
+          .from('usuario_rol')
+          .select('*, rol(*)')
+          .eq('user_id', res.session!.user.id);
+      print('VeroFI role details: $dbRes');
     });
 
     test('Crear Activo PC and Delete Activo', () async {
