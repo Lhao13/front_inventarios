@@ -51,6 +51,30 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     }
   }
 
+  Future<void> _changeUserRole(String userId, int newRoleId, String newRoleName) async {
+    try {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      await supabase.from('usuario_rol').update({'rol_id': newRoleId}).eq('user_id', userId);
+
+      if (mounted) {
+        Navigator.pop(context); // close loader
+        context.showSnackBar('Rol actualizado a $newRoleName');
+        _loadUsers();
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // close loader
+        context.showSnackBar('Error al actualizar rol: $e', isError: true);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -95,6 +119,8 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       return const Center(child: Text('No hay usuarios registrados.'));
     }
 
+    final currentUserId = supabase.auth.currentUser?.id;
+
     return Card(
       child: ListView.separated(
         itemCount: _users.length,
@@ -102,7 +128,13 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         itemBuilder: (context, index) {
           final user = _users[index];
           final userId = user['user_id']?.toString() ?? 'ID Desconocido';
-          final rolStr = user['rol']?['nombre']?.toString() ?? 'Desconocido';
+          final rolStr = user['rol']?['nombre']?.toString().toUpperCase() ?? 'DESCONOCIDO';
+          
+          int currentRoleId = 3; // Default PRESTAMO
+          if (rolStr == 'ADMIN') currentRoleId = 1;
+          if (rolStr == 'TI') currentRoleId = 2;
+
+          final isCurrentUser = userId == currentUserId;
 
           return ListTile(
             leading: CircleAvatar(
@@ -110,14 +142,29 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               child: const Icon(Icons.person, color: Colors.white),
             ),
             title: Text('Usuario ID: $userId'),
-            subtitle: Text('Rol: $rolStr'),
-            trailing: Chip(
-              label: Text(
-                rolStr,
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              backgroundColor: _getRoleColor(rolStr),
-            ),
+            subtitle: Text(isCurrentUser ? 'Este es tu usuario' : 'Rol: $rolStr'),
+            trailing: isCurrentUser
+                ? Chip(
+                    label: Text(rolStr, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    backgroundColor: _getRoleColor(rolStr),
+                  )
+                : DropdownButton<int>(
+                    value: currentRoleId,
+                    underline: Container(),
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text('ADMIN', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold))),
+                      DropdownMenuItem(value: 2, child: Text('TI', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
+                      DropdownMenuItem(value: 3, child: Text('PRESTAMO', style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold))),
+                    ],
+                    onChanged: (int? newValue) {
+                      if (newValue != null && newValue != currentRoleId) {
+                        String newName = 'PRESTAMO';
+                        if (newValue == 1) newName = 'ADMIN';
+                        if (newValue == 2) newName = 'TI';
+                        _changeUserRole(userId, newValue, newName);
+                      }
+                    },
+                  ),
           );
         },
       ),
@@ -130,7 +177,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         return Colors.orange;
       case 'TI':
         return Colors.green;
-      case 'PRESTADO':
+      case 'PRESTAMO':
         return Colors.purple;
       default:
         return Colors.grey;

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:front_inventarios/main.dart';
 
 class DynamicAssetForm extends StatefulWidget {
+  final String? initialCategory;
   final Future<void> Function({
     required String numeroSerie,
     required String categoria,
@@ -38,7 +40,7 @@ class DynamicAssetForm extends StatefulWidget {
     String? fechaFin,
   }) onSave;
 
-  const DynamicAssetForm({super.key, required this.onSave});
+  const DynamicAssetForm({super.key, required this.onSave, this.initialCategory});
 
   @override
   State<DynamicAssetForm> createState() => _DynamicAssetFormState();
@@ -47,22 +49,36 @@ class DynamicAssetForm extends StatefulWidget {
 class _DynamicAssetFormState extends State<DynamicAssetForm> {
   final _formKey = GlobalKey<FormState>();
 
+  bool _isLoadingMasterData = true;
+
+  // Master Lists
+  List<Map<String, dynamic>> _tiposActivo = [];
+  List<Map<String, dynamic>> _condicionesActivo = [];
+  List<Map<String, dynamic>> _custodios = [];
+  List<Map<String, dynamic>> _ciudades = [];
+  List<Map<String, dynamic>> _sedes = [];
+  List<Map<String, dynamic>> _areas = [];
+  List<Map<String, dynamic>> _proveedores = [];
+  List<Map<String, dynamic>> _marcas = [];
+
+  // Dropdown States
+  int? _tipoActivoId;
+  int? _condicionActivoId;
+  int? _custodioId;
+  int? _ciudadActivoId;
+  int? _sedeActivoId;
+  int? _areaActivoId;
+  int? _proveedorId;
+  int? _marcaId;
+
   // Common Fields
   final _numeroSerieCtrl = TextEditingController();
   final _nombreCtrl = TextEditingController();
   final _codigoCtrl = TextEditingController();
-  final _tipoActivoIdCtrl = TextEditingController();
-  final _condicionActivoIdCtrl = TextEditingController();
-  final _custodioIdCtrl = TextEditingController();
-  final _ciudadActivoIdCtrl = TextEditingController();
-  final _sedeActivoIdCtrl = TextEditingController();
-  final _areaActivoIdCtrl = TextEditingController();
-  final _proveedorIdCtrl = TextEditingController();
   final _fechaAdquisicionCtrl = TextEditingController();
   final _fechaEntregaCtrl = TextEditingController();
   final _coordenadaCtrl = TextEditingController();
   final _ipCtrl = TextEditingController();
-  final _marcaIdCtrl = TextEditingController();
   final _modeloCtrl = TextEditingController();
   final _observacionesCtrl = TextEditingController();
 
@@ -86,26 +102,61 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
   final _fechaInicioCtrl = TextEditingController();
   final _fechaFinCtrl = TextEditingController();
 
-  String _categoria = 'PC';
+  late String _categoria;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _categoria = widget.initialCategory ?? 'PC';
+    _loadMasterData();
+  }
+
+  Future<void> _loadMasterData() async {
+    try {
+      final futures = await Future.wait([
+        supabase.from('tipo_activo').select('id, tipo').order('tipo'),
+        supabase.from('condicion_activo').select('id, condicion').order('condicion'),
+        supabase.from('custodio').select('id, nombre_completo').order('nombre_completo'),
+        supabase.from('ciudad_activo').select('id, ciudad').order('ciudad'),
+        supabase.from('sede_activo').select('id, sede').order('sede'),
+        supabase.from('area_activo').select('id, area').order('area'),
+        supabase.from('proveedor').select('id, nombre').order('nombre'),
+        supabase.from('marca').select('id, marca_proveedor').order('marca_proveedor'),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _tiposActivo = List<Map<String, dynamic>>.from(futures[0]);
+          _condicionesActivo = List<Map<String, dynamic>>.from(futures[1]);
+          _custodios = List<Map<String, dynamic>>.from(futures[2]);
+          _ciudades = List<Map<String, dynamic>>.from(futures[3]);
+          _sedes = List<Map<String, dynamic>>.from(futures[4]);
+          _areas = List<Map<String, dynamic>>.from(futures[5]);
+          _proveedores = List<Map<String, dynamic>>.from(futures[6]);
+          _marcas = List<Map<String, dynamic>>.from(futures[7]);
+          _isLoadingMasterData = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar datos maestros: $e'), backgroundColor: Colors.red),
+        );
+        setState(() => _isLoadingMasterData = false);
+      }
+    }
+  }
 
   @override
   void dispose() {
     _numeroSerieCtrl.dispose();
     _nombreCtrl.dispose();
     _codigoCtrl.dispose();
-    _tipoActivoIdCtrl.dispose();
-    _condicionActivoIdCtrl.dispose();
-    _custodioIdCtrl.dispose();
-    _ciudadActivoIdCtrl.dispose();
-    _sedeActivoIdCtrl.dispose();
-    _areaActivoIdCtrl.dispose();
-    _proveedorIdCtrl.dispose();
     _fechaAdquisicionCtrl.dispose();
     _fechaEntregaCtrl.dispose();
     _coordenadaCtrl.dispose();
     _ipCtrl.dispose();
-    _marcaIdCtrl.dispose();
     _modeloCtrl.dispose();
     _observacionesCtrl.dispose();
     
@@ -136,6 +187,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
           isDense: true,
+          border: const OutlineInputBorder(),
         ),
         validator: required
             ? (value) {
@@ -153,30 +205,64 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     );
   }
 
+  Widget _buildDropdown(
+    String label, 
+    int? value, 
+    List<Map<String, dynamic>> items, 
+    String displayKey, 
+    ValueChanged<int?> onChanged, 
+    {bool required = false}
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: DropdownButtonFormField<int>(
+        value: value,
+        decoration: InputDecoration(
+          labelText: required ? '$label *' : label,
+          isDense: true,
+          border: const OutlineInputBorder(),
+        ),
+        items: items.map((item) {
+          return DropdownMenuItem<int>(
+            value: item['id'] as int,
+            child: Text(item[displayKey]?.toString() ?? 'N/A'),
+          );
+        }).toList(),
+        onChanged: onChanged,
+        validator: required ? (val) => val == null ? 'Seleccione una opción' : null : null,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingMasterData) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return SingleChildScrollView(
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DropdownButtonFormField<String>(
-              value: _categoria,
-              items: const [
-                DropdownMenuItem(value: 'PC', child: Text('PC')),
-                DropdownMenuItem(value: 'SOFTWARE', child: Text('SOFTWARE')),
-                DropdownMenuItem(value: 'COMUNICACION', child: Text('COMUNICACIÓN')),
-                DropdownMenuItem(value: 'GENERICO', child: Text('GENÉRICO')),
-              ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _categoria = value);
-                }
-              },
-              decoration: const InputDecoration(labelText: 'Categoría de Activo *', isDense: true),
-            ),
-            const SizedBox(height: 16),
+            if (widget.initialCategory == null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: DropdownButtonFormField<String>(
+                  value: _categoria,
+                  items: const [
+                    DropdownMenuItem(value: 'PC', child: Text('PC')),
+                    DropdownMenuItem(value: 'SOFTWARE', child: Text('SOFTWARE')),
+                    DropdownMenuItem(value: 'COMUNICACION', child: Text('COMUNICACIÓN')),
+                    DropdownMenuItem(value: 'GENERICO', child: Text('GENÉRICO')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => _categoria = value);
+                  },
+                  decoration: const InputDecoration(labelText: 'Categoría de Activo *', isDense: true, border: OutlineInputBorder()),
+                ),
+              ),
             
             /// Common Requirements Section
             const Text('Datos Generales', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -184,17 +270,18 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
             if (_categoria != 'SOFTWARE') _buildTextField(_numeroSerieCtrl, 'Número de Serie', required: true),
             _buildTextField(_nombreCtrl, 'Nombre', required: true),
             _buildTextField(_codigoCtrl, 'Código', isNumber: true, required: true),
-            _buildTextField(_tipoActivoIdCtrl, 'ID Tipo Activo', isNumber: true, required: true),
-            _buildTextField(_condicionActivoIdCtrl, 'ID Condición Activo', isNumber: true, required: true),
-            _buildTextField(_custodioIdCtrl, 'ID Custodio', isNumber: true, required: true),
-            _buildTextField(_areaActivoIdCtrl, 'ID Área Activo', isNumber: true, required: true),
-            _buildTextField(_proveedorIdCtrl, 'ID Proveedor', isNumber: true, required: true),
+            
+            _buildDropdown('Tipo de Activo', _tipoActivoId, _tiposActivo, 'tipo', (v) => setState(() => _tipoActivoId = v), required: true),
+            _buildDropdown('Condición', _condicionActivoId, _condicionesActivo, 'condicion', (v) => setState(() => _condicionActivoId = v), required: true),
+            _buildDropdown('Custodio', _custodioId, _custodios, 'nombre_completo', (v) => setState(() => _custodioId = v), required: true),
+            _buildDropdown('Área', _areaActivoId, _areas, 'area', (v) => setState(() => _areaActivoId = v), required: true),
+            _buildDropdown('Proveedor General', _proveedorId, _proveedores, 'nombre', (v) => setState(() => _proveedorId = v), required: true),
             
             if (_categoria != 'SOFTWARE') ...[
-              _buildTextField(_ciudadActivoIdCtrl, 'ID Ciudad Activo', isNumber: true, required: true),
-              _buildTextField(_sedeActivoIdCtrl, 'ID Sede Activo', isNumber: true, required: true),
+              _buildDropdown('Ciudad', _ciudadActivoId, _ciudades, 'ciudad', (v) => setState(() => _ciudadActivoId = v), required: true),
+              _buildDropdown('Sede', _sedeActivoId, _sedes, 'sede', (v) => setState(() => _sedeActivoId = v), required: true),
               _buildTextField(_ipCtrl, 'IP (opcional)'),
-              _buildTextField(_marcaIdCtrl, 'ID Marca', isNumber: true, required: true),
+              _buildDropdown('Marca', _marcaId, _marcas, 'marca_proveedor', (v) => setState(() => _marcaId = v), required: true),
               _buildTextField(_modeloCtrl, 'Modelo', required: true),
               _buildTextField(_fechaAdquisicionCtrl, 'Fecha Adquisición (YYYY-MM-DD)', required: true),
               _buildTextField(_fechaEntregaCtrl, 'Fecha Entrega (YYYY-MM-DD)', required: true),
@@ -245,20 +332,20 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                         await widget.onSave(
                           numeroSerie: _numeroSerieCtrl.text,
                           categoria: _categoria,
-                          tipoActivoId: int.parse(_tipoActivoIdCtrl.text),
-                          condicionActivoId: int.parse(_condicionActivoIdCtrl.text),
-                          custodioId: int.parse(_custodioIdCtrl.text),
-                          ciudadActivoId: int.tryParse(_ciudadActivoIdCtrl.text) ?? 0,
-                          sedeActivoId: int.tryParse(_sedeActivoIdCtrl.text) ?? 0,
-                          areaActivoId: int.parse(_areaActivoIdCtrl.text),
-                          proveedorId: int.parse(_proveedorIdCtrl.text),
+                          tipoActivoId: _tipoActivoId ?? 0,
+                          condicionActivoId: _condicionActivoId ?? 0,
+                          custodioId: _custodioId ?? 0,
+                          ciudadActivoId: _ciudadActivoId ?? 0,
+                          sedeActivoId: _sedeActivoId ?? 0,
+                          areaActivoId: _areaActivoId ?? 0,
+                          proveedorId: _proveedorId ?? 0,
                           fechaAdquisicion: _fechaAdquisicionCtrl.text,
                           fechaEntrega: _fechaEntregaCtrl.text,
                           coordenada: _coordenadaCtrl.text,
                           nombre: _nombreCtrl.text,
                           codigo: int.tryParse(_codigoCtrl.text),
                           ip: _ipCtrl.text,
-                          marcaId: int.tryParse(_marcaIdCtrl.text),
+                          marcaId: _marcaId ?? 0,
                           modelo: _modeloCtrl.text,
                           observaciones: _observacionesCtrl.text,
                           procesador: _procesadorCtrl.text,

@@ -7,11 +7,6 @@ import 'package:front_inventarios/pages/assets/software_assets_page.dart';
 import 'package:front_inventarios/pages/assets/communication_assets_page.dart';
 import 'package:front_inventarios/pages/assets/generic_assets_page.dart';
 
-/// Página de Gestión de Activos.
-///
-/// Esta vista tiene dos bloques principales:
-/// 1) Menú móvil superior con la opción "Agregar un activo".
-/// 2) Tabla de activos con filtros por campos.
 class AssetManagementPage extends StatefulWidget {
   const AssetManagementPage({super.key});
 
@@ -22,100 +17,103 @@ class AssetManagementPage extends StatefulWidget {
 class _AssetManagementPageState extends State<AssetManagementPage> {
   bool _isLoading = true;
   String? _errorMessage;
+  bool _isTableView = true;
 
-  List<_AssetRow> _allAssets = [];
-  List<_AssetRow> _filteredAssets = [];
+  List<Map<String, dynamic>> _allAssets = [];
+  List<Map<String, dynamic>> _filteredAssets = [];
 
-  final TextEditingController _idFilterController = TextEditingController();
+  // Filter controllers
   final TextEditingController _serieFilterController = TextEditingController();
-  final TextEditingController _nombreFilterController =
-      TextEditingController();
-  final TextEditingController _codigoFilterController =
-      TextEditingController();
-  final TextEditingController _ipFilterController = TextEditingController();
+  final TextEditingController _nombreFilterController = TextEditingController();
 
+  // Dropdown States for filters
   String _selectedCategoryFilter = 'TODAS';
+  int? _selectedTipoActivo;
+  int? _selectedCondicion;
+  int? _selectedSede;
+  int? _selectedArea;
+
+  // Master Data Dropdowns
+  List<Map<String, dynamic>> _tiposActivo = [];
+  List<Map<String, dynamic>> _condiciones = [];
+  List<Map<String, dynamic>> _sedes = [];
+  List<Map<String, dynamic>> _areas = [];
 
   @override
   void initState() {
     super.initState();
-    _loadAssets();
+    _loadInitialData();
   }
 
   @override
   void dispose() {
-    _idFilterController.dispose();
     _serieFilterController.dispose();
     _nombreFilterController.dispose();
-    _codigoFilterController.dispose();
-    _ipFilterController.dispose();
     super.dispose();
   }
 
-  /// Carga activos desde Supabase.
-  Future<void> _loadAssets() async {
+  Future<void> _loadInitialData() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final response = await supabase
-          .from('activo')
-          .select(
-            'id, numero_serie, nombre, codigo, ip, categoria_activo, fecha_adquisicion, fecha_entrega',
-          )
-          .order('id');
-
-      final parsed = (response as List)
-          .map((row) => _AssetRow.fromMap(row as Map<String, dynamic>))
-          .toList();
+      // 1. Load lookups
+      final responses = await Future.wait([
+        supabase.from('tipo_activo').select('id, tipo').order('tipo'),
+        supabase.from('condicion_activo').select('id, condicion').order('condicion'),
+        supabase.from('sede_activo').select('id, sede').order('sede'),
+        supabase.from('area_activo').select('id, area').order('area'),
+        // 2. Load Assets with joined tables
+        supabase.from('activo').select('''
+          *,
+          tipo_activo(tipo),
+          condicion_activo(condicion),
+          ciudad_activo(ciudad),
+          sede_activo(sede),
+          area_activo(area),
+          proveedor(nombre),
+          custodio(nombre_completo)
+        ''').order('id')
+      ]);
 
       if (!mounted) return;
       setState(() {
-        _allAssets = parsed;
-        _filteredAssets = parsed;
+        _tiposActivo = List<Map<String, dynamic>>.from(responses[0] as List);
+        _condiciones = List<Map<String, dynamic>>.from(responses[1] as List);
+        _sedes = List<Map<String, dynamic>>.from(responses[2] as List);
+        _areas = List<Map<String, dynamic>>.from(responses[3] as List);
+        
+        _allAssets = List<Map<String, dynamic>>.from(responses[4] as List);
+        _filteredAssets = _allAssets;
+        _isLoading = false;
       });
+      
       _applyFilters();
-    } catch (error) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'No se pudieron cargar los activos: $error';
-      });
-    } finally {
-      if (!mounted) return;
-      setState(() {
+        _errorMessage = 'No se pudieron cargar los datos: $e';
         _isLoading = false;
       });
     }
   }
 
-  /// Aplica filtros sobre la lista en memoria.
   void _applyFilters() {
-    final idText = _idFilterController.text.trim().toLowerCase();
     final serieText = _serieFilterController.text.trim().toLowerCase();
     final nombreText = _nombreFilterController.text.trim().toLowerCase();
-    final codigoText = _codigoFilterController.text.trim().toLowerCase();
-    final ipText = _ipFilterController.text.trim().toLowerCase();
 
     final result = _allAssets.where((asset) {
-      final matchesId = idText.isEmpty || asset.id.toString().contains(idText);
-      final matchesSerie =
-          serieText.isEmpty || asset.numeroSerie.toLowerCase().contains(serieText);
-      final matchesNombre =
-          nombreText.isEmpty || asset.nombre.toLowerCase().contains(nombreText);
-      final matchesCodigo =
-          codigoText.isEmpty || asset.codigo.toLowerCase().contains(codigoText);
-      final matchesIp = ipText.isEmpty || asset.ip.toLowerCase().contains(ipText);
-      final matchesCategory = _selectedCategoryFilter == 'TODAS' ||
-          asset.categoria == _selectedCategoryFilter;
+      final matchesSerie = serieText.isEmpty || (asset['numero_serie'] ?? '').toString().toLowerCase().contains(serieText);
+      final matchesNombre = nombreText.isEmpty || (asset['nombre'] ?? '').toString().toLowerCase().contains(nombreText);
+      final matchesCategory = _selectedCategoryFilter == 'TODAS' || asset['categoria_activo'] == _selectedCategoryFilter;
+      final matchesTipo = _selectedTipoActivo == null || asset['id_tipo_activo'] == _selectedTipoActivo;
+      final matchesCondicion = _selectedCondicion == null || asset['id_condicion_activo'] == _selectedCondicion;
+      final matchesSede = _selectedSede == null || asset['id_sede_activo'] == _selectedSede;
+      final matchesArea = _selectedArea == null || asset['id_area_activo'] == _selectedArea;
 
-      return matchesId &&
-          matchesSerie &&
-          matchesNombre &&
-          matchesCodigo &&
-          matchesIp &&
-          matchesCategory;
+      return matchesSerie && matchesNombre && matchesCategory && matchesTipo && matchesCondicion && matchesSede && matchesArea;
     }).toList();
 
     setState(() {
@@ -237,13 +235,10 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
         throw Exception('Categoría no reconocida');
     }
 
-    // Limpiar nulos para evitar problemas en RPC si los parámetros no se definen
     baseParams.removeWhere((key, value) => value == null || (value is String && value.trim().isEmpty));
-
     await supabase.rpc(rpcName, params: baseParams);
   }
 
-  /// Función para eliminar un activo.
   Future<void> _deleteAsset(int id) async {
     final confirmar = await showDialog<bool>(
       context: context,
@@ -251,10 +246,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
         title: const Text('Eliminar activo'),
         content: const Text('¿Estás seguro de que deseas eliminar este activo de manera permanente?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
@@ -269,13 +261,12 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     try {
       await supabase.rpc('eliminar_activo', params: {'p_id_activo': id});
       if (mounted) context.showSnackBar('Activo eliminado correctamente.');
-      _loadAssets();
+      _loadInitialData();
     } catch (e) {
       if (mounted) context.showSnackBar('Error al eliminar el activo: $e', isError: true);
     }
   }
 
-  /// Muestra formulario para agregar activo.
   Future<void> _showAddAssetDialog() async {
     await showDialog(
       context: context,
@@ -293,10 +284,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Agregar un activo', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(dialogContext),
-                    )
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(dialogContext))
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -371,7 +359,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                         if (!mounted) return;
                         Navigator.pop(dialogContext);
                         context.showSnackBar('Activo creado correctamente.');
-                        _loadAssets();
+                        _loadInitialData(); // reload entire joined list
                       } catch (error) {
                         if (!mounted) return;
                         context.showSnackBar('Error al crear el activo: $error', isError: true);
@@ -387,6 +375,27 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     );
   }
 
+  Widget _buildDropdownFilter(String label, int? value, List<Map<String, dynamic>> items, String displayKey, ValueChanged<int?> onChanged) {
+    return SizedBox(
+      width: 160,
+      child: DropdownButtonFormField<int>(
+        value: value,
+        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
+        isExpanded: true,
+        items: items.map((item) {
+          return DropdownMenuItem<int>(
+            value: item['id'] as int,
+            child: Text(item[displayKey]?.toString() ?? '', overflow: TextOverflow.ellipsis),
+          );
+        }).toList(),
+        onChanged: (val) {
+          onChanged(val);
+          _applyFilters();
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -394,206 +403,80 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// Menú superior móvil con acción de alta.
-          Row(
+          const Row(
             children: [
-              const Expanded(
-                child: Text(
-                  'Gestión de Activos',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-              ),
-              PopupMenuButton<String>(
-                tooltip: 'Acciones de activos',
-                onSelected: (value) {
-                  if (value == 'add_asset') {
-                    _showAddAssetDialog();
-                  }
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem<String>(
-                    value: 'add_asset',
-                    child: Row(
-                      children: [
-                        Icon(Icons.add_box_outlined),
-                        SizedBox(width: 8),
-                        Text('Agregar un activo'),
-                      ],
-                    ),
-                  ),
-                ],
-                child: OutlinedButton.icon(
-                  onPressed: null,
-                  icon: const Icon(Icons.menu),
-                  label: const Text('Menú móvil'),
-                ),
+              Expanded(
+                child: Text('Gestión de Activos', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
           const SizedBox(height: 10),
 
-          /// Accesos directos a Vistas Específicas
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 8, runSpacing: 8,
             children: [
-              ActionChip(
-                avatar: const Icon(Icons.computer, size: 16),
-                label: const Text('PCs'),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PcAssetsPage())),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.developer_board, size: 16),
-                label: const Text('Software'),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SoftwareAssetsPage())),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.router, size: 16),
-                label: const Text('Comunicación'),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommsAssetsPage())),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.devices_other, size: 16),
-                label: const Text('Genéricos'),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GenericAssetsPage())),
-              ),
+              ActionChip(avatar: const Icon(Icons.computer, size: 16), label: const Text('PCs'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PcAssetsPage()))),
+              ActionChip(avatar: const Icon(Icons.developer_board, size: 16), label: const Text('Software'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SoftwareAssetsPage()))),
+              ActionChip(avatar: const Icon(Icons.router, size: 16), label: const Text('Comunicación'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommsAssetsPage()))),
+              ActionChip(avatar: const Icon(Icons.devices_other, size: 16), label: const Text('Genéricos'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GenericAssetsPage()))),
             ],
           ),
           const SizedBox(height: 10),
 
-          /// Barra de filtros por campos.
           Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-              side: BorderSide(color: Colors.grey.shade300),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.grey.shade300)),
             child: ExpansionTile(
-              title: const Text(
-                'Filtros de Búsqueda',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              title: const Text('Filtros de Búsqueda', style: TextStyle(fontWeight: FontWeight.bold)),
               leading: const Icon(Icons.filter_list),
               childrenPadding: const EdgeInsets.all(16),
               children: [
                 Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
+                    SizedBox(width: 140, child: TextField(controller: _serieFilterController, decoration: const InputDecoration(labelText: 'Número de serie', border: OutlineInputBorder(), isDense: true), onChanged: (_) => _applyFilters())),
+                    SizedBox(width: 140, child: TextField(controller: _nombreFilterController, decoration: const InputDecoration(labelText: 'Nombre', border: OutlineInputBorder(), isDense: true), onChanged: (_) => _applyFilters())),
+                    
                     SizedBox(
-                      width: 120,
-                      child: TextField(
-                        controller: _idFilterController,
-                        decoration: const InputDecoration(
-                          labelText: 'ID',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        onChanged: (_) => _applyFilters(),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 160,
-                      child: TextField(
-                        controller: _serieFilterController,
-                        decoration: const InputDecoration(
-                          labelText: 'Número de serie',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        onChanged: (_) => _applyFilters(),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 160,
-                      child: TextField(
-                        controller: _nombreFilterController,
-                        decoration: const InputDecoration(
-                          labelText: 'Nombre',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        onChanged: (_) => _applyFilters(),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 120,
-                      child: TextField(
-                        controller: _codigoFilterController,
-                        decoration: const InputDecoration(
-                          labelText: 'Código',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        onChanged: (_) => _applyFilters(),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 140,
-                      child: TextField(
-                        controller: _ipFilterController,
-                        decoration: const InputDecoration(
-                          labelText: 'IP',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        onChanged: (_) => _applyFilters(),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 180,
+                      width: 150,
                       child: DropdownButtonFormField<String>(
                         value: _selectedCategoryFilter,
-                        decoration: const InputDecoration(
-                          labelText: 'Categoría',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
+                        decoration: const InputDecoration(labelText: 'Categoría', border: OutlineInputBorder(), isDense: true),
                         items: const [
                           DropdownMenuItem(value: 'TODAS', child: Text('TODAS')),
                           DropdownMenuItem(value: 'PC', child: Text('PC')),
-                          DropdownMenuItem(
-                            value: 'SOFTWARE',
-                            child: Text('SOFTWARE'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'COMUNICACION',
-                            child: Text('COMUNICACIÓN'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'GENERICO',
-                            child: Text('GENÉRICO'),
-                          ),
+                          DropdownMenuItem(value: 'SOFTWARE', child: Text('SOFTWARE')),
+                          DropdownMenuItem(value: 'COMUNICACION', child: Text('COMUNICACIÓN')),
+                          DropdownMenuItem(value: 'GENERICO', child: Text('GENÉRICO')),
                         ],
                         onChanged: (value) {
                           if (value == null) return;
-                          setState(() {
-                            _selectedCategoryFilter = value;
-                          });
+                          setState(() => _selectedCategoryFilter = value);
                           _applyFilters();
                         },
                       ),
                     ),
+                    _buildDropdownFilter('Tipo Activo', _selectedTipoActivo, _tiposActivo, 'tipo', (v) => _selectedTipoActivo = v),
+                    _buildDropdownFilter('Condición', _selectedCondicion, _condiciones, 'condicion', (v) => _selectedCondicion = v),
+                    _buildDropdownFilter('Sede', _selectedSede, _sedes, 'sede', (v) => _selectedSede = v),
+                    _buildDropdownFilter('Área', _selectedArea, _areas, 'area', (v) => _selectedArea = v),
+
                     OutlinedButton.icon(
                       onPressed: () {
-                        _idFilterController.clear();
-                        _serieFilterController.clear();
-                        _nombreFilterController.clear();
-                        _codigoFilterController.clear();
-                        _ipFilterController.clear();
                         setState(() {
+                          _serieFilterController.clear();
+                          _nombreFilterController.clear();
                           _selectedCategoryFilter = 'TODAS';
+                          _selectedTipoActivo = null;
+                          _selectedCondicion = null;
+                          _selectedSede = null;
+                          _selectedArea = null;
                         });
                         _applyFilters();
                       },
                       icon: const Icon(Icons.clear_all),
                       label: const Text('Limpiar'),
                     ),
-                    IconButton(
-                      tooltip: 'Recargar',
-                      onPressed: _loadAssets,
-                      icon: const Icon(Icons.refresh),
-                    ),
+                    IconButton(tooltip: 'Recargar', onPressed: _loadInitialData, icon: const Icon(Icons.refresh)),
                   ],
                 ),
               ],
@@ -601,41 +484,39 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
           ),
           const SizedBox(height: 10),
 
-          /// Tabla de activos.
-          Expanded(
-            child: _buildTableSection(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment<bool>(value: false, icon: Icon(Icons.view_list), label: Text('Lista')),
+                  ButtonSegment<bool>(value: true, icon: Icon(Icons.table_chart), label: Text('Tabla')),
+                ],
+                selected: {_isTableView},
+                onSelectionChanged: (Set<bool> newSelection) {
+                  setState(() => _isTableView = newSelection.first);
+                },
+              ),
+              ElevatedButton.icon(
+                onPressed: _showAddAssetDialog,
+                icon: const Icon(Icons.add),
+                label: const Text('Agregar Nuevo Activo'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+              ),
+            ],
           ),
+          const SizedBox(height: 10),
+
+          Expanded(child: _isTableView ? _buildTableSection() : _buildListSection()),
         ],
       ),
     );
   }
 
   Widget _buildTableSection() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_errorMessage!, textAlign: TextAlign.center),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _loadAssets,
-              child: const Text('Reintentar'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_filteredAssets.isEmpty) {
-      return const Center(
-        child: Text('No hay activos para mostrar con los filtros actuales.'),
-      );
-    }
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_errorMessage != null) return Center(child: Text(_errorMessage!, textAlign: TextAlign.center));
+    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar con los filtros actuales.'));
 
     return Card(
       child: SingleChildScrollView(
@@ -644,27 +525,29 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
           child: DataTable(
             columnSpacing: 24,
             columns: const [
-              DataColumn(label: Text('ID')),
-              DataColumn(label: Text('Número de serie')),
+              DataColumn(label: Text('S/N')),
               DataColumn(label: Text('Nombre')),
               DataColumn(label: Text('Categoría')),
-              DataColumn(label: Text('Código')),
-              DataColumn(label: Text('IP')),
-              DataColumn(label: Text('Fecha adquisición')),
-              DataColumn(label: Text('Fecha entrega')),
+              DataColumn(label: Text('Tipo Activo')),
+              DataColumn(label: Text('Condición')),
+              DataColumn(label: Text('Ciudad')),
+              DataColumn(label: Text('Sede')),
+              DataColumn(label: Text('Área')),
+              DataColumn(label: Text('Proveedor')),
               DataColumn(label: Text('Acciones')),
             ],
             rows: _filteredAssets.map((asset) {
               return DataRow(
                 cells: [
-                  DataCell(Text(asset.id.toString())),
-                  DataCell(Text(asset.numeroSerie)),
-                  DataCell(Text(asset.nombre)),
-                  DataCell(Text(asset.categoria)),
-                  DataCell(Text(asset.codigo)),
-                  DataCell(Text(asset.ip)),
-                  DataCell(Text(asset.fechaAdquisicion)),
-                  DataCell(Text(asset.fechaEntrega)),
+                  DataCell(Text(asset['numero_serie']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['nombre']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['categoria_activo']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['tipo_activo']?['tipo']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['condicion_activo']?['condicion']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['ciudad_activo']?['ciudad']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['sede_activo']?['sede']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['area_activo']?['area']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['proveedor']?['nombre']?.toString() ?? 'N/A')),
                   DataCell(
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -672,7 +555,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                         if (RoleService.currentRole != UserRole.ayudante)
                           IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteAsset(asset.id),
+                            onPressed: () => _deleteAsset(asset['id']),
                             tooltip: 'Eliminar',
                           ),
                       ],
@@ -686,40 +569,41 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
       ),
     );
   }
-}
 
-/// Modelo de fila para tabla de activos.
-class _AssetRow {
-  final int id;
-  final String numeroSerie;
-  final String nombre;
-  final String categoria;
-  final String codigo;
-  final String ip;
-  final String fechaAdquisicion;
-  final String fechaEntrega;
+  Widget _buildListSection() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_errorMessage != null) return Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)));
+    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar con los filtros actuales.'));
 
-  const _AssetRow({
-    required this.id,
-    required this.numeroSerie,
-    required this.nombre,
-    required this.categoria,
-    required this.codigo,
-    required this.ip,
-    required this.fechaAdquisicion,
-    required this.fechaEntrega,
-  });
-
-  factory _AssetRow.fromMap(Map<String, dynamic> map) {
-    return _AssetRow(
-      id: (map['id'] as num?)?.toInt() ?? 0,
-      numeroSerie: (map['numero_serie'] ?? '').toString(),
-      nombre: (map['nombre'] ?? '').toString(),
-      categoria: (map['categoria_activo'] ?? '').toString(),
-      codigo: (map['codigo'] ?? '').toString(),
-      ip: (map['ip'] ?? '').toString(),
-      fechaAdquisicion: (map['fecha_adquisicion'] ?? '').toString(),
-      fechaEntrega: (map['fecha_entrega'] ?? '').toString(),
+    return ListView.builder(
+      itemCount: _filteredAssets.length,
+      itemBuilder: (context, index) {
+        final asset = _filteredAssets[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          elevation: 2,
+          child: ListTile(
+            leading: const CircleAvatar(
+              backgroundColor: Colors.blueAccent,
+              child: Icon(Icons.inventory, color: Colors.white),
+            ),
+            title: Text(asset['nombre']?.toString() ?? 'Sin Nombre', style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+              'Categoría: ${asset['categoria_activo']} | S/N: ${asset['numero_serie'] ?? 'N/A'}\n'
+              'Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'} | Sede: ${asset['sede_activo']?['sede'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}\n'
+              'Proveedor: ${asset['proveedor']?['nombre'] ?? 'N/A'}',
+            ),
+            isThreeLine: true,
+            trailing: RoleService.currentRole != UserRole.ayudante
+                ? IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _deleteAsset(asset['id']),
+                    tooltip: 'Eliminar',
+                  )
+                : null,
+          ),
+        );
+      },
     );
   }
 }
