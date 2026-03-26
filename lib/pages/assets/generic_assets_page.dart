@@ -110,13 +110,11 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
     final result = _allAssets.where((asset) {
       final info = asset['info_equipo_generico'] != null && (asset['info_equipo_generico'] as List).isNotEmpty ? (asset['info_equipo_generico'] as List)[0] : null;
 
-      // Texts Multi Matching
       bool matchesNombre = nombres.isEmpty || nombres.any((n) => (asset['nombre'] ?? '').toString().toLowerCase().contains(n));
       bool matchesCodigo = codigos.isEmpty || codigos.any((c) => (asset['codigo'] ?? '').toString().toLowerCase().contains(c));
       bool matchesSerie = series.isEmpty || series.any((s) => (asset['numero_serie'] ?? '').toString().toLowerCase().contains(s));
       bool matchesModelo = modelos.isEmpty || modelos.any((m) => (info?['modelo'] ?? '').toString().toLowerCase().contains(m));
 
-      // Multi Select Matching
       bool matchesTipo = _selectedTiposActivo.isEmpty || _selectedTiposActivo.contains(asset['id_tipo_activo']);
       bool matchesCondicion = _selectedCondiciones.isEmpty || _selectedCondiciones.contains(asset['id_condicion_activo']);
       bool matchesSede = _selectedSedes.isEmpty || _selectedSedes.contains(asset['id_sede_activo']);
@@ -126,7 +124,6 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
       bool matchesProveedor = _selectedProveedores.isEmpty || _selectedProveedores.contains(asset['id_provedor']);
       bool matchesMarca = _selectedMarcas.isEmpty || _selectedMarcas.contains(info?['id_marca']);
 
-      // Date Ranges Matching
       bool matchesAdquisicion = true;
       if (_rangoAdquisicion != null && asset['fecha_adquisicion'] != null) {
         try {
@@ -222,7 +219,7 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(isUpdate ? 'Actualizar Equipo' : 'Agregar Especial - Genérico', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    Expanded(child: Text(isUpdate ? 'Actualizar Equipo' : 'Agregar Especial - Genérico', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
                     IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(dialogContext))
                   ],
                 ),
@@ -231,18 +228,18 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
                   child: DynamicAssetForm(
                     initialCategory: 'GENERICO',
                     onSave: ({
-                      required String numeroSerie,
+                      String? numeroSerie,
                       required String categoria,
                       required int tipoActivoId,
-                      required int condicionActivoId,
-                      required int custodioId,
-                      required int ciudadActivoId,
-                      required int sedeActivoId,
-                      required int areaActivoId,
-                      required int proveedorId,
-                      required String fechaAdquisicion,
-                      required String fechaEntrega,
-                      required String coordenada,
+                      int? condicionActivoId,
+                      int? custodioId,
+                      int? ciudadActivoId,
+                      int? sedeActivoId,
+                      int? areaActivoId,
+                      int? proveedorId,
+                      String? fechaAdquisicion,
+                      String? fechaEntrega,
+                      String? coordenada,
                       String? nombre,
                       int? codigo,
                       String? ip,
@@ -419,7 +416,6 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            /// Header y Toggle
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -442,16 +438,17 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
               ],
             ),
             const SizedBox(height: 10),
-
-            /// Data Layout
             Expanded(child: _isTableView ? _buildTableSection() : _buildListSection()),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Scaffold.of(context).openEndDrawer(),
-        tooltip: 'Abrir Filtros',
-        child: const Icon(Icons.filter_list),
+      floatingActionButton: Builder(
+        builder: (context) => FloatingActionButton.extended(
+          onPressed: () => Scaffold.of(context).openEndDrawer(),
+          tooltip: 'Abrir Filtros',
+          icon: const Icon(Icons.filter_list),
+          label: const Text('Filtros'),
+        ),
       ),
     );
   }
@@ -469,12 +466,23 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
             columns: const [
               DataColumn(label: Text('S/N')),
               DataColumn(label: Text('Nombre')),
+              DataColumn(label: Text('Código')),
               DataColumn(label: Text('Tipo Activo')),
               DataColumn(label: Text('Condición')),
-              DataColumn(label: Text('Marca')),
+              DataColumn(label: Text('Custodio')),
+              DataColumn(label: Text('Ciudad')),
               DataColumn(label: Text('Sede')),
               DataColumn(label: Text('Área')),
-              DataColumn(label: Text('Cargador')),
+              DataColumn(label: Text('Proveedor')),
+              DataColumn(label: Text('Fe. Adquisición')),
+              DataColumn(label: Text('IP')),
+              DataColumn(label: Text('Fe. Entrega')),
+              DataColumn(label: Text('Coordenada')),
+              DataColumn(label: Text('Marca')),
+              DataColumn(label: Text('Modelo')),
+              DataColumn(label: Text('Cód. Cargador')),
+              DataColumn(label: Text('Num. Conexiones')),
+              DataColumn(label: Text('Observaciones')),
               DataColumn(label: Text('Acciones')),
             ],
             rows: _filteredAssets.map((asset) {
@@ -484,12 +492,23 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
                 cells: [
                   DataCell(Text(asset['numero_serie']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['nombre']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['codigo']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['tipo_activo']?['tipo']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['condicion_activo']?['condicion']?.toString() ?? 'N/A')),
-                  DataCell(Text(info?['marca']?['marca_proveedor']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['custodio']?['nombre_completo']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['ciudad_activo']?['ciudad']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['sede_activo']?['sede']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['area_activo']?['area']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['proveedor']?['nombre']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['fecha_adquisicion']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['ip']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['fecha_entrega']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['coordenada']?.toString() ?? 'N/A')),
+                  DataCell(Text(info?['marca']?['marca_proveedor']?.toString() ?? 'N/A')),
+                  DataCell(Text(info?['modelo']?.toString() ?? 'N/A')),
                   DataCell(Text(info?['cargador_codigo']?.toString() ?? 'N/A')),
+                  DataCell(Text(info?['num_conexiones']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['observaciones']?.toString() ?? 'N/A')),
                   DataCell(
                     Row(
                       mainAxisSize: MainAxisSize.min,

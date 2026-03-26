@@ -92,18 +92,15 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
     final codigos = _codigosController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
     final result = _allAssets.where((asset) {
-      // Texts Multi Matching
       bool matchesNombre = nombres.isEmpty || nombres.any((n) => (asset['nombre'] ?? '').toString().toLowerCase().contains(n));
       bool matchesCodigo = codigos.isEmpty || codigos.any((c) => (asset['codigo'] ?? '').toString().toLowerCase().contains(c));
 
-      // Multi Select Matching
       bool matchesTipo = _selectedTiposActivo.isEmpty || _selectedTiposActivo.contains(asset['id_tipo_activo']);
       bool matchesCondicion = _selectedCondiciones.isEmpty || _selectedCondiciones.contains(asset['id_condicion_activo']);
       bool matchesArea = _selectedAreas.isEmpty || _selectedAreas.contains(asset['id_area_activo']);
       bool matchesCustodio = _selectedCustodios.isEmpty || _selectedCustodios.contains(asset['id_custodio']);
       bool matchesProveedor = _selectedProveedores.isEmpty || _selectedProveedores.contains(asset['id_provedor']);
 
-      // Date Ranges Matching
       bool matchesAdquisicion = true;
       if (_rangoAdquisicion != null && asset['fecha_adquisicion'] != null) {
         try {
@@ -193,7 +190,7 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(isUpdate ? 'Actualizar Software' : 'Agregar Especial - Software', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    Expanded(child: Text(isUpdate ? 'Actualizar Software' : 'Agregar Especial - Software', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
                     IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(dialogContext))
                   ],
                 ),
@@ -202,18 +199,18 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
                   child: DynamicAssetForm(
                     initialCategory: 'SOFTWARE',
                     onSave: ({
-                      required String numeroSerie,
+                      String? numeroSerie,
                       required String categoria,
                       required int tipoActivoId,
-                      required int condicionActivoId,
-                      required int custodioId,
-                      required int ciudadActivoId,
-                      required int sedeActivoId,
-                      required int areaActivoId,
-                      required int proveedorId,
-                      required String fechaAdquisicion,
-                      required String fechaEntrega,
-                      required String coordenada,
+                      int? condicionActivoId,
+                      int? custodioId,
+                      int? ciudadActivoId,
+                      int? sedeActivoId,
+                      int? areaActivoId,
+                      int? proveedorId,
+                      String? fechaAdquisicion,
+                      String? fechaEntrega,
+                      String? coordenada,
                       String? nombre,
                       int? codigo,
                       String? ip,
@@ -376,7 +373,6 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            /// Header y Toggle
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -399,16 +395,17 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
               ],
             ),
             const SizedBox(height: 10),
-
-            /// Data Layout
             Expanded(child: _isTableView ? _buildTableSection() : _buildListSection()),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Scaffold.of(context).openEndDrawer(),
-        tooltip: 'Abrir Filtros',
-        child: const Icon(Icons.filter_list),
+      floatingActionButton: Builder(
+        builder: (context) => FloatingActionButton.extended(
+          onPressed: () => Scaffold.of(context).openEndDrawer(),
+          tooltip: 'Abrir Filtros',
+          icon: const Icon(Icons.filter_list),
+          label: const Text('Filtros'),
+        ),
       ),
     );
   }
@@ -425,13 +422,16 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
             columnSpacing: 24,
             columns: const [
               DataColumn(label: Text('Nombre')),
+              DataColumn(label: Text('Código')),
               DataColumn(label: Text('Tipo Activo')),
               DataColumn(label: Text('Condición')),
+              DataColumn(label: Text('Custodio')),
               DataColumn(label: Text('Área')),
               DataColumn(label: Text('Proveedor (General)')),
               DataColumn(label: Text('Proveedor Sw.')),
               DataColumn(label: Text('Fecha Inicio')),
               DataColumn(label: Text('Fecha Fin')),
+              DataColumn(label: Text('Observaciones')),
               DataColumn(label: Text('Acciones')),
             ],
             rows: _filteredAssets.map((asset) {
@@ -440,13 +440,16 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
               return DataRow(
                 cells: [
                   DataCell(Text(asset['nombre']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['codigo']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['tipo_activo']?['tipo']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['condicion_activo']?['condicion']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['custodio']?['nombre_completo']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['area_activo']?['area']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['proveedor']?['nombre']?.toString() ?? 'N/A')),
                   DataCell(Text(info?['proveedor']?.toString() ?? 'N/A')),
                   DataCell(Text(info?['fecha_inicio']?.toString() ?? 'N/A')),
                   DataCell(Text(info?['fecha_fin']?.toString() ?? 'N/A')),
+                  DataCell(Text(asset['observaciones']?.toString() ?? 'N/A')),
                   DataCell(
                     Row(
                       mainAxisSize: MainAxisSize.min,

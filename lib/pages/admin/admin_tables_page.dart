@@ -98,9 +98,9 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
     // Determine columns dynamically. Default to just 'nombre' if empty.
     List<String> columns = ['nombre', 'descripcion'];
     if (_tableData.isNotEmpty) {
-      columns = _tableData.first.keys.where((k) => k != 'id').toList();
+      columns = _tableData.first.keys.where((k) => k != 'id' && k != 'created_at' && k != 'user_on_creation').toList();
     } else if (existingRow != null) {
-      columns = existingRow.keys.where((k) => k != 'id').toList();
+      columns = existingRow.keys.where((k) => k != 'id' && k != 'created_at' && k != 'user_on_creation').toList();
     }
 
     final Map<String, TextEditingController> controllers = {};
@@ -122,6 +122,27 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: columns.map((col) {
+                    if (_selectedTable == 'tipo_activo' && col == 'categoria') {
+                      final currentVal = controllers[col]!.text;
+                      final validOptions = ['PC', 'COMUNICACION', 'SOFTWARE', 'GENERICO'];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: DropdownButtonFormField<String>(
+                          value: validOptions.contains(currentVal) ? currentVal : (validOptions.isNotEmpty ? validOptions.first : null),
+                          decoration: InputDecoration(
+                            labelText: col.toUpperCase(),
+                            border: const OutlineInputBorder(),
+                          ),
+                          items: validOptions.map((opt) {
+                            return DropdownMenuItem(value: opt, child: Text(opt));
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) controllers[col]!.text = val;
+                          },
+                        ),
+                      );
+                    }
+
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12.0),
                       child: TextField(
@@ -209,28 +230,6 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
       ),
       body: Row(
         children: [
-          if (_isSidebarVisible)
-            Container(
-              width: 200,
-              color: Colors.white,
-              child: ListView.builder(
-                itemCount: _tablas.length,
-                itemBuilder: (context, index) {
-                  final table = _tablas[index];
-                  return ListTile(
-                    title: Text(table),
-                    selected: _selectedTable == table,
-                    onTap: () {
-                      setState(() {
-                        _selectedTable = table;
-                      });
-                      _loadTableData(table);
-                    },
-                  );
-                },
-              ),
-            ),
-          if (_isSidebarVisible) const VerticalDivider(width: 1),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -258,6 +257,30 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
               ),
             ),
           ),
+          if (_isSidebarVisible) const VerticalDivider(width: 1),
+          if (_isSidebarVisible)
+            Container(
+              width: 250,
+              color: Colors.blueGrey.shade50,
+              child: ListView.builder(
+                itemCount: _tablas.length,
+                itemBuilder: (context, index) {
+                  final table = _tablas[index];
+                  return ListTile(
+                    leading: const Icon(Icons.table_rows, color: Colors.blueGrey),
+                    title: Text(table, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    selected: _selectedTable == table,
+                    selectedTileColor: Colors.blue.withValues(alpha: 0.1),
+                    onTap: () {
+                      setState(() {
+                        _selectedTable = table;
+                      });
+                      _loadTableData(table);
+                    },
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );
@@ -278,13 +301,13 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
           child: DataTable(
             columnSpacing: 24,
             columns: [
-              ...columns.map((col) => DataColumn(label: Text(col.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)))),
+              ...columns.where((col) => col != 'created_at' && col != 'user_on_creation').map((col) => DataColumn(label: Text(col.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)))),
               const DataColumn(label: Text('ACCIONES', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: _tableData.map((row) {
               return DataRow(
                 cells: [
-                  ...columns.map((col) => DataCell(Text(row[col]?.toString() ?? ''))),
+                  ...columns.where((col) => col != 'created_at' && col != 'user_on_creation').map((col) => DataCell(Text(row[col]?.toString() ?? ''))),
                   DataCell(
                     Row(
                       mainAxisSize: MainAxisSize.min,
