@@ -115,7 +115,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
   Future<void> _loadMasterData() async {
     try {
       final futures = await Future.wait([
-        supabase.from('tipo_activo').select('id, tipo').order('tipo'),
+        supabase.from('tipo_activo').select('id, tipo, categoria').order('tipo'),
         supabase.from('condicion_activo').select('id, condicion').order('condicion'),
         supabase.from('custodio').select('id, nombre_completo').order('nombre_completo'),
         supabase.from('ciudad_activo').select('id, ciudad').order('ciudad'),
@@ -246,7 +246,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (widget.initialCategory == null)
+              if (widget.initialCategory == null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12.0),
                 child: DropdownButtonFormField<String>(
@@ -258,7 +258,12 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                     DropdownMenuItem(value: 'GENERICO', child: Text('GENÉRICO')),
                   ],
                   onChanged: (value) {
-                    if (value != null) setState(() => _categoria = value);
+                    if (value != null && value != _categoria) {
+                       setState(() {
+                         _categoria = value;
+                         _tipoActivoId = null; // Reset tipoActivo since category changed
+                       });
+                    }
                   },
                   decoration: const InputDecoration(labelText: 'Categoría de Activo *', isDense: true, border: OutlineInputBorder()),
                 ),
@@ -271,7 +276,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
             _buildTextField(_nombreCtrl, 'Nombre', required: true),
             _buildTextField(_codigoCtrl, 'Código', isNumber: true, required: true),
             
-            _buildDropdown('Tipo de Activo', _tipoActivoId, _tiposActivo, 'tipo', (v) => setState(() => _tipoActivoId = v), required: true),
+            _buildDropdown('Tipo de Activo', _tipoActivoId, _tiposActivo.where((t) => t['categoria'] == _categoria).toList(), 'tipo', (v) => setState(() => _tipoActivoId = v), required: true),
             _buildDropdown('Condición', _condicionActivoId, _condicionesActivo, 'condicion', (v) => setState(() => _condicionActivoId = v), required: true),
             _buildDropdown('Custodio', _custodioId, _custodios, 'nombre_completo', (v) => setState(() => _custodioId = v), required: true),
             _buildDropdown('Área', _areaActivoId, _areas, 'area', (v) => setState(() => _areaActivoId = v), required: true),

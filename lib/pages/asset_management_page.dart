@@ -6,6 +6,7 @@ import 'package:front_inventarios/pages/assets/pc_assets_page.dart';
 import 'package:front_inventarios/pages/assets/software_assets_page.dart';
 import 'package:front_inventarios/pages/assets/communication_assets_page.dart';
 import 'package:front_inventarios/pages/assets/generic_assets_page.dart';
+import 'package:front_inventarios/widgets/multi_select_dialog.dart';
 
 class AssetManagementPage extends StatefulWidget {
   const AssetManagementPage({super.key});
@@ -15,57 +16,61 @@ class AssetManagementPage extends StatefulWidget {
 }
 
 class _AssetManagementPageState extends State<AssetManagementPage> {
-  bool _isLoading = true;
-  String? _errorMessage;
-  bool _isTableView = true;
-
   List<Map<String, dynamic>> _allAssets = [];
   List<Map<String, dynamic>> _filteredAssets = [];
+  bool _isLoading = true;
+  bool _isTableView = true;
 
-  // Filter controllers
-  final TextEditingController _serieFilterController = TextEditingController();
-  final TextEditingController _nombreFilterController = TextEditingController();
-
-  // Dropdown States for filters
-  String _selectedCategoryFilter = 'TODAS';
-  int? _selectedTipoActivo;
-  int? _selectedCondicion;
-  int? _selectedSede;
-  int? _selectedArea;
-
-  // Master Data Dropdowns
+  // Master Data Reference Logic
   List<Map<String, dynamic>> _tiposActivo = [];
   List<Map<String, dynamic>> _condiciones = [];
   List<Map<String, dynamic>> _sedes = [];
   List<Map<String, dynamic>> _areas = [];
+  List<Map<String, dynamic>> _ciudades = [];
+  List<Map<String, dynamic>> _custodios = [];
+  List<Map<String, dynamic>> _proveedores = [];
+
+  // Filter Models
+  List<int> _selectedTiposActivo = [];
+  List<int> _selectedCondiciones = [];
+  List<int> _selectedSedes = [];
+  List<int> _selectedAreas = [];
+  List<int> _selectedCiudades = [];
+  List<int> _selectedCustodios = [];
+  List<int> _selectedProveedores = [];
+
+  final TextEditingController _nombresController = TextEditingController();
+  final TextEditingController _codigosController = TextEditingController();
+  final TextEditingController _seriesController = TextEditingController();
+
+  DateTimeRange? _rangoAdquisicion;
+  DateTimeRange? _rangoEntrega;
 
   @override
   void initState() {
     super.initState();
-    _loadInitialData();
+    _loadAssets();
   }
 
   @override
   void dispose() {
-    _serieFilterController.dispose();
-    _nombreFilterController.dispose();
+    _nombresController.dispose();
+    _codigosController.dispose();
+    _seriesController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadInitialData() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
+  Future<void> _loadAssets() async {
+    setState(() => _isLoading = true);
     try {
-      // 1. Load lookups
-      final responses = await Future.wait([
-        supabase.from('tipo_activo').select('id, tipo').order('tipo'),
+      final futures = await Future.wait([
+        supabase.from('tipo_activo').select('id, tipo, categoria').order('tipo'),
         supabase.from('condicion_activo').select('id, condicion').order('condicion'),
         supabase.from('sede_activo').select('id, sede').order('sede'),
         supabase.from('area_activo').select('id, area').order('area'),
-        // 2. Load Assets with joined tables
+        supabase.from('ciudad_activo').select('id, ciudad').order('ciudad'),
+        supabase.from('custodio').select('id, nombre_completo').order('nombre_completo'),
+        supabase.from('proveedor').select('id, nombre').order('nombre'),
         supabase.from('activo').select('''
           *,
           tipo_activo(tipo),
@@ -80,40 +85,72 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
 
       if (!mounted) return;
       setState(() {
-        _tiposActivo = List<Map<String, dynamic>>.from(responses[0] as List);
-        _condiciones = List<Map<String, dynamic>>.from(responses[1] as List);
-        _sedes = List<Map<String, dynamic>>.from(responses[2] as List);
-        _areas = List<Map<String, dynamic>>.from(responses[3] as List);
-        
-        _allAssets = List<Map<String, dynamic>>.from(responses[4] as List);
+        _tiposActivo = List<Map<String, dynamic>>.from(futures[0] as List);
+        _condiciones = List<Map<String, dynamic>>.from(futures[1] as List);
+        _sedes = List<Map<String, dynamic>>.from(futures[2] as List);
+        _areas = List<Map<String, dynamic>>.from(futures[3] as List);
+        _ciudades = List<Map<String, dynamic>>.from(futures[4] as List);
+        _custodios = List<Map<String, dynamic>>.from(futures[5] as List);
+        _proveedores = List<Map<String, dynamic>>.from(futures[6] as List);
+
+        _allAssets = List<Map<String, dynamic>>.from(futures[7] as List);
         _filteredAssets = _allAssets;
         _isLoading = false;
       });
-      
       _applyFilters();
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'No se pudieron cargar los datos: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        context.showSnackBar('Error loading assets: $e', isError: true);
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   void _applyFilters() {
-    final serieText = _serieFilterController.text.trim().toLowerCase();
-    final nombreText = _nombreFilterController.text.trim().toLowerCase();
+    final nombres = _nombresController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    final codigos = _codigosController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    final series = _seriesController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
     final result = _allAssets.where((asset) {
-      final matchesSerie = serieText.isEmpty || (asset['numero_serie'] ?? '').toString().toLowerCase().contains(serieText);
-      final matchesNombre = nombreText.isEmpty || (asset['nombre'] ?? '').toString().toLowerCase().contains(nombreText);
-      final matchesCategory = _selectedCategoryFilter == 'TODAS' || asset['categoria_activo'] == _selectedCategoryFilter;
-      final matchesTipo = _selectedTipoActivo == null || asset['id_tipo_activo'] == _selectedTipoActivo;
-      final matchesCondicion = _selectedCondicion == null || asset['id_condicion_activo'] == _selectedCondicion;
-      final matchesSede = _selectedSede == null || asset['id_sede_activo'] == _selectedSede;
-      final matchesArea = _selectedArea == null || asset['id_area_activo'] == _selectedArea;
+      // Texts Multi Matching
+      bool matchesNombre = nombres.isEmpty || nombres.any((n) => (asset['nombre'] ?? '').toString().toLowerCase().contains(n));
+      bool matchesCodigo = codigos.isEmpty || codigos.any((c) => (asset['codigo'] ?? '').toString().toLowerCase().contains(c));
+      bool matchesSerie = series.isEmpty || series.any((s) => (asset['numero_serie'] ?? '').toString().toLowerCase().contains(s));
 
-      return matchesSerie && matchesNombre && matchesCategory && matchesTipo && matchesCondicion && matchesSede && matchesArea;
+      // Multi Select Matching
+      bool matchesTipo = _selectedTiposActivo.isEmpty || _selectedTiposActivo.contains(asset['id_tipo_activo']);
+      bool matchesCondicion = _selectedCondiciones.isEmpty || _selectedCondiciones.contains(asset['id_condicion_activo']);
+      bool matchesSede = _selectedSedes.isEmpty || _selectedSedes.contains(asset['id_sede_activo']);
+      bool matchesArea = _selectedAreas.isEmpty || _selectedAreas.contains(asset['id_area_activo']);
+      bool matchesCiudad = _selectedCiudades.isEmpty || _selectedCiudades.contains(asset['id_ciudad_activo']);
+      bool matchesCustodio = _selectedCustodios.isEmpty || _selectedCustodios.contains(asset['id_custodio']);
+      bool matchesProveedor = _selectedProveedores.isEmpty || _selectedProveedores.contains(asset['id_provedor']);
+
+      // Date Ranges Matching
+      bool matchesAdquisicion = true;
+      if (_rangoAdquisicion != null && asset['fecha_adquisicion'] != null) {
+        try {
+          final dt = DateTime.parse(asset['fecha_adquisicion'].toString());
+          if (dt.isBefore(_rangoAdquisicion!.start) || dt.isAfter(_rangoAdquisicion!.end)) {
+            matchesAdquisicion = false;
+          }
+        } catch (_) {}
+      }
+
+      bool matchesEntrega = true;
+      if (_rangoEntrega != null && asset['fecha_entrega'] != null) {
+        try {
+          final dt = DateTime.parse(asset['fecha_entrega'].toString());
+          if (dt.isBefore(_rangoEntrega!.start) || dt.isAfter(_rangoEntrega!.end)) {
+            matchesEntrega = false;
+          }
+        } catch (_) {}
+      }
+
+      return matchesNombre && matchesCodigo && matchesSerie &&
+             matchesTipo && matchesCondicion && matchesSede &&
+             matchesArea && matchesCiudad && matchesCustodio &&
+             matchesProveedor && matchesAdquisicion && matchesEntrega;
     }).toList();
 
     setState(() {
@@ -121,130 +158,30 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     });
   }
 
-  Future<void> _createAssetWithDetail({
-    required String numeroSerie,
-    required String categoria,
-    required int tipoActivoId,
-    required int condicionActivoId,
-    required int custodioId,
-    required int ciudadActivoId,
-    required int sedeActivoId,
-    required int areaActivoId,
-    required int proveedorId,
-    required String fechaAdquisicion,
-    required String fechaEntrega,
-    required String coordenada,
-    String? nombre,
-    int? codigo,
-    String? ip,
-    int? marcaId,
-    String? modelo,
-    String? observaciones,
-    // PC Specific
-    String? procesador,
-    String? ram,
-    String? almacenamiento,
-    String? cargadorCodigo,
-    int? numPuertos,
-    // Communication Specific
-    String? tipoExtension,
-    // Generic Specific
-    int? numConexiones,
-    String? varImpresoraColor,
-    String? varMonitorTipoConexion,
-    // Software Specific
-    String? proveedorSoftware,
-    String? fechaInicio,
-    String? fechaFin,
-  }) async {
-    Map<String, dynamic> baseParams = {
-      'p_id_tipo_activo': tipoActivoId,
-      'p_id_condicion_activo': condicionActivoId,
-      'p_id_custodio': custodioId,
-      'p_id_area_activo': areaActivoId,
-      'p_id_provedor': proveedorId,
-      'p_nombre': nombre,
-      'p_codigo': codigo,
-      'p_observaciones': observaciones,
-    };
-
-    String rpcName;
-
-    switch (categoria) {
-      case 'PC':
-        rpcName = 'crear_activo_pc';
-        baseParams.addAll({
-          'p_numero_serie': numeroSerie,
-          'p_id_ciudad_activo': ciudadActivoId,
-          'p_id_sede_activo': sedeActivoId,
-          'p_fecha_adquisicion': fechaAdquisicion,
-          'p_fecha_entrega': fechaEntrega,
-          'p_coordenada': coordenada,
-          'p_ip': ip,
-          'p_id_marca': marcaId,
-          'p_modelo': modelo,
-          'p_procesador': procesador,
-          'p_ram': ram,
-          'p_almacenamiento': almacenamiento,
-          'p_cargador_codigo': cargadorCodigo,
-          'p_num_puertos': numPuertos,
-        });
-        break;
-      case 'COMUNICACION':
-        rpcName = 'crear_activo_equipo_comunicacion';
-        baseParams.addAll({
-          'p_numero_serie': numeroSerie,
-          'p_id_ciudad_activo': ciudadActivoId,
-          'p_id_sede_activo': sedeActivoId,
-          'p_fecha_adquisicion': fechaAdquisicion,
-          'p_fecha_entrega': fechaEntrega,
-          'p_coordenada': coordenada,
-          'p_ip': ip,
-          'p_id_marca': marcaId,
-          'p_modelo': modelo,
-          'p_num_puertos': numPuertos,
-          'p_tipo_extension': tipoExtension,
-        });
-        break;
-      case 'GENERICO':
-        rpcName = 'crear_activo_equipo_generico';
-        baseParams.addAll({
-          'p_numero_serie': numeroSerie,
-          'p_id_ciudad_activo': ciudadActivoId,
-          'p_id_sede_activo': sedeActivoId,
-          'p_fecha_adquisicion': fechaAdquisicion,
-          'p_fecha_entrega': fechaEntrega,
-          'p_coordenada': coordenada,
-          'p_id_marca': marcaId,
-          'p_modelo': modelo,
-          'p_cargador_codigo': cargadorCodigo,
-          'p_num_conexiones': numConexiones,
-          'p_var_impresora_color': varImpresoraColor,
-          'p_var_monitor_tipo_conexion': varMonitorTipoConexion,
-        });
-        break;
-      case 'SOFTWARE':
-        rpcName = 'crear_activo_software';
-        baseParams.addAll({
-          'p_proveedor': proveedorSoftware,
-          'p_fecha_inicio': fechaInicio,
-          'p_fecha_fin': fechaFin,
-        });
-        break;
-      default:
-        throw Exception('Categoría no reconocida');
-    }
-
-    baseParams.removeWhere((key, value) => value == null || (value is String && value.trim().isEmpty));
-    await supabase.rpc(rpcName, params: baseParams);
+  void _clearFilters() {
+    setState(() {
+      _selectedTiposActivo.clear();
+      _selectedCondiciones.clear();
+      _selectedSedes.clear();
+      _selectedAreas.clear();
+      _selectedCiudades.clear();
+      _selectedCustodios.clear();
+      _selectedProveedores.clear();
+      _nombresController.clear();
+      _codigosController.clear();
+      _seriesController.clear();
+      _rangoAdquisicion = null;
+      _rangoEntrega = null;
+    });
+    _applyFilters();
   }
 
   Future<void> _deleteAsset(int id) async {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar activo'),
-        content: const Text('¿Estás seguro de que deseas eliminar este activo de manera permanente?'),
+        title: const Text('Eliminar Activo'),
+        content: const Text('¿Deseas eliminar este activo permanentemente?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
           ElevatedButton(
@@ -261,262 +198,221 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     try {
       await supabase.rpc('eliminar_activo', params: {'p_id_activo': id});
       if (mounted) context.showSnackBar('Activo eliminado correctamente.');
-      _loadInitialData();
+      _loadAssets();
     } catch (e) {
-      if (mounted) context.showSnackBar('Error al eliminar el activo: $e', isError: true);
+      if (mounted) context.showSnackBar('Error al eliminar: $e', isError: true);
     }
   }
 
-  Future<void> _showAddAssetDialog() async {
-    await showDialog(
+  Future<void> _showMultiSelect(String title, List<Map<String, dynamic>> items, List<int> selectedIds, String displayKey, ValueChanged<List<int>> onConfirm) async {
+    final result = await showDialog<List<int>>(
       context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Container(
-            width: 600,
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Agregar un activo', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(dialogContext))
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: DynamicAssetForm(
-                    onSave: ({
-                      required String numeroSerie,
-                      required String categoria,
-                      required int tipoActivoId,
-                      required int condicionActivoId,
-                      required int custodioId,
-                      required int ciudadActivoId,
-                      required int sedeActivoId,
-                      required int areaActivoId,
-                      required int proveedorId,
-                      required String fechaAdquisicion,
-                      required String fechaEntrega,
-                      required String coordenada,
-                      String? nombre,
-                      int? codigo,
-                      String? ip,
-                      int? marcaId,
-                      String? modelo,
-                      String? observaciones,
-                      String? procesador,
-                      String? ram,
-                      String? almacenamiento,
-                      String? cargadorCodigo,
-                      int? numPuertos,
-                      String? tipoExtension,
-                      int? numConexiones,
-                      String? varImpresoraColor,
-                      String? varMonitorTipoConexion,
-                      String? proveedorSoftware,
-                      String? fechaInicio,
-                      String? fechaFin,
-                    }) async {
-                      try {
-                        await _createAssetWithDetail(
-                          numeroSerie: numeroSerie,
-                          categoria: categoria,
-                          tipoActivoId: tipoActivoId,
-                          condicionActivoId: condicionActivoId,
-                          custodioId: custodioId,
-                          ciudadActivoId: ciudadActivoId,
-                          sedeActivoId: sedeActivoId,
-                          areaActivoId: areaActivoId,
-                          proveedorId: proveedorId,
-                          fechaAdquisicion: fechaAdquisicion,
-                          fechaEntrega: fechaEntrega,
-                          coordenada: coordenada,
-                          nombre: nombre,
-                          codigo: codigo,
-                          ip: ip,
-                          marcaId: marcaId,
-                          modelo: modelo,
-                          observaciones: observaciones,
-                          procesador: procesador,
-                          ram: ram,
-                          almacenamiento: almacenamiento,
-                          cargadorCodigo: cargadorCodigo,
-                          numPuertos: numPuertos,
-                          tipoExtension: tipoExtension,
-                          numConexiones: numConexiones,
-                          varImpresoraColor: varImpresoraColor,
-                          varMonitorTipoConexion: varMonitorTipoConexion,
-                          proveedorSoftware: proveedorSoftware,
-                          fechaInicio: fechaInicio,
-                          fechaFin: fechaFin,
-                        );
+      builder: (_) => MultiSelectDialog(
+        title: title,
+        items: items,
+        initialSelectedIds: selectedIds,
+        displayKey: displayKey,
+      ),
+    );
+    if (result != null) {
+      onConfirm(result);
+      _applyFilters();
+    }
+  }
 
-                        if (!mounted) return;
-                        Navigator.pop(dialogContext);
-                        context.showSnackBar('Activo creado correctamente.');
-                        _loadInitialData(); // reload entire joined list
-                      } catch (error) {
-                        if (!mounted) return;
-                        context.showSnackBar('Error al crear el activo: $error', isError: true);
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+  Widget _buildDrawerFilterButton(String label, List<int> selectedIds, List<Map<String, dynamic>> items, String displayKey) {
+    return ListTile(
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados'),
+      trailing: const Icon(Icons.arrow_drop_down),
+      onTap: () {
+        _showMultiSelect(label, items, selectedIds, displayKey, (newSelection) {
+          setState(() {
+            selectedIds.clear();
+            selectedIds.addAll(newSelection);
+          });
+        });
       },
     );
   }
 
-  Widget _buildDropdownFilter(String label, int? value, List<Map<String, dynamic>> items, String displayKey, ValueChanged<int?> onChanged) {
-    return SizedBox(
-      width: 160,
-      child: DropdownButtonFormField<int>(
-        value: value,
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
-        isExpanded: true,
-        items: items.map((item) {
-          return DropdownMenuItem<int>(
-            value: item['id'] as int,
-            child: Text(item[displayKey]?.toString() ?? '', overflow: TextOverflow.ellipsis),
-          );
-        }).toList(),
-        onChanged: (val) {
-          onChanged(val);
-          _applyFilters();
-        },
+  Widget _buildDrawerTextField(String label, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: 'Ej: val1, val2',
+          border: const OutlineInputBorder(),
+          isDense: true,
+        ),
+        onChanged: (_) => _applyFilters(),
       ),
+    );
+  }
+
+  Widget _buildDrawerDateFilter(String label, DateTimeRange? currentRange, ValueChanged<DateTimeRange?> onChanged) {
+    return ListTile(
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(currentRange == null ? 'Cualquier fecha' : '${currentRange.start.toLocal().toString().split(' ')[0]} - ${currentRange.end.toLocal().toString().split(' ')[0]}'),
+      trailing: currentRange != null 
+        ? IconButton(icon: const Icon(Icons.clear), onPressed: () { onChanged(null); _applyFilters(); })
+        : const Icon(Icons.calendar_today),
+      onTap: () async {
+        final range = await showDateRangePicker(
+          context: context,
+          firstDate: DateTime(2000),
+          lastDate: DateTime(2100),
+          initialDateRange: currentRange,
+        );
+        if (range != null) {
+          onChanged(range);
+          _applyFilters();
+        }
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Expanded(
-                child: Text('Gestión de Activos', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          Wrap(
-            spacing: 8, runSpacing: 8,
-            children: [
-              ActionChip(avatar: const Icon(Icons.computer, size: 16), label: const Text('PCs'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PcAssetsPage()))),
-              ActionChip(avatar: const Icon(Icons.developer_board, size: 16), label: const Text('Software'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SoftwareAssetsPage()))),
-              ActionChip(avatar: const Icon(Icons.router, size: 16), label: const Text('Comunicación'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommsAssetsPage()))),
-              ActionChip(avatar: const Icon(Icons.devices_other, size: 16), label: const Text('Genéricos'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GenericAssetsPage()))),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.grey.shade300)),
-            child: ExpansionTile(
-              title: const Text('Filtros de Búsqueda', style: TextStyle(fontWeight: FontWeight.bold)),
-              leading: const Icon(Icons.filter_list),
-              childrenPadding: const EdgeInsets.all(16),
-              children: [
-                Wrap(
-                  spacing: 12, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    SizedBox(width: 140, child: TextField(controller: _serieFilterController, decoration: const InputDecoration(labelText: 'Número de serie', border: OutlineInputBorder(), isDense: true), onChanged: (_) => _applyFilters())),
-                    SizedBox(width: 140, child: TextField(controller: _nombreFilterController, decoration: const InputDecoration(labelText: 'Nombre', border: OutlineInputBorder(), isDense: true), onChanged: (_) => _applyFilters())),
-                    
-                    SizedBox(
-                      width: 150,
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedCategoryFilter,
-                        decoration: const InputDecoration(labelText: 'Categoría', border: OutlineInputBorder(), isDense: true),
-                        items: const [
-                          DropdownMenuItem(value: 'TODAS', child: Text('TODAS')),
-                          DropdownMenuItem(value: 'PC', child: Text('PC')),
-                          DropdownMenuItem(value: 'SOFTWARE', child: Text('SOFTWARE')),
-                          DropdownMenuItem(value: 'COMUNICACION', child: Text('COMUNICACIÓN')),
-                          DropdownMenuItem(value: 'GENERICO', child: Text('GENÉRICO')),
-                        ],
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setState(() => _selectedCategoryFilter = value);
-                          _applyFilters();
-                        },
-                      ),
-                    ),
-                    _buildDropdownFilter('Tipo Activo', _selectedTipoActivo, _tiposActivo, 'tipo', (v) => _selectedTipoActivo = v),
-                    _buildDropdownFilter('Condición', _selectedCondicion, _condiciones, 'condicion', (v) => _selectedCondicion = v),
-                    _buildDropdownFilter('Sede', _selectedSede, _sedes, 'sede', (v) => _selectedSede = v),
-                    _buildDropdownFilter('Área', _selectedArea, _areas, 'area', (v) => _selectedArea = v),
-
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _serieFilterController.clear();
-                          _nombreFilterController.clear();
-                          _selectedCategoryFilter = 'TODAS';
-                          _selectedTipoActivo = null;
-                          _selectedCondicion = null;
-                          _selectedSede = null;
-                          _selectedArea = null;
-                        });
-                        _applyFilters();
-                      },
-                      icon: const Icon(Icons.clear_all),
-                      label: const Text('Limpiar'),
-                    ),
-                    IconButton(tooltip: 'Recargar', onPressed: _loadInitialData, icon: const Icon(Icons.refresh)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment<bool>(value: false, icon: Icon(Icons.view_list), label: Text('Lista')),
-                  ButtonSegment<bool>(value: true, icon: Icon(Icons.table_chart), label: Text('Tabla')),
-                ],
-                selected: {_isTableView},
-                onSelectionChanged: (Set<bool> newSelection) {
-                  setState(() => _isTableView = newSelection.first);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Gestión de Activos Completa'),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAssets),
+          Builder(
+            builder: (context) {
+              return IconButton(
+                icon: const Icon(Icons.filter_list),
+                tooltip: 'Filtros',
+                onPressed: () {
+                  Scaffold.of(context).openEndDrawer();
                 },
-              ),
-              ElevatedButton.icon(
-                onPressed: _showAddAssetDialog,
-                icon: const Icon(Icons.add),
-                label: const Text('Agregar Nuevo Activo'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-              ),
-            ],
+              );
+            }
           ),
-          const SizedBox(height: 10),
-
-          Expanded(child: _isTableView ? _buildTableSection() : _buildListSection()),
         ],
+      ),
+      endDrawer: Drawer(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.only(top: 48, bottom: 16, left: 16, right: 16),
+              color: Colors.blue.shade50,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Filtros Avanzados', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  TextButton(onPressed: _clearFilters, child: const Text('Limpiar Todos'))
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Campos de Texto (Separados por coma)', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                  _buildDrawerTextField('Nombres', _nombresController),
+                  _buildDrawerTextField('Códigos', _codigosController),
+                  _buildDrawerTextField('Números de Serie', _seriesController),
+                  
+                  const Divider(),
+                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Listas Maestras', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                  _buildDrawerFilterButton('Tipo Activo', _selectedTiposActivo, _tiposActivo, 'tipo'),
+                  _buildDrawerFilterButton('Condición', _selectedCondiciones, _condiciones, 'condicion'),
+                  _buildDrawerFilterButton('Custodio', _selectedCustodios, _custodios, 'nombre_completo'),
+                  _buildDrawerFilterButton('Sede', _selectedSedes, _sedes, 'sede'),
+                  _buildDrawerFilterButton('Área', _selectedAreas, _areas, 'area'),
+                  _buildDrawerFilterButton('Ciudad', _selectedCiudades, _ciudades, 'ciudad'),
+                  _buildDrawerFilterButton('Proveedor', _selectedProveedores, _proveedores, 'nombre'),
+
+                  const Divider(),
+                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Rango de Fechas', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                  _buildDrawerDateFilter('Fecha de Adquisición', _rangoAdquisicion, (r) => setState(() => _rangoAdquisicion = r)),
+                  _buildDrawerDateFilter('Fecha de Entrega', _rangoEntrega, (r) => setState(() => _rangoEntrega = r)),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            /// ActionChips Categorical Navigation (Scrollable horizontally)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ActionChip(
+                    avatar: const Icon(Icons.computer, size: 16),
+                    label: const Text('Equipos PC'),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PcAssetsPage())),
+                  ),
+                  const SizedBox(width: 8),
+                  ActionChip(
+                    avatar: const Icon(Icons.developer_board, size: 16),
+                    label: const Text('Software'),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SoftwareAssetsPage())),
+                  ),
+                  const SizedBox(width: 8),
+                  ActionChip(
+                    avatar: const Icon(Icons.router, size: 16),
+                    label: const Text('Comunicación'),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommsAssetsPage())),
+                  ),
+                  const SizedBox(width: 8),
+                  ActionChip(
+                    avatar: const Icon(Icons.devices_other, size: 16),
+                    label: const Text('Genéricos'),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GenericAssetsPage())),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            /// Header y Toggle
+            Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment<bool>(value: false, icon: Icon(Icons.view_list), label: Text('Lista')),
+                      ButtonSegment<bool>(value: true, icon: Icon(Icons.table_chart), label: Text('Tabla')),
+                    ],
+                    selected: {_isTableView},
+                    onSelectionChanged: (Set<bool> newSelection) {
+                      setState(() { _isTableView = newSelection.first; });
+                    },
+                  ),
+                  const Text('   <- Visores Detallados ', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+                ],
+            ),
+            const SizedBox(height: 10),
+
+            /// Data Layout
+            Expanded(child: _isTableView ? _buildTableSection() : _buildListSection()),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Scaffold.of(context).openEndDrawer();
+        },
+        tooltip: 'Abrir Filtros',
+        child: const Icon(Icons.filter_list),
       ),
     );
   }
 
   Widget _buildTableSection() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_errorMessage != null) return Center(child: Text(_errorMessage!, textAlign: TextAlign.center));
-    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar con los filtros actuales.'));
+    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
 
     return Card(
       child: SingleChildScrollView(
@@ -526,14 +422,12 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
             columnSpacing: 24,
             columns: const [
               DataColumn(label: Text('S/N')),
-              DataColumn(label: Text('Nombre')),
+              DataColumn(label: Text('Nombre Activo')),
               DataColumn(label: Text('Categoría')),
               DataColumn(label: Text('Tipo Activo')),
               DataColumn(label: Text('Condición')),
-              DataColumn(label: Text('Ciudad')),
               DataColumn(label: Text('Sede')),
               DataColumn(label: Text('Área')),
-              DataColumn(label: Text('Proveedor')),
               DataColumn(label: Text('Acciones')),
             ],
             rows: _filteredAssets.map((asset) {
@@ -544,10 +438,8 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                   DataCell(Text(asset['categoria_activo']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['tipo_activo']?['tipo']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['condicion_activo']?['condicion']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['ciudad_activo']?['ciudad']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['sede_activo']?['sede']?.toString() ?? 'N/A')),
                   DataCell(Text(asset['area_activo']?['area']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['proveedor']?['nombre']?.toString() ?? 'N/A')),
                   DataCell(
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -572,35 +464,39 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
 
   Widget _buildListSection() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_errorMessage != null) return Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)));
-    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar con los filtros actuales.'));
+    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
 
     return ListView.builder(
       itemCount: _filteredAssets.length,
       itemBuilder: (context, index) {
         final asset = _filteredAssets[index];
+
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           elevation: 2,
           child: ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: Colors.blueAccent,
-              child: Icon(Icons.inventory, color: Colors.white),
+            leading: CircleAvatar(
+              backgroundColor: Colors.blue.shade100,
+              child: Icon(Icons.devices, color: Colors.blue.shade800),
             ),
-            title: Text(asset['nombre']?.toString() ?? 'Sin Nombre', style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(asset['nombre']?.toString() ?? 'Activo Sin Nombre', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(
-              'Categoría: ${asset['categoria_activo']} | S/N: ${asset['numero_serie'] ?? 'N/A'}\n'
-              'Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'} | Sede: ${asset['sede_activo']?['sede'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}\n'
-              'Proveedor: ${asset['proveedor']?['nombre'] ?? 'N/A'}',
+              'Cat: ${asset['categoria_activo'] ?? 'N/A'} | Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'}\n'
+              'Sede: ${asset['sede_activo']?['sede'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}\n'
+              'S/N: ${asset['numero_serie'] ?? 'N/A'} | Código: ${asset['codigo'] ?? 'N/A'}',
             ),
             isThreeLine: true,
-            trailing: RoleService.currentRole != UserRole.ayudante
-                ? IconButton(
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (RoleService.currentRole != UserRole.ayudante)
+                  IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () => _deleteAsset(asset['id']),
                     tooltip: 'Eliminar',
-                  )
-                : null,
+                  ),
+              ],
+            ),
           ),
         );
       },

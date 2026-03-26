@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
+import 'package:front_inventarios/widgets/multi_select_dialog.dart';
 
 class GenericAssetsPage extends StatefulWidget {
   const GenericAssetsPage({super.key});
@@ -16,18 +17,33 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
   bool _isLoading = true;
   bool _isTableView = true;
 
-  final TextEditingController _serieFilterController = TextEditingController();
-  final TextEditingController _nombreFilterController = TextEditingController();
-
-  int? _selectedTipoActivo;
-  int? _selectedCondicion;
-  int? _selectedSede;
-  int? _selectedArea;
-
+  // Master Data
   List<Map<String, dynamic>> _tiposActivo = [];
   List<Map<String, dynamic>> _condiciones = [];
   List<Map<String, dynamic>> _sedes = [];
   List<Map<String, dynamic>> _areas = [];
+  List<Map<String, dynamic>> _ciudades = [];
+  List<Map<String, dynamic>> _custodios = [];
+  List<Map<String, dynamic>> _proveedores = [];
+  List<Map<String, dynamic>> _marcas = [];
+
+  // Filter Models
+  List<int> _selectedTiposActivo = [];
+  List<int> _selectedCondiciones = [];
+  List<int> _selectedSedes = [];
+  List<int> _selectedAreas = [];
+  List<int> _selectedCiudades = [];
+  List<int> _selectedCustodios = [];
+  List<int> _selectedProveedores = [];
+  List<int> _selectedMarcas = [];
+
+  final TextEditingController _nombresController = TextEditingController();
+  final TextEditingController _codigosController = TextEditingController();
+  final TextEditingController _seriesController = TextEditingController();
+  final TextEditingController _modelosController = TextEditingController();
+
+  DateTimeRange? _rangoAdquisicion;
+  DateTimeRange? _rangoEntrega;
 
   @override
   void initState() {
@@ -35,21 +51,18 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
     _loadAssets();
   }
 
-  @override
-  void dispose() {
-    _serieFilterController.dispose();
-    _nombreFilterController.dispose();
-    super.dispose();
-  }
-
   Future<void> _loadAssets() async {
     setState(() => _isLoading = true);
     try {
-      final responses = await Future.wait([
-        supabase.from('tipo_activo').select('id, tipo').order('tipo'),
+      final futures = await Future.wait([
+        supabase.from('tipo_activo').select('id, tipo, categoria').eq('categoria', 'GENERICO').order('tipo'),
         supabase.from('condicion_activo').select('id, condicion').order('condicion'),
         supabase.from('sede_activo').select('id, sede').order('sede'),
         supabase.from('area_activo').select('id, area').order('area'),
+        supabase.from('ciudad_activo').select('id, ciudad').order('ciudad'),
+        supabase.from('custodio').select('id, nombre_completo').order('nombre_completo'),
+        supabase.from('proveedor').select('id, nombre').order('nombre'),
+        supabase.from('marca').select('id, marca_proveedor').order('marca_proveedor'),
         supabase.from('activo').select('''
           *,
           info_equipo_generico(*, marca(marca_proveedor)),
@@ -65,12 +78,16 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
 
       if (mounted) {
         setState(() {
-          _tiposActivo = List<Map<String, dynamic>>.from(responses[0] as List);
-          _condiciones = List<Map<String, dynamic>>.from(responses[1] as List);
-          _sedes = List<Map<String, dynamic>>.from(responses[2] as List);
-          _areas = List<Map<String, dynamic>>.from(responses[3] as List);
+          _tiposActivo = List<Map<String, dynamic>>.from(futures[0] as List);
+          _condiciones = List<Map<String, dynamic>>.from(futures[1] as List);
+          _sedes = List<Map<String, dynamic>>.from(futures[2] as List);
+          _areas = List<Map<String, dynamic>>.from(futures[3] as List);
+          _ciudades = List<Map<String, dynamic>>.from(futures[4] as List);
+          _custodios = List<Map<String, dynamic>>.from(futures[5] as List);
+          _proveedores = List<Map<String, dynamic>>.from(futures[6] as List);
+          _marcas = List<Map<String, dynamic>>.from(futures[7] as List);
 
-          _allAssets = List<Map<String, dynamic>>.from(responses[4] as List);
+          _allAssets = List<Map<String, dynamic>>.from(futures[8] as List);
           _filteredAssets = _allAssets;
           _isLoading = false;
         });
@@ -85,23 +102,77 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
   }
 
   void _applyFilters() {
-    final serieText = _serieFilterController.text.trim().toLowerCase();
-    final nombreText = _nombreFilterController.text.trim().toLowerCase();
+    final nombres = _nombresController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    final codigos = _codigosController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    final series = _seriesController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    final modelos = _modelosController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
     final result = _allAssets.where((asset) {
-      final matchesSerie = serieText.isEmpty || (asset['numero_serie'] ?? '').toString().toLowerCase().contains(serieText);
-      final matchesNombre = nombreText.isEmpty || (asset['nombre'] ?? '').toString().toLowerCase().contains(nombreText);
-      final matchesTipo = _selectedTipoActivo == null || asset['id_tipo_activo'] == _selectedTipoActivo;
-      final matchesCondicion = _selectedCondicion == null || asset['id_condicion_activo'] == _selectedCondicion;
-      final matchesSede = _selectedSede == null || asset['id_sede_activo'] == _selectedSede;
-      final matchesArea = _selectedArea == null || asset['id_area_activo'] == _selectedArea;
+      final info = asset['info_equipo_generico'] != null && (asset['info_equipo_generico'] as List).isNotEmpty ? (asset['info_equipo_generico'] as List)[0] : null;
 
-      return matchesSerie && matchesNombre && matchesTipo && matchesCondicion && matchesSede && matchesArea;
+      // Texts Multi Matching
+      bool matchesNombre = nombres.isEmpty || nombres.any((n) => (asset['nombre'] ?? '').toString().toLowerCase().contains(n));
+      bool matchesCodigo = codigos.isEmpty || codigos.any((c) => (asset['codigo'] ?? '').toString().toLowerCase().contains(c));
+      bool matchesSerie = series.isEmpty || series.any((s) => (asset['numero_serie'] ?? '').toString().toLowerCase().contains(s));
+      bool matchesModelo = modelos.isEmpty || modelos.any((m) => (info?['modelo'] ?? '').toString().toLowerCase().contains(m));
+
+      // Multi Select Matching
+      bool matchesTipo = _selectedTiposActivo.isEmpty || _selectedTiposActivo.contains(asset['id_tipo_activo']);
+      bool matchesCondicion = _selectedCondiciones.isEmpty || _selectedCondiciones.contains(asset['id_condicion_activo']);
+      bool matchesSede = _selectedSedes.isEmpty || _selectedSedes.contains(asset['id_sede_activo']);
+      bool matchesArea = _selectedAreas.isEmpty || _selectedAreas.contains(asset['id_area_activo']);
+      bool matchesCiudad = _selectedCiudades.isEmpty || _selectedCiudades.contains(asset['id_ciudad_activo']);
+      bool matchesCustodio = _selectedCustodios.isEmpty || _selectedCustodios.contains(asset['id_custodio']);
+      bool matchesProveedor = _selectedProveedores.isEmpty || _selectedProveedores.contains(asset['id_provedor']);
+      bool matchesMarca = _selectedMarcas.isEmpty || _selectedMarcas.contains(info?['id_marca']);
+
+      // Date Ranges Matching
+      bool matchesAdquisicion = true;
+      if (_rangoAdquisicion != null && asset['fecha_adquisicion'] != null) {
+        try {
+          final dt = DateTime.parse(asset['fecha_adquisicion'].toString());
+          if (dt.isBefore(_rangoAdquisicion!.start) || dt.isAfter(_rangoAdquisicion!.end)) matchesAdquisicion = false;
+        } catch (_) {}
+      }
+
+      bool matchesEntrega = true;
+      if (_rangoEntrega != null && asset['fecha_entrega'] != null) {
+        try {
+          final dt = DateTime.parse(asset['fecha_entrega'].toString());
+          if (dt.isBefore(_rangoEntrega!.start) || dt.isAfter(_rangoEntrega!.end)) matchesEntrega = false;
+        } catch (_) {}
+      }
+
+      return matchesNombre && matchesCodigo && matchesSerie && matchesModelo &&
+             matchesTipo && matchesCondicion && matchesSede &&
+             matchesArea && matchesCiudad && matchesCustodio &&
+             matchesProveedor && matchesMarca &&
+             matchesAdquisicion && matchesEntrega;
     }).toList();
 
     setState(() {
       _filteredAssets = result;
     });
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _selectedTiposActivo.clear();
+      _selectedCondiciones.clear();
+      _selectedSedes.clear();
+      _selectedAreas.clear();
+      _selectedCiudades.clear();
+      _selectedCustodios.clear();
+      _selectedProveedores.clear();
+      _selectedMarcas.clear();
+      _nombresController.clear();
+      _codigosController.clear();
+      _seriesController.clear();
+      _modelosController.clear();
+      _rangoAdquisicion = null;
+      _rangoEntrega = null;
+    });
+    _applyFilters();
   }
 
   Future<void> _deleteAsset(int id) async {
@@ -125,7 +196,7 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
 
     try {
       await supabase.rpc('eliminar_activo', params: {'p_id_activo': id});
-      if (mounted) context.showSnackBar('Equipo eliminado correctamente.');
+      if (mounted) context.showSnackBar('Activo eliminado correctamente.');
       _loadAssets();
     } catch (e) {
       if (mounted) context.showSnackBar('Error al eliminar: $e', isError: true);
@@ -134,10 +205,7 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
 
   Future<void> _showAssetDialog({Map<String, dynamic>? existingAsset}) async {
     final isUpdate = existingAsset != null;
-    
-    if (isUpdate) {
-       context.showSnackBar('Precaución: Refresque todos los campos en este formulario para el Activo ${existingAsset['nombre']} antes de guardar.');
-    }
+    if (isUpdate) context.showSnackBar('Precaución: Refresque todos los campos en este formulario para el Activo ${existingAsset['nombre']} antes de guardar.');
 
     await showDialog(
       context: context,
@@ -154,9 +222,7 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(isUpdate ? 'Actualizar Equipo' : 'Agregar Especial - Genérico', 
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)
-                    ),
+                    Text(isUpdate ? 'Actualizar Equipo' : 'Agregar Especial - Genérico', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                     IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(dialogContext))
                   ],
                 ),
@@ -230,7 +296,6 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
                           if (!mounted) return;
                           context.showSnackBar('Activo creado correctamente.');
                         }
-                        
                         Navigator.pop(dialogContext);
                         _loadAssets();
                       } catch (error) {
@@ -248,24 +313,47 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
     );
   }
 
-  Widget _buildDropdownFilter(String label, int? value, List<Map<String, dynamic>> items, String displayKey, ValueChanged<int?> onChanged) {
-    return SizedBox(
-      width: 160,
-      child: DropdownButtonFormField<int>(
-        value: value,
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
-        isExpanded: true,
-        items: items.map((item) {
-          return DropdownMenuItem<int>(
-            value: item['id'] as int,
-            child: Text(item[displayKey]?.toString() ?? '', overflow: TextOverflow.ellipsis),
-          );
-        }).toList(),
-        onChanged: (val) {
-          onChanged(val);
+  Widget _buildDrawerFilterButton(String label, List<int> selectedIds, List<Map<String, dynamic>> items, String displayKey) {
+    return ListTile(
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados'),
+      trailing: const Icon(Icons.arrow_drop_down),
+      onTap: () async {
+        final result = await showDialog<List<int>>(
+          context: context,
+          builder: (_) => MultiSelectDialog(title: label, items: items, initialSelectedIds: selectedIds, displayKey: displayKey),
+        );
+        if (result != null) {
+          setState(() {
+            selectedIds.clear();
+            selectedIds.addAll(result);
+          });
           _applyFilters();
-        },
+        }
+      },
+    );
+  }
+
+  Widget _buildDrawerTextField(String label, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(labelText: label, hintText: 'Ej: val1, val2', border: const OutlineInputBorder(), isDense: true),
+        onChanged: (_) => _applyFilters(),
       ),
+    );
+  }
+
+  Widget _buildDrawerDateFilter(String label, DateTimeRange? currentRange, ValueChanged<DateTimeRange?> onChanged) {
+    return ListTile(
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(currentRange == null ? 'Cualquier fecha' : '${currentRange.start.toLocal().toString().split(' ')[0]} - ${currentRange.end.toLocal().toString().split(' ')[0]}'),
+      trailing: currentRange != null ? IconButton(icon: const Icon(Icons.clear), onPressed: () { onChanged(null); _applyFilters(); }) : const Icon(Icons.calendar_today),
+      onTap: () async {
+        final range = await showDateRangePicker(context: context, firstDate: DateTime(2000), lastDate: DateTime(2100), initialDateRange: currentRange);
+        if (range != null) { onChanged(range); _applyFilters(); }
+      },
     );
   }
 
@@ -276,53 +364,61 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
         title: const Text('Equipos Genéricos'),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAssets),
+          Builder(
+            builder: (context) => IconButton(icon: const Icon(Icons.filter_list), tooltip: 'Filtros', onPressed: () => Scaffold.of(context).openEndDrawer()),
+          ),
         ],
+      ),
+      endDrawer: Drawer(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.only(top: 48, bottom: 16, left: 16, right: 16),
+              color: Colors.blue.shade50,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Filtros Genéricos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  TextButton(onPressed: _clearFilters, child: const Text('Limpiar Todos'))
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Descripciones (Separados por coma)', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                  _buildDrawerTextField('Nombres', _nombresController),
+                  _buildDrawerTextField('Códigos', _codigosController),
+                  _buildDrawerTextField('Números de Serie', _seriesController),
+                  _buildDrawerTextField('Modelos', _modelosController),
+                  
+                  const Divider(),
+                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Listas Maestras', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                  _buildDrawerFilterButton('Tipo Activo', _selectedTiposActivo, _tiposActivo, 'tipo'),
+                  _buildDrawerFilterButton('Condición', _selectedCondiciones, _condiciones, 'condicion'),
+                  _buildDrawerFilterButton('Custodio', _selectedCustodios, _custodios, 'nombre_completo'),
+                  _buildDrawerFilterButton('Sede', _selectedSedes, _sedes, 'sede'),
+                  _buildDrawerFilterButton('Área', _selectedAreas, _areas, 'area'),
+                  _buildDrawerFilterButton('Ciudad', _selectedCiudades, _ciudades, 'ciudad'),
+                  _buildDrawerFilterButton('Proveedor', _selectedProveedores, _proveedores, 'nombre'),
+                  _buildDrawerFilterButton('Marca', _selectedMarcas, _marcas, 'marca_proveedor'),
+
+                  const Divider(),
+                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Rango de Fechas', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                  _buildDrawerDateFilter('Fecha de Adquisición', _rangoAdquisicion, (r) => setState(() => _rangoAdquisicion = r)),
+                  _buildDrawerDateFilter('Fecha de Entrega', _rangoEntrega, (r) => setState(() => _rangoEntrega = r)),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            /// Filtros
-            Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.grey.shade300)),
-              child: ExpansionTile(
-                title: const Text('Filtros de Búsqueda', style: TextStyle(fontWeight: FontWeight.bold)),
-                leading: const Icon(Icons.filter_list),
-                childrenPadding: const EdgeInsets.all(16),
-                children: [
-                  Wrap(
-                    spacing: 12, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      SizedBox(width: 160, child: TextField(controller: _serieFilterController, decoration: const InputDecoration(labelText: 'Número de serie', border: OutlineInputBorder(), isDense: true), onChanged: (_) => _applyFilters())),
-                      SizedBox(width: 160, child: TextField(controller: _nombreFilterController, decoration: const InputDecoration(labelText: 'Nombre', border: OutlineInputBorder(), isDense: true), onChanged: (_) => _applyFilters())),
-                      
-                      _buildDropdownFilter('Tipo Activo', _selectedTipoActivo, _tiposActivo, 'tipo', (v) => _selectedTipoActivo = v),
-                      _buildDropdownFilter('Condición', _selectedCondicion, _condiciones, 'condicion', (v) => _selectedCondicion = v),
-                      _buildDropdownFilter('Sede', _selectedSede, _sedes, 'sede', (v) => _selectedSede = v),
-                      _buildDropdownFilter('Área', _selectedArea, _areas, 'area', (v) => _selectedArea = v),
-
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _serieFilterController.clear();
-                            _nombreFilterController.clear();
-                            _selectedTipoActivo = null;
-                            _selectedCondicion = null;
-                            _selectedSede = null;
-                            _selectedArea = null;
-                          });
-                          _applyFilters();
-                        },
-                        icon: const Icon(Icons.clear_all),
-                        label: const Text('Limpiar'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-
             /// Header y Toggle
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -352,12 +448,17 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Scaffold.of(context).openEndDrawer(),
+        tooltip: 'Abrir Filtros',
+        child: const Icon(Icons.filter_list),
+      ),
     );
   }
 
   Widget _buildTableSection() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar.'));
+    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
 
     return Card(
       child: SingleChildScrollView(
@@ -418,7 +519,7 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
 
   Widget _buildListSection() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar.'));
+    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
 
     return ListView.builder(
       itemCount: _filteredAssets.length,
