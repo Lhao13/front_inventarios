@@ -3,6 +3,7 @@ import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
+import 'package:front_inventarios/widgets/asset_data_table.dart';
 
 class CommsAssetsPage extends StatefulWidget {
   const CommsAssetsPage({super.key});
@@ -16,6 +17,113 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
   List<Map<String, dynamic>> _filteredAssets = [];
   bool _isLoading = true;
   bool _isTableView = true;
+
+  // Column definitions for COMUNICACION category
+  static final List<AssetColumnDef> _commsColumns = [
+    AssetColumnDef(
+      label: 'S/N',
+      getValue: (a) => a['numero_serie']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Nombre',
+      getValue: (a) => a['nombre']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Código',
+      getValue: (a) => a['codigo']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Tipo Activo',
+      getValue: (a) => a['tipo_activo']?['tipo']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Condición',
+      getValue: (a) => a['condicion_activo']?['condicion']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Custodio',
+      getValue: (a) => a['custodio']?['nombre_completo']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Ciudad',
+      getValue: (a) => a['ciudad_activo']?['ciudad']?.toString() ?? 'N/A',
+      visibleByDefault: false,
+    ),
+    AssetColumnDef(
+      label: 'Sede',
+      getValue: (a) => a['sede_activo']?['sede']?.toString() ?? 'N/A',
+      visibleByDefault: false,
+    ),
+    AssetColumnDef(
+      label: 'Área',
+      getValue: (a) => a['area_activo']?['area']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Proveedor',
+      getValue: (a) => a['proveedor']?['nombre']?.toString() ?? 'N/A',
+      visibleByDefault: false,
+    ),
+    AssetColumnDef(
+      label: 'Fe. Adquisición',
+      getValue: (a) => a['fecha_adquisicion']?.toString() ?? 'N/A',
+      visibleByDefault: false,
+    ),
+    AssetColumnDef(
+      label: 'IP',
+      getValue: (a) => a['ip']?.toString() ?? 'N/A',
+      visibleByDefault: false,
+    ),
+    AssetColumnDef(
+      label: 'Fe. Entrega',
+      getValue: (a) => a['fecha_entrega']?.toString() ?? 'N/A',
+      visibleByDefault: false,
+    ),
+    AssetColumnDef(
+      label: 'Coordenada',
+      getValue: (a) => a['coordenada']?.toString() ?? 'N/A',
+      visibleByDefault: false,
+    ),
+    AssetColumnDef(
+      label: 'Marca',
+      getValue: (a) {
+        final i = _info(a, 'info_equipo_comunicacion');
+        return i?['marca']?['marca_proveedor']?.toString() ?? 'N/A';
+      },
+    ),
+    AssetColumnDef(
+      label: 'Modelo',
+      getValue: (a) {
+        final i = _info(a, 'info_equipo_comunicacion');
+        return i?['modelo']?.toString() ?? 'N/A';
+      },
+    ),
+    AssetColumnDef(
+      label: 'Num. Puertos',
+      getValue: (a) {
+        final i = _info(a, 'info_equipo_comunicacion');
+        return i?['num_puertos']?.toString() ?? 'N/A';
+      },
+    ),
+    AssetColumnDef(
+      label: 'Tipo Extensión',
+      getValue: (a) {
+        final i = _info(a, 'info_equipo_comunicacion');
+        return i?['tipo_extension']?.toString() ?? 'N/A';
+      },
+    ),
+    AssetColumnDef(
+      label: 'Observaciones',
+      getValue: (a) => a['observaciones']?.toString() ?? 'N/A',
+      visibleByDefault: false,
+    ),
+  ];
+
+  static Map<String, dynamic>? _info(Map<String, dynamic> asset, String key) {
+    final list = asset[key];
+    if (list is List && list.isNotEmpty)
+      return list[0] as Map<String, dynamic>?;
+    return null;
+  }
 
   // Master Data
   List<Map<String, dynamic>> _tiposActivo = [];
@@ -56,15 +164,30 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
     setState(() => _isLoading = true);
     try {
       final futures = await Future.wait([
-        supabase.from('tipo_activo').select('id, tipo, categoria').eq('categoria', 'COMUNICACION').order('tipo'),
-        supabase.from('condicion_activo').select('id, condicion').order('condicion'),
+        supabase
+            .from('tipo_activo')
+            .select('id, tipo, categoria')
+            .eq('categoria', 'COMUNICACION')
+            .order('tipo'),
+        supabase
+            .from('condicion_activo')
+            .select('id, condicion')
+            .order('condicion'),
         supabase.from('sede_activo').select('id, sede').order('sede'),
         supabase.from('area_activo').select('id, area').order('area'),
         supabase.from('ciudad_activo').select('id, ciudad').order('ciudad'),
-        supabase.from('custodio').select('id, nombre_completo').order('nombre_completo'),
+        supabase
+            .from('custodio')
+            .select('id, nombre_completo')
+            .order('nombre_completo'),
         supabase.from('proveedor').select('id, nombre').order('nombre'),
-        supabase.from('marca').select('id, marca_proveedor').order('marca_proveedor'),
-        supabase.from('activo').select('''
+        supabase
+            .from('marca')
+            .select('id, marca_proveedor')
+            .order('marca_proveedor'),
+        supabase
+            .from('activo')
+            .select('''
           *,
           info_equipo_comunicacion(*, marca(marca_proveedor)),
           tipo_activo(tipo),
@@ -74,7 +197,9 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
           area_activo(area),
           proveedor(nombre),
           custodio(nombre_completo)
-        ''').eq('categoria_activo', 'COMUNICACION').order('id')
+        ''')
+            .eq('categoria_activo', 'COMUNICACION')
+            .order('id'),
       ]);
 
       if (mounted) {
@@ -103,35 +228,113 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
   }
 
   void _applyFilters() {
-    final nombres = _nombresController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final codigos = _codigosController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final series = _seriesController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final modelos = _modelosController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final puertos = _puertosController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    final nombres = _nombresController.text
+        .trim()
+        .toLowerCase()
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final codigos = _codigosController.text
+        .trim()
+        .toLowerCase()
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final series = _seriesController.text
+        .trim()
+        .toLowerCase()
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final modelos = _modelosController.text
+        .trim()
+        .toLowerCase()
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final puertos = _puertosController.text
+        .trim()
+        .toLowerCase()
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
 
     final result = _allAssets.where((asset) {
-      final info = asset['info_equipo_comunicacion'] != null && (asset['info_equipo_comunicacion'] as List).isNotEmpty ? (asset['info_equipo_comunicacion'] as List)[0] : null;
+      final info =
+          asset['info_equipo_comunicacion'] != null &&
+              (asset['info_equipo_comunicacion'] as List).isNotEmpty
+          ? (asset['info_equipo_comunicacion'] as List)[0]
+          : null;
 
-      bool matchesNombre = nombres.isEmpty || nombres.any((n) => (asset['nombre'] ?? '').toString().toLowerCase().contains(n));
-      bool matchesCodigo = codigos.isEmpty || codigos.any((c) => (asset['codigo'] ?? '').toString().toLowerCase().contains(c));
-      bool matchesSerie = series.isEmpty || series.any((s) => (asset['numero_serie'] ?? '').toString().toLowerCase().contains(s));
-      bool matchesModelo = modelos.isEmpty || modelos.any((m) => (info?['modelo'] ?? '').toString().toLowerCase().contains(m));
-      bool matchesPuertos = puertos.isEmpty || puertos.any((p) => (info?['num_puertos'] ?? '').toString().toLowerCase().contains(p));
+      bool matchesNombre =
+          nombres.isEmpty ||
+          nombres.any(
+            (n) => (asset['nombre'] ?? '').toString().toLowerCase().contains(n),
+          );
+      bool matchesCodigo =
+          codigos.isEmpty ||
+          codigos.any(
+            (c) => (asset['codigo'] ?? '').toString().toLowerCase().contains(c),
+          );
+      bool matchesSerie =
+          series.isEmpty ||
+          series.any(
+            (s) => (asset['numero_serie'] ?? '')
+                .toString()
+                .toLowerCase()
+                .contains(s),
+          );
+      bool matchesModelo =
+          modelos.isEmpty ||
+          modelos.any(
+            (m) => (info?['modelo'] ?? '').toString().toLowerCase().contains(m),
+          );
+      bool matchesPuertos =
+          puertos.isEmpty ||
+          puertos.any(
+            (p) => (info?['num_puertos'] ?? '')
+                .toString()
+                .toLowerCase()
+                .contains(p),
+          );
 
-      bool matchesTipo = _selectedTiposActivo.isEmpty || _selectedTiposActivo.contains(asset['id_tipo_activo']);
-      bool matchesCondicion = _selectedCondiciones.isEmpty || _selectedCondiciones.contains(asset['id_condicion_activo']);
-      bool matchesSede = _selectedSedes.isEmpty || _selectedSedes.contains(asset['id_sede_activo']);
-      bool matchesArea = _selectedAreas.isEmpty || _selectedAreas.contains(asset['id_area_activo']);
-      bool matchesCiudad = _selectedCiudades.isEmpty || _selectedCiudades.contains(asset['id_ciudad_activo']);
-      bool matchesCustodio = _selectedCustodios.isEmpty || _selectedCustodios.contains(asset['id_custodio']);
-      bool matchesProveedor = _selectedProveedores.isEmpty || _selectedProveedores.contains(asset['id_provedor']);
-      bool matchesMarca = _selectedMarcas.isEmpty || _selectedMarcas.contains(info?['id_marca']);
+      bool matchesTipo =
+          _selectedTiposActivo.isEmpty ||
+          _selectedTiposActivo.contains(asset['id_tipo_activo']);
+      bool matchesCondicion =
+          _selectedCondiciones.isEmpty ||
+          _selectedCondiciones.contains(asset['id_condicion_activo']);
+      bool matchesSede =
+          _selectedSedes.isEmpty ||
+          _selectedSedes.contains(asset['id_sede_activo']);
+      bool matchesArea =
+          _selectedAreas.isEmpty ||
+          _selectedAreas.contains(asset['id_area_activo']);
+      bool matchesCiudad =
+          _selectedCiudades.isEmpty ||
+          _selectedCiudades.contains(asset['id_ciudad_activo']);
+      bool matchesCustodio =
+          _selectedCustodios.isEmpty ||
+          _selectedCustodios.contains(asset['id_custodio']);
+      bool matchesProveedor =
+          _selectedProveedores.isEmpty ||
+          _selectedProveedores.contains(asset['id_provedor']);
+      bool matchesMarca =
+          _selectedMarcas.isEmpty ||
+          _selectedMarcas.contains(info?['id_marca']);
 
       bool matchesAdquisicion = true;
       if (_rangoAdquisicion != null && asset['fecha_adquisicion'] != null) {
         try {
           final dt = DateTime.parse(asset['fecha_adquisicion'].toString());
-          if (dt.isBefore(_rangoAdquisicion!.start) || dt.isAfter(_rangoAdquisicion!.end)) matchesAdquisicion = false;
+          if (dt.isBefore(_rangoAdquisicion!.start) ||
+              dt.isAfter(_rangoAdquisicion!.end))
+            matchesAdquisicion = false;
         } catch (_) {}
       }
 
@@ -139,15 +342,27 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
       if (_rangoEntrega != null && asset['fecha_entrega'] != null) {
         try {
           final dt = DateTime.parse(asset['fecha_entrega'].toString());
-          if (dt.isBefore(_rangoEntrega!.start) || dt.isAfter(_rangoEntrega!.end)) matchesEntrega = false;
+          if (dt.isBefore(_rangoEntrega!.start) ||
+              dt.isAfter(_rangoEntrega!.end))
+            matchesEntrega = false;
         } catch (_) {}
       }
 
-      return matchesNombre && matchesCodigo && matchesSerie && matchesModelo && matchesPuertos &&
-             matchesTipo && matchesCondicion && matchesSede &&
-             matchesArea && matchesCiudad && matchesCustodio &&
-             matchesProveedor && matchesMarca &&
-             matchesAdquisicion && matchesEntrega;
+      return matchesNombre &&
+          matchesCodigo &&
+          matchesSerie &&
+          matchesModelo &&
+          matchesPuertos &&
+          matchesTipo &&
+          matchesCondicion &&
+          matchesSede &&
+          matchesArea &&
+          matchesCiudad &&
+          matchesCustodio &&
+          matchesProveedor &&
+          matchesMarca &&
+          matchesAdquisicion &&
+          matchesEntrega;
     }).toList();
 
     setState(() {
@@ -183,7 +398,10 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
         title: const Text('Eliminar Equipo Comunicación'),
         content: const Text('¿Deseas eliminar este equipo permanentemente?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
@@ -206,16 +424,23 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
 
   Future<void> _showAssetDialog({Map<String, dynamic>? existingAsset}) async {
     final isUpdate = existingAsset != null;
-    if (isUpdate) context.showSnackBar('Precaución: Refresque todos los campos en este formulario para el Activo ${existingAsset['nombre']} antes de guardar.');
+    if (isUpdate)
+      context.showSnackBar(
+        'Precaución: Refresque todos los campos en este formulario para el Activo ${existingAsset['nombre']} antes de guardar.',
+      );
 
     await showDialog(
       context: context,
       builder: (dialogContext) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Container(
             width: 600,
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -223,86 +448,115 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(child: Text(isUpdate ? 'Actualizar Equipo' : 'Agregar Especial - Comunicación', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
-                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(dialogContext))
+                    Expanded(
+                      child: Text(
+                        isUpdate
+                            ? 'Actualizar Equipo'
+                            : 'Agregar Especial - Comunicación',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(dialogContext),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Expanded(
                   child: DynamicAssetForm(
                     initialCategory: 'COMUNICACION',
-                    onSave: ({
-                      String? numeroSerie,
-                      required String categoria,
-                      required int tipoActivoId,
-                      int? condicionActivoId,
-                      int? custodioId,
-                      int? ciudadActivoId,
-                      int? sedeActivoId,
-                      int? areaActivoId,
-                      int? proveedorId,
-                      String? fechaAdquisicion,
-                      String? fechaEntrega,
-                      String? coordenada,
-                      String? nombre,
-                      int? codigo,
-                      String? ip,
-                      int? marcaId,
-                      String? modelo,
-                      String? observaciones,
-                      String? procesador,
-                      String? ram,
-                      String? almacenamiento,
-                      String? cargadorCodigo,
-                      int? numPuertos,
-                      String? tipoExtension,
-                      int? numConexiones,
-                      String? varImpresoraColor,
-                      String? varMonitorTipoConexion,
-                      String? proveedorSoftware,
-                      String? fechaInicio,
-                      String? fechaFin,
-                    }) async {
-                      try {
-                        Map<String, dynamic> params = {
-                          'p_numero_serie': numeroSerie,
-                          'p_nombre': nombre,
-                          'p_codigo': codigo,
-                          'p_id_tipo_activo': tipoActivoId,
-                          'p_id_condicion_activo': condicionActivoId,
-                          'p_id_custodio': custodioId,
-                          'p_id_ciudad_activo': ciudadActivoId,
-                          'p_id_sede_activo': sedeActivoId,
-                          'p_id_area_activo': areaActivoId,
-                          'p_id_provedor': proveedorId,
-                          'p_fecha_adquisicion': fechaAdquisicion,
-                          'p_ip': ip,
-                          'p_fecha_entrega': fechaEntrega,
-                          'p_coordenada': coordenada,
-                          'p_id_marca': marcaId,
-                          'p_modelo': modelo,
-                          'p_num_puertos': numPuertos,
-                          'p_tipo_extension': tipoExtension,
-                          'p_observaciones': observaciones,
-                        };
+                    initialData: existingAsset,
+                    onSave:
+                        ({
+                          String? numeroSerie,
+                          required String categoria,
+                          required int tipoActivoId,
+                          int? condicionActivoId,
+                          int? custodioId,
+                          int? ciudadActivoId,
+                          int? sedeActivoId,
+                          int? areaActivoId,
+                          int? proveedorId,
+                          String? fechaAdquisicion,
+                          String? fechaEntrega,
+                          String? coordenada,
+                          String? nombre,
+                          int? codigo,
+                          String? ip,
+                          int? marcaId,
+                          String? modelo,
+                          String? observaciones,
+                          String? procesador,
+                          String? ram,
+                          String? almacenamiento,
+                          String? cargadorCodigo,
+                          int? numPuertos,
+                          String? tipoExtension,
+                          int? numConexiones,
+                          String? varImpresoraColor,
+                          String? varMonitorTipoConexion,
+                          String? proveedorSoftware,
+                          String? fechaInicio,
+                          String? fechaFin,
+                        }) async {
+                          try {
+                            Map<String, dynamic> params = {
+                              'p_numero_serie': numeroSerie,
+                              'p_nombre': nombre,
+                              'p_codigo': codigo,
+                              'p_id_tipo_activo': tipoActivoId,
+                              'p_id_condicion_activo': condicionActivoId,
+                              'p_id_custodio': custodioId,
+                              'p_id_ciudad_activo': ciudadActivoId,
+                              'p_id_sede_activo': sedeActivoId,
+                              'p_id_area_activo': areaActivoId,
+                              'p_id_provedor': proveedorId,
+                              'p_fecha_adquisicion': fechaAdquisicion,
+                              'p_ip': ip,
+                              'p_fecha_entrega': fechaEntrega,
+                              'p_coordenada': coordenada,
+                              'p_id_marca': marcaId,
+                              'p_modelo': modelo,
+                              'p_num_puertos': numPuertos,
+                              'p_tipo_extension': tipoExtension,
+                              'p_observaciones': observaciones,
+                            };
 
-                        if (isUpdate) {
-                          params['p_id_activo'] = existingAsset['id'];
-                          await supabase.rpc('actualizar_activo_equipo_comunicacion', params: params);
-                          if (!mounted) return;
-                          context.showSnackBar('Activo actualizado correctamente.');
-                        } else {
-                          await supabase.rpc('crear_activo_equipo_comunicacion', params: params);
-                          if (!mounted) return;
-                          context.showSnackBar('Activo creado correctamente.');
-                        }
-                        Navigator.pop(dialogContext);
-                        _loadAssets();
-                      } catch (error) {
-                        if (!mounted) return;
-                        context.showSnackBar('Error en la base de datos: $error', isError: true);
-                      }
-                    },
+                            if (isUpdate) {
+                              params['p_id_activo'] = existingAsset['id'];
+                              await supabase.rpc(
+                                'actualizar_activo_equipo_comunicacion',
+                                params: params,
+                              );
+                              if (!mounted) return;
+                              context.showSnackBar(
+                                'Activo actualizado correctamente.',
+                              );
+                            } else {
+                              await supabase.rpc(
+                                'crear_activo_equipo_comunicacion',
+                                params: params,
+                              );
+                              if (!mounted) return;
+                              context.showSnackBar(
+                                'Activo creado correctamente.',
+                              );
+                            }
+                            Navigator.pop(dialogContext);
+                            _loadAssets();
+                          } catch (error) {
+                            if (!mounted) return;
+                            context.showSnackBar(
+                              'Error en la base de datos: $error',
+                              isError: true,
+                            );
+                          }
+                        },
                   ),
                 ),
               ],
@@ -313,15 +567,27 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
     );
   }
 
-  Widget _buildDrawerFilterButton(String label, List<int> selectedIds, List<Map<String, dynamic>> items, String displayKey) {
+  Widget _buildDrawerFilterButton(
+    String label,
+    List<int> selectedIds,
+    List<Map<String, dynamic>> items,
+    String displayKey,
+  ) {
     return ListTile(
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados'),
+      subtitle: Text(
+        selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados',
+      ),
       trailing: const Icon(Icons.arrow_drop_down),
       onTap: () async {
         final result = await showDialog<List<int>>(
           context: context,
-          builder: (_) => MultiSelectDialog(title: label, items: items, initialSelectedIds: selectedIds, displayKey: displayKey),
+          builder: (_) => MultiSelectDialog(
+            title: label,
+            items: items,
+            initialSelectedIds: selectedIds,
+            displayKey: displayKey,
+          ),
         );
         if (result != null) {
           setState(() {
@@ -339,20 +605,49 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: TextField(
         controller: controller,
-        decoration: InputDecoration(labelText: label, hintText: 'Ej: val1, val2', border: const OutlineInputBorder(), isDense: true),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: 'Ej: val1, val2',
+          border: const OutlineInputBorder(),
+          isDense: true,
+        ),
         onChanged: (_) => _applyFilters(),
       ),
     );
   }
 
-  Widget _buildDrawerDateFilter(String label, DateTimeRange? currentRange, ValueChanged<DateTimeRange?> onChanged) {
+  Widget _buildDrawerDateFilter(
+    String label,
+    DateTimeRange? currentRange,
+    ValueChanged<DateTimeRange?> onChanged,
+  ) {
     return ListTile(
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(currentRange == null ? 'Cualquier fecha' : '${currentRange.start.toLocal().toString().split(' ')[0]} - ${currentRange.end.toLocal().toString().split(' ')[0]}'),
-      trailing: currentRange != null ? IconButton(icon: const Icon(Icons.clear), onPressed: () { onChanged(null); _applyFilters(); }) : const Icon(Icons.calendar_today),
+      subtitle: Text(
+        currentRange == null
+            ? 'Cualquier fecha'
+            : '${currentRange.start.toLocal().toString().split(' ')[0]} - ${currentRange.end.toLocal().toString().split(' ')[0]}',
+      ),
+      trailing: currentRange != null
+          ? IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () {
+                onChanged(null);
+                _applyFilters();
+              },
+            )
+          : const Icon(Icons.calendar_today),
       onTap: () async {
-        final range = await showDateRangePicker(context: context, firstDate: DateTime(2000), lastDate: DateTime(2100), initialDateRange: currentRange);
-        if (range != null) { onChanged(range); _applyFilters(); }
+        final range = await showDateRangePicker(
+          context: context,
+          firstDate: DateTime(2000),
+          lastDate: DateTime(2100),
+          initialDateRange: currentRange,
+        );
+        if (range != null) {
+          onChanged(range);
+          _applyFilters();
+        }
       },
     );
   }
@@ -365,7 +660,11 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAssets),
           Builder(
-            builder: (context) => IconButton(icon: const Icon(Icons.filter_list), tooltip: 'Filtros', onPressed: () => Scaffold.of(context).openEndDrawer()),
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.filter_list),
+              tooltip: 'Filtros',
+              onPressed: () => Scaffold.of(context).openEndDrawer(),
+            ),
           ),
         ],
       ),
@@ -373,13 +672,24 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.only(top: 48, bottom: 16, left: 16, right: 16),
+              padding: const EdgeInsets.only(
+                top: 48,
+                bottom: 16,
+                left: 16,
+                right: 16,
+              ),
               color: Colors.blue.shade50,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Filtros Comms', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  TextButton(onPressed: _clearFilters, child: const Text('Limpiar Todos'))
+                  const Text(
+                    'Filtros Comms',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  TextButton(
+                    onPressed: _clearFilters,
+                    child: const Text('Limpiar Todos'),
+                  ),
                 ],
               ),
             ),
@@ -387,28 +697,103 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Descripciones (Separados por coma)', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      'Descripciones (Separados por coma)',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                   _buildDrawerTextField('Nombres', _nombresController),
                   _buildDrawerTextField('Códigos', _codigosController),
                   _buildDrawerTextField('Números de Serie', _seriesController),
                   _buildDrawerTextField('Modelos', _modelosController),
                   _buildDrawerTextField('Num Puertos', _puertosController),
-                  
-                  const Divider(),
-                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Listas Maestras', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
-                  _buildDrawerFilterButton('Tipo Activo', _selectedTiposActivo, _tiposActivo, 'tipo'),
-                  _buildDrawerFilterButton('Condición', _selectedCondiciones, _condiciones, 'condicion'),
-                  _buildDrawerFilterButton('Custodio', _selectedCustodios, _custodios, 'nombre_completo'),
-                  _buildDrawerFilterButton('Sede', _selectedSedes, _sedes, 'sede'),
-                  _buildDrawerFilterButton('Área', _selectedAreas, _areas, 'area'),
-                  _buildDrawerFilterButton('Ciudad', _selectedCiudades, _ciudades, 'ciudad'),
-                  _buildDrawerFilterButton('Proveedor', _selectedProveedores, _proveedores, 'nombre'),
-                  _buildDrawerFilterButton('Marca', _selectedMarcas, _marcas, 'marca_proveedor'),
 
                   const Divider(),
-                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Rango de Fechas', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
-                  _buildDrawerDateFilter('Fecha de Adquisición', _rangoAdquisicion, (r) => setState(() => _rangoAdquisicion = r)),
-                  _buildDrawerDateFilter('Fecha de Entrega', _rangoEntrega, (r) => setState(() => _rangoEntrega = r)),
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      'Listas Maestras',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  _buildDrawerFilterButton(
+                    'Tipo Activo',
+                    _selectedTiposActivo,
+                    _tiposActivo,
+                    'tipo',
+                  ),
+                  _buildDrawerFilterButton(
+                    'Condición',
+                    _selectedCondiciones,
+                    _condiciones,
+                    'condicion',
+                  ),
+                  _buildDrawerFilterButton(
+                    'Custodio',
+                    _selectedCustodios,
+                    _custodios,
+                    'nombre_completo',
+                  ),
+                  _buildDrawerFilterButton(
+                    'Sede',
+                    _selectedSedes,
+                    _sedes,
+                    'sede',
+                  ),
+                  _buildDrawerFilterButton(
+                    'Área',
+                    _selectedAreas,
+                    _areas,
+                    'area',
+                  ),
+                  _buildDrawerFilterButton(
+                    'Ciudad',
+                    _selectedCiudades,
+                    _ciudades,
+                    'ciudad',
+                  ),
+                  _buildDrawerFilterButton(
+                    'Proveedor',
+                    _selectedProveedores,
+                    _proveedores,
+                    'nombre',
+                  ),
+                  _buildDrawerFilterButton(
+                    'Marca',
+                    _selectedMarcas,
+                    _marcas,
+                    'marca_proveedor',
+                  ),
+
+                  const Divider(),
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      'Rango de Fechas',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  _buildDrawerDateFilter(
+                    'Fecha de Adquisición',
+                    _rangoAdquisicion,
+                    (r) => setState(() => _rangoAdquisicion = r),
+                  ),
+                  _buildDrawerDateFilter(
+                    'Fecha de Entrega',
+                    _rangoEntrega,
+                    (r) => setState(() => _rangoEntrega = r),
+                  ),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -425,24 +810,39 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
               children: [
                 SegmentedButton<bool>(
                   segments: const [
-                    ButtonSegment<bool>(value: false, icon: Icon(Icons.view_list), label: Text('Lista')),
-                    ButtonSegment<bool>(value: true, icon: Icon(Icons.table_chart), label: Text('Tabla')),
+                    ButtonSegment<bool>(
+                      value: false,
+                      icon: Icon(Icons.view_list),
+                      label: Text('Lista'),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      icon: Icon(Icons.table_chart),
+                      label: Text('Tabla'),
+                    ),
                   ],
                   selected: {_isTableView},
                   onSelectionChanged: (Set<bool> newSelection) {
-                    setState(() { _isTableView = newSelection.first; });
+                    setState(() {
+                      _isTableView = newSelection.first;
+                    });
                   },
                 ),
                 ElevatedButton.icon(
                   onPressed: () => _showAssetDialog(),
                   icon: const Icon(Icons.add),
-                  label: const Text('Agregar Comunicación'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+                  label: const Text('Agregar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-            Expanded(child: _isTableView ? _buildTableSection() : _buildListSection()),
+            Expanded(
+              child: _isTableView ? _buildTableSection() : _buildListSection(),
+            ),
           ],
         ),
       ),
@@ -458,104 +858,41 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
   }
 
   Widget _buildTableSection() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
-
-    return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SingleChildScrollView(
-          child: DataTable(
-            columnSpacing: 24,
-            columns: const [
-              DataColumn(label: Text('S/N')),
-              DataColumn(label: Text('Nombre')),
-              DataColumn(label: Text('Código')),
-              DataColumn(label: Text('Tipo Activo')),
-              DataColumn(label: Text('Condición')),
-              DataColumn(label: Text('Custodio')),
-              DataColumn(label: Text('Ciudad')),
-              DataColumn(label: Text('Sede')),
-              DataColumn(label: Text('Área')),
-              DataColumn(label: Text('Proveedor')),
-              DataColumn(label: Text('Fe. Adquisición')),
-              DataColumn(label: Text('IP')),
-              DataColumn(label: Text('Fe. Entrega')),
-              DataColumn(label: Text('Coordenada')),
-              DataColumn(label: Text('Marca')),
-              DataColumn(label: Text('Modelo')),
-              DataColumn(label: Text('Num. Puertos')),
-              DataColumn(label: Text('Tipo Extensión')),
-              DataColumn(label: Text('Observaciones')),
-              DataColumn(label: Text('Acciones')),
-            ],
-            rows: _filteredAssets.map((asset) {
-              final info = asset['info_equipo_comunicacion'] != null && (asset['info_equipo_comunicacion'] as List).isNotEmpty ? (asset['info_equipo_comunicacion'] as List)[0] : null;
-
-              return DataRow(
-                cells: [
-                  DataCell(Text(asset['numero_serie']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['nombre']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['codigo']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['tipo_activo']?['tipo']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['condicion_activo']?['condicion']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['custodio']?['nombre_completo']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['ciudad_activo']?['ciudad']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['sede_activo']?['sede']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['area_activo']?['area']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['proveedor']?['nombre']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['fecha_adquisicion']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['ip']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['fecha_entrega']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['coordenada']?.toString() ?? 'N/A')),
-                  DataCell(Text(info?['marca']?['marca_proveedor']?.toString() ?? 'N/A')),
-                  DataCell(Text(info?['modelo']?.toString() ?? 'N/A')),
-                  DataCell(Text(info?['num_puertos']?.toString() ?? 'N/A')),
-                  DataCell(Text(info?['tipo_extension'] ?? 'N/A')),
-                  DataCell(Text(asset['observaciones']?.toString() ?? 'N/A')),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                         IconButton(
-                           icon: const Icon(Icons.edit, color: Colors.blue),
-                           onPressed: () => _showAssetDialog(existingAsset: asset),
-                           tooltip: 'Editar',
-                         ),
-                        if (RoleService.currentRole != UserRole.ayudante)
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteAsset(asset['id']),
-                            tooltip: 'Eliminar',
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
-          ),
-        ),
-      ),
+    return AssetDataTable(
+      assets: _filteredAssets,
+      columns: _commsColumns,
+      isLoading: _isLoading,
+      onEdit: (asset) => _showAssetDialog(existingAsset: asset),
+      onDelete: _deleteAsset,
     );
   }
 
   Widget _buildListSection() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
+    if (_filteredAssets.isEmpty)
+      return const Center(
+        child: Text('No hay activos para mostrar. Modifique los filtros.'),
+      );
 
     return ListView.builder(
       itemCount: _filteredAssets.length,
       itemBuilder: (context, index) {
         final asset = _filteredAssets[index];
-        final info = asset['info_equipo_comunicacion'] != null && (asset['info_equipo_comunicacion'] as List).isNotEmpty ? (asset['info_equipo_comunicacion'] as List)[0] : null;
+        final info =
+            asset['info_equipo_comunicacion'] != null &&
+                (asset['info_equipo_comunicacion'] as List).isNotEmpty
+            ? (asset['info_equipo_comunicacion'] as List)[0]
+            : null;
 
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           elevation: 2,
           child: ListTile(
             leading: const Icon(Icons.router, size: 40, color: Colors.teal),
-            title: Text(asset['nombre'] ?? 'Equipo Sin Nombre', style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(
+              asset['nombre'] ?? 'Equipo Sin Nombre',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             subtitle: Text(
               'S/N: ${asset['numero_serie'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}\n'
               'Puertos: ${info?['num_puertos'] ?? 'N/A'} | Extensión: ${info?['tipo_extension'] ?? 'N/A'}',

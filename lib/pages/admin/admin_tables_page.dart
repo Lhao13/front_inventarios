@@ -24,7 +24,6 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
   List<Map<String, dynamic>> _tableData = [];
   bool _isLoading = false;
   String? _errorMessage;
-  bool _isSidebarVisible = false;
 
   @override
   void initState() {
@@ -97,10 +96,11 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
   Future<void> _showFormDialog({Map<String, dynamic>? existingRow}) async {
     // Determine columns dynamically. Default to just 'nombre' if empty.
     List<String> columns = ['nombre', 'descripcion'];
+    final excludedCols = ['timestamp_created_at', 'timestamp_updated_at', 'user_on_update', 'user_on_creation'];
     if (_tableData.isNotEmpty) {
-      columns = _tableData.first.keys.where((k) => k != 'id' && k != 'created_at' && k != 'user_on_creation').toList();
+      columns = _tableData.first.keys.where((k) => k != 'id' && !excludedCols.contains(k)).toList();
     } else if (existingRow != null) {
-      columns = existingRow.keys.where((k) => k != 'id' && k != 'created_at' && k != 'user_on_creation').toList();
+      columns = existingRow.keys.where((k) => k != 'id' && !excludedCols.contains(k)).toList();
     }
 
     final Map<String, TextEditingController> controllers = {};
@@ -212,76 +212,88 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
       appBar: AppBar(
         title: const Text('Configuración Maestras'),
         actions: [
-          IconButton(
-            icon: Icon(_isSidebarVisible ? Icons.fullscreen : Icons.view_sidebar),
-            tooltip: 'Alternar menú lateral',
-            onPressed: () {
-              setState(() {
-                _isSidebarVisible = !_isSidebarVisible;
-              });
-            },
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.view_sidebar),
+              tooltip: 'Menú de Tablas Maestras',
+              onPressed: () => Scaffold.of(context).openEndDrawer(),
+            ),
           ),
         ],
+      ),
+      endDrawer: Drawer(
+        child: Container(
+           color: Colors.blueGrey.shade50,
+           child: Column(
+             children: [
+               Container(
+                 padding: const EdgeInsets.only(top: 48, bottom: 16, left: 16, right: 16),
+                 child: const Row(
+                   children: [
+                     Icon(Icons.inventory, color: Colors.blueGrey),
+                     SizedBox(width: 10),
+                     Text('Tablas Maestras', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                   ],
+                 ),
+               ),
+               Expanded(
+                 child: ListView.builder(
+                   padding: EdgeInsets.zero,
+                   itemCount: _tablas.length,
+                   itemBuilder: (context, index) {
+                     final table = _tablas[index];
+                     return ListTile(
+                       leading: const Icon(Icons.table_rows, color: Colors.blueGrey),
+                       title: Text(table, style: const TextStyle(fontWeight: FontWeight.w600)),
+                       selected: _selectedTable == table,
+                       selectedTileColor: Colors.blue.withValues(alpha: 0.1),
+                       onTap: () {
+                         setState(() {
+                           _selectedTable = table;
+                         });
+                         Navigator.pop(context); // Cierra el drawer
+                         _loadTableData(table);
+                       },
+                     );
+                   },
+                 ),
+               ),
+             ],
+           ),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showFormDialog(),
         tooltip: 'Agregar Nuevo',
         child: const Icon(Icons.add),
       ),
-      body: Row(
-        children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Tabla: ${_selectedTable.toUpperCase()}',
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.refresh),
-                        onPressed: () => _loadTableData(_selectedTable),
-                      )
-                    ],
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Tabla: ${_selectedTable.toUpperCase()}',
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: _buildDataTable(),
-                  ),
-                ],
-              ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () => _loadTableData(_selectedTable),
+                )
+              ],
             ),
-          ),
-          if (_isSidebarVisible) const VerticalDivider(width: 1),
-          if (_isSidebarVisible)
-            Container(
-              width: 250,
-              color: Colors.blueGrey.shade50,
-              child: ListView.builder(
-                itemCount: _tablas.length,
-                itemBuilder: (context, index) {
-                  final table = _tablas[index];
-                  return ListTile(
-                    leading: const Icon(Icons.table_rows, color: Colors.blueGrey),
-                    title: Text(table, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    selected: _selectedTable == table,
-                    selectedTileColor: Colors.blue.withValues(alpha: 0.1),
-                    onTap: () {
-                      setState(() {
-                        _selectedTable = table;
-                      });
-                      _loadTableData(table);
-                    },
-                  );
-                },
-              ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _buildDataTable(),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -293,6 +305,8 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
 
     final columns = _tableData.first.keys.toList();
 
+    final excludedCols = ['timestamp_created_at', 'timestamp_updated_at', 'user_on_update', 'user_on_creation'];
+
     return Card(
       elevation: 2,
       child: SingleChildScrollView(
@@ -301,13 +315,13 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
           child: DataTable(
             columnSpacing: 24,
             columns: [
-              ...columns.where((col) => col != 'created_at' && col != 'user_on_creation').map((col) => DataColumn(label: Text(col.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)))),
+              ...columns.where((col) => !excludedCols.contains(col)).map((col) => DataColumn(label: Text(col.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)))),
               const DataColumn(label: Text('ACCIONES', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: _tableData.map((row) {
               return DataRow(
                 cells: [
-                  ...columns.where((col) => col != 'created_at' && col != 'user_on_creation').map((col) => DataCell(Text(row[col]?.toString() ?? ''))),
+                  ...columns.where((col) => !excludedCols.contains(col)).map((col) => DataCell(Text(row[col]?.toString() ?? ''))),
                   DataCell(
                     Row(
                       mainAxisSize: MainAxisSize.min,

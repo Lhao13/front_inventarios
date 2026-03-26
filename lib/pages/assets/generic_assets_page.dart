@@ -3,6 +3,7 @@ import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
+import 'package:front_inventarios/widgets/asset_data_table.dart';
 
 class GenericAssetsPage extends StatefulWidget {
   const GenericAssetsPage({super.key});
@@ -16,6 +17,35 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
   List<Map<String, dynamic>> _filteredAssets = [];
   bool _isLoading = true;
   bool _isTableView = true;
+
+  // Column definitions for GENERICO category
+  static final List<AssetColumnDef> _genericColumns = [
+    AssetColumnDef(label: 'S/N',             getValue: (a) => a['numero_serie']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Nombre',          getValue: (a) => a['nombre']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Código',          getValue: (a) => a['codigo']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Tipo Activo',     getValue: (a) => a['tipo_activo']?['tipo']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Condición',       getValue: (a) => a['condicion_activo']?['condicion']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Custodio',        getValue: (a) => a['custodio']?['nombre_completo']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Ciudad',          getValue: (a) => a['ciudad_activo']?['ciudad']?.toString() ?? 'N/A', visibleByDefault: false),
+    AssetColumnDef(label: 'Sede',            getValue: (a) => a['sede_activo']?['sede']?.toString() ?? 'N/A', visibleByDefault: false),
+    AssetColumnDef(label: 'Área',             getValue: (a) => a['area_activo']?['area']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Proveedor',       getValue: (a) => a['proveedor']?['nombre']?.toString() ?? 'N/A', visibleByDefault: false),
+    AssetColumnDef(label: 'Fe. Adquisición',getValue: (a) => a['fecha_adquisicion']?.toString() ?? 'N/A', visibleByDefault: false),
+    AssetColumnDef(label: 'IP',              getValue: (a) => a['ip']?.toString() ?? 'N/A', visibleByDefault: false),
+    AssetColumnDef(label: 'Fe. Entrega',     getValue: (a) => a['fecha_entrega']?.toString() ?? 'N/A', visibleByDefault: false),
+    AssetColumnDef(label: 'Coordenada',      getValue: (a) => a['coordenada']?.toString() ?? 'N/A', visibleByDefault: false),
+    AssetColumnDef(label: 'Marca',           getValue: (a) { final i = _info(a, 'info_equipo_generico'); return i?['marca']?['marca_proveedor']?.toString() ?? 'N/A'; }),
+    AssetColumnDef(label: 'Modelo',          getValue: (a) { final i = _info(a, 'info_equipo_generico'); return i?['modelo']?.toString() ?? 'N/A'; }),
+    AssetColumnDef(label: 'Cód. Cargador',  getValue: (a) { final i = _info(a, 'info_equipo_generico'); return i?['cargador_codigo']?.toString() ?? 'N/A'; }),
+    AssetColumnDef(label: 'Num. Conexiones', getValue: (a) { final i = _info(a, 'info_equipo_generico'); return i?['num_conexiones']?.toString() ?? 'N/A'; }),
+    AssetColumnDef(label: 'Observaciones',   getValue: (a) => a['observaciones']?.toString() ?? 'N/A', visibleByDefault: false),
+  ];
+
+  static Map<String, dynamic>? _info(Map<String, dynamic> asset, String key) {
+    final list = asset[key];
+    if (list is List && list.isNotEmpty) return list[0] as Map<String, dynamic>?;
+    return null;
+  }
 
   // Master Data
   List<Map<String, dynamic>> _tiposActivo = [];
@@ -227,6 +257,7 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
                 Expanded(
                   child: DynamicAssetForm(
                     initialCategory: 'GENERICO',
+                    initialData: existingAsset,
                     onSave: ({
                       String? numeroSerie,
                       required String categoria,
@@ -454,85 +485,12 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
   }
 
   Widget _buildTableSection() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
-
-    return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SingleChildScrollView(
-          child: DataTable(
-            columnSpacing: 24,
-            columns: const [
-              DataColumn(label: Text('S/N')),
-              DataColumn(label: Text('Nombre')),
-              DataColumn(label: Text('Código')),
-              DataColumn(label: Text('Tipo Activo')),
-              DataColumn(label: Text('Condición')),
-              DataColumn(label: Text('Custodio')),
-              DataColumn(label: Text('Ciudad')),
-              DataColumn(label: Text('Sede')),
-              DataColumn(label: Text('Área')),
-              DataColumn(label: Text('Proveedor')),
-              DataColumn(label: Text('Fe. Adquisición')),
-              DataColumn(label: Text('IP')),
-              DataColumn(label: Text('Fe. Entrega')),
-              DataColumn(label: Text('Coordenada')),
-              DataColumn(label: Text('Marca')),
-              DataColumn(label: Text('Modelo')),
-              DataColumn(label: Text('Cód. Cargador')),
-              DataColumn(label: Text('Num. Conexiones')),
-              DataColumn(label: Text('Observaciones')),
-              DataColumn(label: Text('Acciones')),
-            ],
-            rows: _filteredAssets.map((asset) {
-              final info = asset['info_equipo_generico'] != null && (asset['info_equipo_generico'] as List).isNotEmpty ? (asset['info_equipo_generico'] as List)[0] : null;
-
-              return DataRow(
-                cells: [
-                  DataCell(Text(asset['numero_serie']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['nombre']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['codigo']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['tipo_activo']?['tipo']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['condicion_activo']?['condicion']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['custodio']?['nombre_completo']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['ciudad_activo']?['ciudad']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['sede_activo']?['sede']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['area_activo']?['area']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['proveedor']?['nombre']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['fecha_adquisicion']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['ip']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['fecha_entrega']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['coordenada']?.toString() ?? 'N/A')),
-                  DataCell(Text(info?['marca']?['marca_proveedor']?.toString() ?? 'N/A')),
-                  DataCell(Text(info?['modelo']?.toString() ?? 'N/A')),
-                  DataCell(Text(info?['cargador_codigo']?.toString() ?? 'N/A')),
-                  DataCell(Text(info?['num_conexiones']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['observaciones']?.toString() ?? 'N/A')),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                         IconButton(
-                           icon: const Icon(Icons.edit, color: Colors.blue),
-                           onPressed: () => _showAssetDialog(existingAsset: asset),
-                           tooltip: 'Editar',
-                         ),
-                        if (RoleService.currentRole != UserRole.ayudante)
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteAsset(asset['id']),
-                            tooltip: 'Eliminar',
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
-          ),
-        ),
-      ),
+    return AssetDataTable(
+      assets: _filteredAssets,
+      columns: _genericColumns,
+      isLoading: _isLoading,
+      onEdit: (asset) => _showAssetDialog(existingAsset: asset),
+      onDelete: _deleteAsset,
     );
   }
 

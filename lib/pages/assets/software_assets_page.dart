@@ -3,6 +3,7 @@ import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
+import 'package:front_inventarios/widgets/asset_data_table.dart';
 
 class SoftwareAssetsPage extends StatefulWidget {
   const SoftwareAssetsPage({super.key});
@@ -16,6 +17,27 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
   List<Map<String, dynamic>> _filteredAssets = [];
   bool _isLoading = true;
   bool _isTableView = true;
+
+  // Column definitions for SOFTWARE category
+  static final List<AssetColumnDef> _softwareColumns = [
+    AssetColumnDef(label: 'Nombre',          getValue: (a) => a['nombre']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Código',          getValue: (a) => a['codigo']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Tipo Activo',     getValue: (a) => a['tipo_activo']?['tipo']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Condición',       getValue: (a) => a['condicion_activo']?['condicion']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Custodio',        getValue: (a) => a['custodio']?['nombre_completo']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Área',             getValue: (a) => a['area_activo']?['area']?.toString() ?? 'N/A'),
+    AssetColumnDef(label: 'Proveedor',       getValue: (a) => a['proveedor']?['nombre']?.toString() ?? 'N/A', visibleByDefault: false),
+    AssetColumnDef(label: 'Proveedor Sw.',   getValue: (a) { final i = _info(a, 'info_software'); return i?['proveedor']?.toString() ?? 'N/A'; }),
+    AssetColumnDef(label: 'Fecha Inicio',    getValue: (a) { final i = _info(a, 'info_software'); return i?['fecha_inicio']?.toString() ?? 'N/A'; }),
+    AssetColumnDef(label: 'Fecha Fin',       getValue: (a) { final i = _info(a, 'info_software'); return i?['fecha_fin']?.toString() ?? 'N/A'; }),
+    AssetColumnDef(label: 'Observaciones',   getValue: (a) => a['observaciones']?.toString() ?? 'N/A', visibleByDefault: false),
+  ];
+
+  static Map<String, dynamic>? _info(Map<String, dynamic> asset, String key) {
+    final list = asset[key];
+    if (list is List && list.isNotEmpty) return list[0] as Map<String, dynamic>?;
+    return null;
+  }
 
   // Master Data
   List<Map<String, dynamic>> _tiposActivo = [];
@@ -198,6 +220,7 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
                 Expanded(
                   child: DynamicAssetForm(
                     initialCategory: 'SOFTWARE',
+                    initialData: existingAsset,
                     onSave: ({
                       String? numeroSerie,
                       required String categoria,
@@ -411,69 +434,12 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
   }
 
   Widget _buildTableSection() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
-
-    return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SingleChildScrollView(
-          child: DataTable(
-            columnSpacing: 24,
-            columns: const [
-              DataColumn(label: Text('Nombre')),
-              DataColumn(label: Text('Código')),
-              DataColumn(label: Text('Tipo Activo')),
-              DataColumn(label: Text('Condición')),
-              DataColumn(label: Text('Custodio')),
-              DataColumn(label: Text('Área')),
-              DataColumn(label: Text('Proveedor (General)')),
-              DataColumn(label: Text('Proveedor Sw.')),
-              DataColumn(label: Text('Fecha Inicio')),
-              DataColumn(label: Text('Fecha Fin')),
-              DataColumn(label: Text('Observaciones')),
-              DataColumn(label: Text('Acciones')),
-            ],
-            rows: _filteredAssets.map((asset) {
-              final info = asset['info_software'] != null && (asset['info_software'] as List).isNotEmpty ? (asset['info_software'] as List)[0] : null;
-
-              return DataRow(
-                cells: [
-                  DataCell(Text(asset['nombre']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['codigo']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['tipo_activo']?['tipo']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['condicion_activo']?['condicion']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['custodio']?['nombre_completo']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['area_activo']?['area']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['proveedor']?['nombre']?.toString() ?? 'N/A')),
-                  DataCell(Text(info?['proveedor']?.toString() ?? 'N/A')),
-                  DataCell(Text(info?['fecha_inicio']?.toString() ?? 'N/A')),
-                  DataCell(Text(info?['fecha_fin']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['observaciones']?.toString() ?? 'N/A')),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                         IconButton(
-                           icon: const Icon(Icons.edit, color: Colors.blue),
-                           onPressed: () => _showAssetDialog(existingAsset: asset),
-                           tooltip: 'Editar',
-                         ),
-                        if (RoleService.currentRole != UserRole.ayudante)
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteAsset(asset['id']),
-                            tooltip: 'Eliminar',
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
-          ),
-        ),
-      ),
+    return AssetDataTable(
+      assets: _filteredAssets,
+      columns: _softwareColumns,
+      isLoading: _isLoading,
+      onEdit: (asset) => _showAssetDialog(existingAsset: asset),
+      onDelete: _deleteAsset,
     );
   }
 

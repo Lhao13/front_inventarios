@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:front_inventarios/main.dart';
 
 class DynamicAssetForm extends StatefulWidget {
+  /// If passed, the form will be pre-populated with the existing asset's data.
+  final Map<String, dynamic>? initialData;
   final String? initialCategory;
   final Future<void> Function({
-    required String numeroSerie,
+    String? numeroSerie,
     required String categoria,
     required int tipoActivoId,
     int? condicionActivoId,
@@ -22,25 +24,26 @@ class DynamicAssetForm extends StatefulWidget {
     int? marcaId,
     String? modelo,
     String? observaciones,
-    // PC Specific
     String? procesador,
     String? ram,
     String? almacenamiento,
     String? cargadorCodigo,
     int? numPuertos,
-    // Communication Specific
     String? tipoExtension,
-    // Generic Specific
     int? numConexiones,
     String? varImpresoraColor,
     String? varMonitorTipoConexion,
-    // Software Specific
     String? proveedorSoftware,
     String? fechaInicio,
     String? fechaFin,
   }) onSave;
 
-  const DynamicAssetForm({super.key, required this.onSave, this.initialCategory});
+  const DynamicAssetForm({
+    super.key,
+    required this.onSave,
+    this.initialCategory,
+    this.initialData,
+  });
 
   @override
   State<DynamicAssetForm> createState() => _DynamicAssetFormState();
@@ -71,12 +74,16 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
   int? _proveedorId;
   int? _marcaId;
 
+  // Date state (stored as DateTime? for the picker, formatted as String for API)
+  DateTime? _fechaAdquisicion;
+  DateTime? _fechaEntrega;
+  DateTime? _fechaInicio;
+  DateTime? _fechaFin;
+
   // Common Fields
   final _numeroSerieCtrl = TextEditingController();
   final _nombreCtrl = TextEditingController();
   final _codigoCtrl = TextEditingController();
-  final _fechaAdquisicionCtrl = TextEditingController();
-  final _fechaEntregaCtrl = TextEditingController();
   final _coordenadaCtrl = TextEditingController();
   final _ipCtrl = TextEditingController();
   final _modeloCtrl = TextEditingController();
@@ -99,17 +106,88 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
 
   // Software Specific
   final _proveedorSoftwareCtrl = TextEditingController();
-  final _fechaInicioCtrl = TextEditingController();
-  final _fechaFinCtrl = TextEditingController();
 
   late String _categoria;
   bool _saving = false;
+
+  // Format a DateTime to YYYY-MM-DD string
+  String _fmtDate(DateTime dt) =>
+      '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+
+  // Try to parse a date string safely
+  DateTime? _tryParse(String? s) {
+    if (s == null || s.isEmpty) return null;
+    try {
+      return DateTime.parse(s);
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _categoria = widget.initialCategory ?? 'PC';
     _loadMasterData();
+  }
+
+  /// Pre-populate form fields once master data is loaded and initialData exists.
+  void _populateFromInitialData() {
+    final d = widget.initialData;
+    if (d == null) return;
+
+    _numeroSerieCtrl.text = d['numero_serie']?.toString() ?? '';
+    _nombreCtrl.text = d['nombre']?.toString() ?? '';
+    _codigoCtrl.text = d['codigo']?.toString() ?? '';
+    _coordenadaCtrl.text = d['coordenada']?.toString() ?? '';
+    _ipCtrl.text = d['ip']?.toString() ?? '';
+    _observacionesCtrl.text = d['observaciones']?.toString() ?? '';
+
+    _fechaAdquisicion = _tryParse(d['fecha_adquisicion']?.toString());
+    _fechaEntrega = _tryParse(d['fecha_entrega']?.toString());
+
+    _tipoActivoId = d['id_tipo_activo'] as int?;
+    _condicionActivoId = d['id_condicion_activo'] as int?;
+    _custodioId = d['id_custodio'] as int?;
+    _ciudadActivoId = d['id_ciudad_activo'] as int?;
+    _sedeActivoId = d['id_sede_activo'] as int?;
+    _areaActivoId = d['id_area_activo'] as int?;
+    _proveedorId = d['id_provedor'] as int?;
+
+    // Category-specific fields — extracted from the nested sub-list
+    final infoList = d['info_pc'] as List? ??
+        d['info_equipo_comunicacion'] as List? ??
+        d['info_equipo_generico'] as List? ??
+        d['info_software'] as List?;
+    final info = (infoList != null && infoList.isNotEmpty)
+        ? infoList[0] as Map<String, dynamic>
+        : null;
+
+    if (info != null) {
+      _modeloCtrl.text = info['modelo']?.toString() ?? '';
+      _marcaId = info['id_marca'] as int?;
+
+      // PC
+      _procesadorCtrl.text = info['procesador']?.toString() ?? '';
+      _ramCtrl.text = info['ram']?.toString() ?? '';
+      _almacenamientoCtrl.text = info['almacenamiento']?.toString() ?? '';
+      _cargadorCodigoCtrl.text = info['cargador_codigo']?.toString() ?? '';
+      _numPuertosCtrl.text = info['num_puertos']?.toString() ?? '';
+
+      // Communication
+      _tipoExtensionCtrl.text = info['tipo_extension']?.toString() ?? '';
+
+      // Generic
+      _numConexionesCtrl.text = info['num_conexiones']?.toString() ?? '';
+      _varImpresoraColorCtrl.text = info['var_impresora_color']?.toString() ?? '';
+      _varMonitorTipoConexionCtrl.text =
+          info['var_monitor_tipo_conexion']?.toString() ?? '';
+
+      // Software
+      _proveedorSoftwareCtrl.text = info['proveedor']?.toString() ?? '';
+      _fechaInicio = _tryParse(info['fecha_inicio']?.toString());
+      _fechaFin = _tryParse(info['fecha_fin']?.toString());
+    }
   }
 
   Future<void> _loadMasterData() async {
@@ -137,11 +215,14 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
           _marcas = List<Map<String, dynamic>>.from(futures[7]);
           _isLoadingMasterData = false;
         });
+        _populateFromInitialData();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar datos maestros: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Error al cargar datos maestros: $e'),
+              backgroundColor: Colors.red),
         );
         setState(() => _isLoadingMasterData = false);
       }
@@ -153,32 +234,31 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     _numeroSerieCtrl.dispose();
     _nombreCtrl.dispose();
     _codigoCtrl.dispose();
-    _fechaAdquisicionCtrl.dispose();
-    _fechaEntregaCtrl.dispose();
     _coordenadaCtrl.dispose();
     _ipCtrl.dispose();
     _modeloCtrl.dispose();
     _observacionesCtrl.dispose();
-    
     _procesadorCtrl.dispose();
     _ramCtrl.dispose();
     _almacenamientoCtrl.dispose();
     _cargadorCodigoCtrl.dispose();
     _numPuertosCtrl.dispose();
-
     _tipoExtensionCtrl.dispose();
-
     _numConexionesCtrl.dispose();
     _varImpresoraColorCtrl.dispose();
     _varMonitorTipoConexionCtrl.dispose();
-
     _proveedorSoftwareCtrl.dispose();
-    _fechaInicioCtrl.dispose();
-    _fechaFinCtrl.dispose();
     super.dispose();
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, {bool isNumber = false, bool required = false}) {
+  // ──────────────── Widget helpers ────────────────
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label, {
+    bool isNumber = false,
+    bool required = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
@@ -192,11 +272,15 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
         validator: required
             ? (value) {
                 if (value == null || value.trim().isEmpty) return 'Requerido';
-                if (isNumber && int.tryParse(value.trim()) == null) return 'Debe ser numérico';
+                if (isNumber && int.tryParse(value.trim()) == null)
+                  return 'Debe ser numérico';
                 return null;
               }
             : (value) {
-                if (value != null && value.trim().isNotEmpty && isNumber && int.tryParse(value.trim()) == null) {
+                if (value != null &&
+                    value.trim().isNotEmpty &&
+                    isNumber &&
+                    int.tryParse(value.trim()) == null) {
                   return 'Debe ser numérico';
                 }
                 return null;
@@ -206,17 +290,19 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
   }
 
   Widget _buildDropdown(
-    String label, 
-    int? value, 
-    List<Map<String, dynamic>> items, 
-    String displayKey, 
-    ValueChanged<int?> onChanged, 
-    {bool required = false}
-  ) {
+    String label,
+    int? value,
+    List<Map<String, dynamic>> items,
+    String displayKey,
+    ValueChanged<int?> onChanged, {
+    bool required = false,
+  }) {
+    // Validate that the current value exists in the items list (prevents invalid dropdown state)
+    final validValue = items.any((item) => item['id'] == value) ? value : null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: DropdownButtonFormField<int>(
-        value: value,
+        value: validValue,
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
           isDense: true,
@@ -234,6 +320,57 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     );
   }
 
+  /// Date picker field. [allowFuture] controls if future dates are selectable.
+  /// When [allowFuture] is false, the last selectable date is today.
+  Widget _buildDatePicker(
+    String label,
+    DateTime? currentValue,
+    ValueChanged<DateTime?> onChanged, {
+    bool allowFuture = true,
+    bool required = false,
+  }) {
+    final today = DateTime.now();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: InkWell(
+        onTap: () async {
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: currentValue ?? today,
+            firstDate: DateTime(2000),
+            lastDate: allowFuture ? DateTime(2100) : today,
+            helpText: label,
+          );
+          if (picked != null) {
+            onChanged(picked);
+          }
+        },
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: required ? '$label *' : label,
+            isDense: true,
+            border: const OutlineInputBorder(),
+            suffixIcon: currentValue != null
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 18),
+                    onPressed: () => onChanged(null),
+                  )
+                : const Icon(Icons.calendar_today, size: 18),
+          ),
+          child: Text(
+            currentValue != null ? _fmtDate(currentValue) : 'Toca para seleccionar',
+            style: TextStyle(
+              color: currentValue != null ? null : Colors.grey,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ──────────────────── build ────────────────────
+
   @override
   Widget build(BuildContext context) {
     if (_isLoadingMasterData) {
@@ -246,7 +383,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-              if (widget.initialCategory == null)
+            if (widget.initialCategory == null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12.0),
                 child: DropdownButtonFormField<String>(
@@ -259,45 +396,78 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                   ],
                   onChanged: (value) {
                     if (value != null && value != _categoria) {
-                       setState(() {
-                         _categoria = value;
-                         _tipoActivoId = null; // Reset tipoActivo since category changed
-                       });
+                      setState(() {
+                        _categoria = value;
+                        _tipoActivoId = null;
+                      });
                     }
                   },
-                  decoration: const InputDecoration(labelText: 'Categoría de Activo *', isDense: true, border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    labelText: 'Categoría de Activo *',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
                 ),
               ),
-            
-            /// Common Requirements Section
-            const Text('Datos Generales', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+
+            const Text(
+              'Datos Generales',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const Divider(),
-            if (_categoria != 'SOFTWARE') _buildTextField(_numeroSerieCtrl, 'Número de Serie', required: true),
+            if (_categoria != 'SOFTWARE')
+              _buildTextField(_numeroSerieCtrl, 'Número de Serie', required: true),
             _buildTextField(_nombreCtrl, 'Nombre'),
             _buildTextField(_codigoCtrl, 'Código', isNumber: true),
-            
-            _buildDropdown('Tipo de Activo', _tipoActivoId, _tiposActivo.where((t) => t['categoria'] == _categoria).toList(), 'tipo', (v) => setState(() => _tipoActivoId = v), required: true),
-            _buildDropdown('Condición', _condicionActivoId, _condicionesActivo, 'condicion', (v) => setState(() => _condicionActivoId = v)),
-            _buildDropdown('Custodio', _custodioId, _custodios, 'nombre_completo', (v) => setState(() => _custodioId = v)),
-            _buildDropdown('Área', _areaActivoId, _areas, 'area', (v) => setState(() => _areaActivoId = v)),
-            _buildDropdown('Proveedor General', _proveedorId, _proveedores, 'nombre', (v) => setState(() => _proveedorId = v)),
-            
+            _buildDropdown(
+              'Tipo de Activo',
+              _tipoActivoId,
+              _tiposActivo.where((t) => t['categoria'] == _categoria).toList(),
+              'tipo',
+              (v) => setState(() => _tipoActivoId = v),
+              required: true,
+            ),
+            _buildDropdown('Condición', _condicionActivoId, _condicionesActivo, 'condicion',
+                (v) => setState(() => _condicionActivoId = v)),
+            _buildDropdown('Custodio', _custodioId, _custodios, 'nombre_completo',
+                (v) => setState(() => _custodioId = v)),
+            _buildDropdown('Área', _areaActivoId, _areas, 'area',
+                (v) => setState(() => _areaActivoId = v)),
+            _buildDropdown('Proveedor General', _proveedorId, _proveedores, 'nombre',
+                (v) => setState(() => _proveedorId = v)),
+
             if (_categoria != 'SOFTWARE') ...[
-              _buildDropdown('Ciudad', _ciudadActivoId, _ciudades, 'ciudad', (v) => setState(() => _ciudadActivoId = v)),
-              _buildDropdown('Sede', _sedeActivoId, _sedes, 'sede', (v) => setState(() => _sedeActivoId = v)),
+              _buildDropdown('Ciudad', _ciudadActivoId, _ciudades, 'ciudad',
+                  (v) => setState(() => _ciudadActivoId = v)),
+              _buildDropdown('Sede', _sedeActivoId, _sedes, 'sede',
+                  (v) => setState(() => _sedeActivoId = v)),
               _buildTextField(_ipCtrl, 'IP (opcional)'),
-              _buildDropdown('Marca', _marcaId, _marcas, 'marca_proveedor', (v) => setState(() => _marcaId = v)),
+              _buildDropdown('Marca', _marcaId, _marcas, 'marca_proveedor',
+                  (v) => setState(() => _marcaId = v)),
               _buildTextField(_modeloCtrl, 'Modelo'),
-              _buildTextField(_fechaAdquisicionCtrl, 'Fecha Adquisición (YYYY-MM-DD)'),
-              _buildTextField(_fechaEntregaCtrl, 'Fecha Entrega (YYYY-MM-DD)'),
+              // Date pickers — adquisicion must be ≤ today
+              _buildDatePicker(
+                'Fecha de Adquisición',
+                _fechaAdquisicion,
+                (d) => setState(() => _fechaAdquisicion = d),
+                allowFuture: false,
+              ),
+              _buildDatePicker(
+                'Fecha de Entrega',
+                _fechaEntrega,
+                (d) => setState(() => _fechaEntrega = d),
+                allowFuture: true,
+              ),
               _buildTextField(_coordenadaCtrl, 'Coordenada (lat,lng)'),
             ],
 
             const SizedBox(height: 16),
-            const Text('Detalles Específicos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text(
+              'Detalles Específicos',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const Divider(),
-            
-            /// Specific Requirements Section
+
             if (_categoria == 'PC') ...[
               _buildTextField(_procesadorCtrl, 'Procesador'),
               _buildTextField(_ramCtrl, 'RAM'),
@@ -320,8 +490,10 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
 
             if (_categoria == 'SOFTWARE') ...[
               _buildTextField(_proveedorSoftwareCtrl, 'Proveedor de Software'),
-              _buildTextField(_fechaInicioCtrl, 'Fecha Inicio (YYYY-MM-DD)'),
-              _buildTextField(_fechaFinCtrl, 'Fecha Fin (YYYY-MM-DD)'),
+              _buildDatePicker('Fecha Inicio Licencia', _fechaInicio,
+                  (d) => setState(() => _fechaInicio = d)),
+              _buildDatePicker('Fecha Fin Licencia', _fechaFin,
+                  (d) => setState(() => _fechaFin = d)),
             ],
 
             _buildTextField(_observacionesCtrl, 'Observaciones (opcional)'),
@@ -335,7 +507,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                       setState(() => _saving = true);
                       try {
                         await widget.onSave(
-                          numeroSerie: _categoria == 'SOFTWARE' ? '' : _numeroSerieCtrl.text,
+                          numeroSerie: _categoria == 'SOFTWARE'
+                              ? ''
+                              : _numeroSerieCtrl.text,
                           categoria: _categoria,
                           tipoActivoId: _tipoActivoId ?? 0,
                           condicionActivoId: _condicionActivoId,
@@ -344,27 +518,52 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                           sedeActivoId: _sedeActivoId,
                           areaActivoId: _areaActivoId,
                           proveedorId: _proveedorId,
-                          fechaAdquisicion: _fechaAdquisicionCtrl.text.isEmpty ? null : _fechaAdquisicionCtrl.text,
-                          fechaEntrega: _fechaEntregaCtrl.text.isEmpty ? null : _fechaEntregaCtrl.text,
-                          coordenada: _coordenadaCtrl.text.isEmpty ? null : _coordenadaCtrl.text,
+                          fechaAdquisicion: _fechaAdquisicion != null
+                              ? _fmtDate(_fechaAdquisicion!)
+                              : null,
+                          fechaEntrega: _fechaEntrega != null
+                              ? _fmtDate(_fechaEntrega!)
+                              : null,
+                          coordenada: _coordenadaCtrl.text.isEmpty
+                              ? null
+                              : _coordenadaCtrl.text,
                           nombre: _nombreCtrl.text.isEmpty ? null : _nombreCtrl.text,
                           codigo: int.tryParse(_codigoCtrl.text),
                           ip: _ipCtrl.text.isEmpty ? null : _ipCtrl.text,
                           marcaId: _marcaId,
                           modelo: _modeloCtrl.text.isEmpty ? null : _modeloCtrl.text,
-                          observaciones: _observacionesCtrl.text.isEmpty ? null : _observacionesCtrl.text,
-                          procesador: _procesadorCtrl.text.isEmpty ? null : _procesadorCtrl.text,
+                          observaciones: _observacionesCtrl.text.isEmpty
+                              ? null
+                              : _observacionesCtrl.text,
+                          procesador: _procesadorCtrl.text.isEmpty
+                              ? null
+                              : _procesadorCtrl.text,
                           ram: _ramCtrl.text.isEmpty ? null : _ramCtrl.text,
-                          almacenamiento: _almacenamientoCtrl.text.isEmpty ? null : _almacenamientoCtrl.text,
-                          cargadorCodigo: _cargadorCodigoCtrl.text.isEmpty ? null : _cargadorCodigoCtrl.text,
+                          almacenamiento: _almacenamientoCtrl.text.isEmpty
+                              ? null
+                              : _almacenamientoCtrl.text,
+                          cargadorCodigo: _cargadorCodigoCtrl.text.isEmpty
+                              ? null
+                              : _cargadorCodigoCtrl.text,
                           numPuertos: int.tryParse(_numPuertosCtrl.text),
-                          tipoExtension: _tipoExtensionCtrl.text.isEmpty ? null : _tipoExtensionCtrl.text,
+                          tipoExtension: _tipoExtensionCtrl.text.isEmpty
+                              ? null
+                              : _tipoExtensionCtrl.text,
                           numConexiones: int.tryParse(_numConexionesCtrl.text),
-                          varImpresoraColor: _varImpresoraColorCtrl.text.isEmpty ? null : _varImpresoraColorCtrl.text,
-                          varMonitorTipoConexion: _varMonitorTipoConexionCtrl.text.isEmpty ? null : _varMonitorTipoConexionCtrl.text,
-                          proveedorSoftware: _proveedorSoftwareCtrl.text.isEmpty ? null : _proveedorSoftwareCtrl.text,
-                          fechaInicio: _fechaInicioCtrl.text.isEmpty ? null : _fechaInicioCtrl.text,
-                          fechaFin: _fechaFinCtrl.text.isEmpty ? null : _fechaFinCtrl.text,
+                          varImpresoraColor: _varImpresoraColorCtrl.text.isEmpty
+                              ? null
+                              : _varImpresoraColorCtrl.text,
+                          varMonitorTipoConexion:
+                              _varMonitorTipoConexionCtrl.text.isEmpty
+                                  ? null
+                                  : _varMonitorTipoConexionCtrl.text,
+                          proveedorSoftware: _proveedorSoftwareCtrl.text.isEmpty
+                              ? null
+                              : _proveedorSoftwareCtrl.text,
+                          fechaInicio: _fechaInicio != null
+                              ? _fmtDate(_fechaInicio!)
+                              : null,
+                          fechaFin: _fechaFin != null ? _fmtDate(_fechaFin!) : null,
                         );
                       } finally {
                         if (mounted) setState(() => _saving = false);
@@ -374,7 +573,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
               child: Text(_saving ? 'Guardando...' : 'Guardar Activo'),
-            )
+            ),
           ],
         ),
       ),
