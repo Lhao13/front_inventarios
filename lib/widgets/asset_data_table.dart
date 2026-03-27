@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:front_inventarios/auth/role_service.dart';
+import 'package:front_inventarios/widgets/map_dialog.dart';
 
 /// Defines a single column in the [AssetDataTable].
 /// [label] is the header text. [getValue] extracts the display value from an
@@ -213,7 +214,43 @@ class _AssetDataTableState extends State<AssetDataTable> {
                     return DataRow(
                       cells: [
                         ...visibleCols.map(
-                          (col) => DataCell(Text(col.getValue(asset))),
+                          (col) {
+                            final String value = col.getValue(asset);
+                            if (col.label == 'Coordenada' && value != 'N/A' && value.isNotEmpty) {
+                              return DataCell(
+                                InkWell(
+                                  onTap: () {
+                                    final parts = value.split(',');
+                                    if (parts.length == 2) {
+                                      final lat = double.tryParse(parts[0].trim());
+                                      final lng = double.tryParse(parts[1].trim());
+                                      if (lat != null && lng != null) {
+                                        showDialog(
+                                          context: context,
+                                          builder: (_) => MapDialog(
+                                            latitude: lat,
+                                            longitude: lng,
+                                            title: asset['nombre']?.toString() ?? asset['numero_serie']?.toString() ?? 'Activo',
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coordenada inválida')));
+                                  },
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.location_on, size: 16, color: Colors.blue),
+                                      const SizedBox(width: 4),
+                                      Text(value, style: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline)),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+                            return DataCell(Text(value));
+                          },
                         ),
                         if (hasActions)
                           DataCell(

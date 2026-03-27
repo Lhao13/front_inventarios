@@ -113,8 +113,11 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
     ),
     AssetColumnDef(
       label: 'Observaciones',
-      getValue: (a) => a['observaciones']?.toString() ?? 'N/A',
-      visibleByDefault: false,
+      getValue: (a) {
+        final i = _info(a, 'info_equipo_comunicacion');
+        return i?['observaciones']?.toString() ?? 'N/A';
+      },
+      visibleByDefault: true,
     ),
   ];
 
@@ -582,7 +585,7 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
       onTap: () async {
         final result = await showDialog<List<int>>(
           context: context,
-          builder: (_) => MultiSelectDialog(
+          builder: (_) => MultiSelectDialog<int>(
             title: label,
             items: items,
             initialSelectedIds: selectedIds,

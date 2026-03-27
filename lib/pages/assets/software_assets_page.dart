@@ -30,7 +30,7 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
     AssetColumnDef(label: 'Proveedor Sw.',   getValue: (a) { final i = _info(a, 'info_software'); return i?['proveedor']?.toString() ?? 'N/A'; }),
     AssetColumnDef(label: 'Fecha Inicio',    getValue: (a) { final i = _info(a, 'info_software'); return i?['fecha_inicio']?.toString() ?? 'N/A'; }),
     AssetColumnDef(label: 'Fecha Fin',       getValue: (a) { final i = _info(a, 'info_software'); return i?['fecha_fin']?.toString() ?? 'N/A'; }),
-    AssetColumnDef(label: 'Observaciones',   getValue: (a) => a['observaciones']?.toString() ?? 'N/A', visibleByDefault: false),
+    AssetColumnDef(label: 'Observaciones',   getValue: (a) { final i = _info(a, 'info_software'); return i?['observaciones']?.toString() ?? 'N/A'; }, visibleByDefault: true),
   ];
 
   static Map<String, dynamic>? _info(Map<String, dynamic> asset, String key) {
@@ -303,7 +303,7 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
       onTap: () async {
         final result = await showDialog<List<int>>(
           context: context,
-          builder: (_) => MultiSelectDialog(title: label, items: items, initialSelectedIds: selectedIds, displayKey: displayKey),
+          builder: (_) => MultiSelectDialog<int>(title: label, items: items, initialSelectedIds: selectedIds, displayKey: displayKey),
         );
         if (result != null) {
           setState(() {

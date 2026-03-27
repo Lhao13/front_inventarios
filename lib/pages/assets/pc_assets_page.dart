@@ -41,7 +41,7 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
     AssetColumnDef(label: 'Almacenamiento',   getValue: (a) { final info = _info(a, 'info_pc'); return info?['almacenamiento']?.toString() ?? 'N/A'; }),
     AssetColumnDef(label: 'Cód. Cargador',   getValue: (a) { final info = _info(a, 'info_pc'); return info?['cargador_codigo']?.toString() ?? 'N/A'; }, visibleByDefault: false),
     AssetColumnDef(label: 'Num. Puertos',     getValue: (a) { final info = _info(a, 'info_pc'); return info?['num_puertos']?.toString() ?? 'N/A'; }, visibleByDefault: false),
-    AssetColumnDef(label: 'Observaciones',    getValue: (a) => a['observaciones']?.toString() ?? 'N/A', visibleByDefault: false),
+    AssetColumnDef(label: 'Observaciones',    getValue: (a) { final info = _info(a, 'info_pc'); return info?['observaciones']?.toString() ?? 'N/A'; }, visibleByDefault: true),
   ];
 
   /// Helper to safely get the first element of a sub-list relation.
@@ -76,8 +76,12 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
   final TextEditingController _seriesController = TextEditingController();
   final TextEditingController _modelosController = TextEditingController();
   final TextEditingController _procesadoresController = TextEditingController();
-  final TextEditingController _ramController = TextEditingController();
-  final TextEditingController _almacenamientoController = TextEditingController();
+
+  List<String> _selectedRams = [];
+  List<String> _selectedStorages = [];
+
+  static const List<String> _ramOptions = ['4GB', '8GB', '12GB', '16GB', '32GB', '64GB', '128GB', '256GB'];
+  static const List<String> _storageOptions = ['128GB', '256GB', '512GB', '1TB', '2TB', '4TB', '10TB'];
 
   DateTimeRange? _rangoAdquisicion;
   DateTimeRange? _rangoEntrega;
@@ -144,8 +148,6 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
     final series = _seriesController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
     final modelos = _modelosController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
     final cpus = _procesadoresController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final rams = _ramController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final storages = _almacenamientoController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
     final result = _allAssets.where((asset) {
       final info = asset['info_pc'] != null && (asset['info_pc'] as List).isNotEmpty ? (asset['info_pc'] as List)[0] : null;
@@ -155,8 +157,8 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
       bool matchesSerie = series.isEmpty || series.any((s) => (asset['numero_serie'] ?? '').toString().toLowerCase().contains(s));
       bool matchesModelo = modelos.isEmpty || modelos.any((m) => (info?['modelo'] ?? '').toString().toLowerCase().contains(m));
       bool matchesCpu = cpus.isEmpty || cpus.any((c) => (info?['procesador'] ?? '').toString().toLowerCase().contains(c));
-      bool matchesRam = rams.isEmpty || rams.any((r) => (info?['ram'] ?? '').toString().toLowerCase().contains(r));
-      bool matchesStorage = storages.isEmpty || storages.any((s) => (info?['almacenamiento'] ?? '').toString().toLowerCase().contains(s));
+      bool matchesRam = _selectedRams.isEmpty || _selectedRams.contains(info?['ram']?.toString());
+      bool matchesStorage = _selectedStorages.isEmpty || _selectedStorages.contains(info?['almacenamiento']?.toString());
 
       bool matchesTipo = _selectedTiposActivo.isEmpty || _selectedTiposActivo.contains(asset['id_tipo_activo']);
       bool matchesCondicion = _selectedCondiciones.isEmpty || _selectedCondiciones.contains(asset['id_condicion_activo']);
@@ -211,8 +213,8 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
       _seriesController.clear();
       _modelosController.clear();
       _procesadoresController.clear();
-      _ramController.clear();
-      _almacenamientoController.clear();
+      _selectedRams.clear();
+      _selectedStorages.clear();
       _rangoAdquisicion = null;
       _rangoEntrega = null;
     });
@@ -368,12 +370,43 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
       onTap: () async {
         final result = await showDialog<List<int>>(
           context: context,
-          builder: (_) => MultiSelectDialog(title: label, items: items, initialSelectedIds: selectedIds, displayKey: displayKey),
+          builder: (_) => MultiSelectDialog<int>(title: label, items: items, initialSelectedIds: selectedIds, displayKey: displayKey),
         );
         if (result != null) {
           setState(() {
             selectedIds.clear();
             selectedIds.addAll(result);
+          });
+          _applyFilters();
+        }
+      },
+    );
+  }
+
+  Widget _buildStringDrawerFilterButton(String label, List<String> selectedItems, List<String> allItems) {
+    return ListTile(
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(selectedItems.isEmpty ? 'Todos' : '${selectedItems.length} seleccionados'),
+      trailing: const Icon(Icons.arrow_drop_down),
+      onTap: () async {
+        final List<Map<String, dynamic>> itemsList = allItems.map((e) => {'id': e}).toList();
+        final List<String>? result = await showDialog<List<String>>(
+          context: context,
+          builder: (_) => MultiSelectDialog<String>(
+            title: label,
+            items: itemsList,
+            initialSelectedIds: selectedItems,
+            displayKey: 'id',
+            valueKey: 'id',
+          ),
+        );
+        if (result != null) {
+          setState(() {
+            if (label == 'RAM') {
+              _selectedRams = result.map((e) => e.toString()).toList();
+            } else if (label == 'Almacenamiento') {
+              _selectedStorages = result.map((e) => e.toString()).toList();
+            }
           });
           _applyFilters();
         }
@@ -440,8 +473,11 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
                   _buildDrawerTextField('Números de Serie', _seriesController),
                   _buildDrawerTextField('Modelos', _modelosController),
                   _buildDrawerTextField('Procesadores', _procesadoresController),
-                  _buildDrawerTextField('RAM', _ramController),
-                  _buildDrawerTextField('Almacenamiento', _almacenamientoController),
+                  
+                  const Divider(),
+                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Capacidad', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                  _buildStringDrawerFilterButton('RAM', _selectedRams, _ramOptions),
+                  _buildStringDrawerFilterButton('Almacenamiento', _selectedStorages, _storageOptions),
                   
                   const Divider(),
                   const Padding(padding: EdgeInsets.all(16.0), child: Text('Listas Maestras', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),

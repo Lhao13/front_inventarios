@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
-class MultiSelectDialog extends StatefulWidget {
+class MultiSelectDialog<T> extends StatefulWidget {
   final String title;
   final List<Map<String, dynamic>> items;
-  final List<int> initialSelectedIds;
+  final List<T> initialSelectedIds;
   final String displayKey;
+  final String valueKey;
 
   const MultiSelectDialog({
     super.key,
@@ -12,14 +13,15 @@ class MultiSelectDialog extends StatefulWidget {
     required this.items,
     required this.initialSelectedIds,
     required this.displayKey,
+    this.valueKey = 'id',
   });
 
   @override
-  State<MultiSelectDialog> createState() => _MultiSelectDialogState();
+  State<MultiSelectDialog<T>> createState() => _MultiSelectDialogState<T>();
 }
 
-class _MultiSelectDialogState extends State<MultiSelectDialog> {
-  late List<int> _selectedIds;
+class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
+  late List<T> _selectedIds;
 
   @override
   void initState() {
@@ -45,7 +47,7 @@ class _MultiSelectDialogState extends State<MultiSelectDialog> {
                 ),
                 TextButton(
                   onPressed: () => setState(() {
-                    _selectedIds = widget.items.map((e) => e['id'] as int).toList();
+                    _selectedIds = widget.items.map((e) => e[widget.valueKey] as T).toList();
                   }),
                   child: const Text('Seleccionar Todo'),
                 ),
@@ -57,18 +59,18 @@ class _MultiSelectDialogState extends State<MultiSelectDialog> {
                 itemCount: widget.items.length,
                 itemBuilder: (context, index) {
                   final item = widget.items[index];
-                  final id = item['id'] as int;
+                  final val = item[widget.valueKey] as T;
                   final display = item[widget.displayKey]?.toString() ?? '';
 
                   return CheckboxListTile(
                     title: Text(display),
-                    value: _selectedIds.contains(id),
+                    value: _selectedIds.contains(val),
                     onChanged: (bool? checked) {
                       setState(() {
                         if (checked == true) {
-                          _selectedIds.add(id);
+                          _selectedIds.add(val);
                         } else {
-                          _selectedIds.remove(id);
+                          _selectedIds.remove(val);
                         }
                       });
                     },
