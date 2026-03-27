@@ -2,8 +2,8 @@
 -- Table order and constraints may not be valid for execution.
 
 CREATE TABLE public.activo (
-  id integer NOT NULL,
-  numero_serie character varying NOT NULL,
+  id integer NOT NULL DEFAULT nextval('activo_id_seq'::regclass),
+  numero_serie character varying UNIQUE,
   id_custodio integer,
   id_condicion_activo integer,
   id_tipo_activo integer NOT NULL,
@@ -82,11 +82,10 @@ CREATE TABLE public.historial_activo (
   user_on_change uuid,
   snapshot_json jsonb,
   CONSTRAINT historial_activo_pkey PRIMARY KEY (id),
-  CONSTRAINT historial_activo_id_activo_fkey FOREIGN KEY (id_activo) REFERENCES public.activo(id),
   CONSTRAINT historial_activo_user_on_change_fkey FOREIGN KEY (user_on_change) REFERENCES auth.users(id)
 );
 CREATE TABLE public.info_equipo_comunicacion (
-  id integer NOT NULL,
+  id integer NOT NULL DEFAULT nextval('info_equipo_comunicacion_id_seq'::regclass),
   id_marca integer,
   id_activo integer,
   modelo character varying,
@@ -98,7 +97,7 @@ CREATE TABLE public.info_equipo_comunicacion (
   CONSTRAINT info_equipo_de_comunicacion_id_activo_fkey FOREIGN KEY (id_activo) REFERENCES public.activo(id)
 );
 CREATE TABLE public.info_equipo_generico (
-  id integer NOT NULL,
+  id integer NOT NULL DEFAULT nextval('info_equipo_generico_id_seq'::regclass),
   id_marca integer,
   id_activo integer,
   modelo character varying,
@@ -112,7 +111,7 @@ CREATE TABLE public.info_equipo_generico (
   CONSTRAINT info_equipo_generico_id_activo_fkey FOREIGN KEY (id_activo) REFERENCES public.activo(id)
 );
 CREATE TABLE public.info_pc (
-  id integer NOT NULL,
+  id integer GENERATED ALWAYS AS IDENTITY NOT NULL,
   id_marca integer,
   id_activo integer,
   modelo character varying,
@@ -127,7 +126,7 @@ CREATE TABLE public.info_pc (
   CONSTRAINT info_pc_id_activo_fkey FOREIGN KEY (id_activo) REFERENCES public.activo(id)
 );
 CREATE TABLE public.info_software (
-  id integer NOT NULL,
+  id integer NOT NULL DEFAULT nextval('info_software_id_seq'::regclass),
   id_activo integer,
   proveedor character varying,
   fecha_inicio date,
@@ -149,6 +148,7 @@ CREATE TABLE public.mantenimiento (
   user_on_update uuid,
   user_on_creation uuid,
   CONSTRAINT mantenimiento_pkey PRIMARY KEY (id),
+  CONSTRAINT mantenimiento_id_activo_fkey FOREIGN KEY (id_activo) REFERENCES public.activo(id),
   CONSTRAINT mantenimiento_user_on_update_fkey FOREIGN KEY (user_on_update) REFERENCES auth.users(id),
   CONSTRAINT mantenimiento_user_on_creation_fkey FOREIGN KEY (user_on_creation) REFERENCES auth.users(id)
 );
@@ -170,7 +170,9 @@ CREATE TABLE public.proveedor (
   timestamp_created_at timestamp without time zone,
   timestamp_updated_at timestamp without time zone,
   user_on_creation uuid,
+  user_on_update uuid,
   CONSTRAINT proveedor_pkey PRIMARY KEY (id),
+  CONSTRAINT proveedor_user_on_update_fkey FOREIGN KEY (user_on_update) REFERENCES auth.users(id),
   CONSTRAINT proveedor_user_on_creation_fkey FOREIGN KEY (user_on_creation) REFERENCES auth.users(id)
 );
 CREATE TABLE public.rol (
@@ -193,11 +195,12 @@ CREATE TABLE public.sede_activo (
 CREATE TABLE public.tipo_activo (
   id integer NOT NULL DEFAULT nextval('tipo_de_activo_id_seq'::regclass),
   tipo character varying NOT NULL,
-  descripcion character varying,
+  descripcion text,
   timestamp_created_at timestamp without time zone,
   timestamp_updated_at timestamp without time zone,
   user_on_update uuid,
   user_on_creation uuid,
+  categoria USER-DEFINED DEFAULT 'GENERICO'::categoria_activo_enum,
   CONSTRAINT tipo_activo_pkey PRIMARY KEY (id),
   CONSTRAINT tipo_de_activo_user_on_update_fkey FOREIGN KEY (user_on_update) REFERENCES auth.users(id),
   CONSTRAINT tipo_de_activo_user_on_creation_fkey FOREIGN KEY (user_on_creation) REFERENCES auth.users(id)

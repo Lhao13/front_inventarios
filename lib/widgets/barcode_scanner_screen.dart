@@ -12,12 +12,13 @@ class BarcodeScannerScreen extends StatefulWidget {
 
 class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   String? _scannedCode;
+  DateTime? _lastErrorTime;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isOnlyNumeric ? 'Escanear Código de Barras' : 'Escanear QR / Código de Barras'),
+        title: Text(widget.isOnlyNumeric ? 'Escanear Código numérico' : 'Escanear QR / Código de Barras'),
       ),
       body: Stack(
         children: [
@@ -27,16 +28,21 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
               for (final barcode in barcodes) {
                 final String? rawValue = barcode.rawValue;
                 if (rawValue != null) {
-                  // If it must be numeric, validate that
+                  // Si tiene que ser solo numero, validar eso
                   if (widget.isOnlyNumeric) {
                     if (int.tryParse(rawValue) == null) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Por favor, escanee un código numérico válido'),
-                            duration: Duration(seconds: 2)
-                          ),
-                        );
+                      final now = DateTime.now();
+                      if (_lastErrorTime == null || now.difference(_lastErrorTime!) > const Duration(seconds: 3)) {
+                        _lastErrorTime = now;
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Por favor, escanee un código numérico válido'),
+                              duration: Duration(seconds: 2)
+                            ),
+                          );
+                        }
                       }
                       continue;
                     }
@@ -46,7 +52,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                     setState(() {
                       _scannedCode = rawValue;
                     });
-                    Navigator.pop(context, rawValue);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).clearSnackBars(); // Limpiar errores antes de volver
+                      Navigator.pop(context, rawValue);
+                    }
                   }
                 }
               }
