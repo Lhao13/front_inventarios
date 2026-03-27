@@ -173,6 +173,11 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       _modeloCtrl.text = info['modelo']?.toString() ?? '';
       _marcaId = info['id_marca'] as int?;
 
+      // If observations exist in the specific info table, use them
+      if (info['observaciones'] != null) {
+        _observacionesCtrl.text = info['observaciones'].toString();
+      }
+
       // PC
       _procesadorCtrl.text = info['procesador']?.toString() ?? '';
       _cargadorCodigoCtrl.text = info['cargador_codigo']?.toString() ?? '';
