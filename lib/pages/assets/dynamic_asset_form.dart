@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/widgets/barcode_scanner_screen.dart';
+import 'package:front_inventarios/services/local_db_service.dart';
 
 class DynamicAssetForm extends StatefulWidget {
   /// If passed, the form will be pre-populated with the existing asset's data.
@@ -208,14 +208,14 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
   Future<void> _loadMasterData() async {
     try {
       final futures = await Future.wait([
-        supabase.from('tipo_activo').select('id, tipo, categoria').order('tipo'),
-        supabase.from('condicion_activo').select('id, condicion').order('condicion'),
-        supabase.from('custodio').select('id, nombre_completo').order('nombre_completo'),
-        supabase.from('ciudad_activo').select('id, ciudad').order('ciudad'),
-        supabase.from('sede_activo').select('id, sede').order('sede'),
-        supabase.from('area_activo').select('id, area').order('area'),
-        supabase.from('proveedor').select('id, nombre').order('nombre'),
-        supabase.from('marca').select('id, marca_proveedor').order('marca_proveedor'),
+        LocalDbService.instance.getCollection('tipo_activo'),
+        LocalDbService.instance.getCollection('condicion_activo'),
+        LocalDbService.instance.getCollection('custodio'),
+        LocalDbService.instance.getCollection('ciudad_activo'),
+        LocalDbService.instance.getCollection('sede_activo'),
+        LocalDbService.instance.getCollection('area_activo'),
+        LocalDbService.instance.getCollection('proveedor'),
+        LocalDbService.instance.getCollection('marca'),
       ]);
 
       if (mounted) {

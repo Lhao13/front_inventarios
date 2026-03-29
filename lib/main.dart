@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/pages/login_page.dart';
 
 
+import 'package:front_inventarios/services/sync_queue_service.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -10,6 +12,10 @@ Future<void> main() async {
     url: 'https://kphizkgjcawfameowpmw.supabase.co',
     anonKey: 'sb_publishable_F44aOAKPBeBbGL0VYZ-DxQ_ZgnEkUiY',
   );
+
+  // Iniciar el demonio de sincronización online/offline
+  SyncQueueService.instance.startListening();
+
   runApp(MyApp());
 }
         

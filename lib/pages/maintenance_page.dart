@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
+import 'package:front_inventarios/services/local_db_service.dart';
+import 'package:front_inventarios/services/sync_queue_service.dart';
+import 'package:uuid/uuid.dart';
 
 /// Página de Mantenimientos.
 /// 
@@ -54,14 +57,17 @@ class _MaintenancePageState extends State<MaintenancePage> {
       _errorMessage = null;
     });
     try {
-      final response = await supabase
-          .from('mantenimiento')
-          .select('*, activo(numero_serie, tipo_activo(tipo))')
-          .order('fecha_programada', ascending: false);
+      final response = await LocalDbService.instance.getCollection('mantenimiento');
+      // Sort response latest programada first locally
+      response.sort((a, b) {
+        final aDate = a['fecha_programada']?.toString() ?? '';
+        final bDate = b['fecha_programada']?.toString() ?? '';
+        return bDate.compareTo(aDate);
+      });
           
       if (!mounted) return;
       setState(() {
-        _maintenances = List<Map<String, dynamic>>.from(response);
+        _maintenances = response;
       });
     } catch (e) {
       if (!mounted) return;
@@ -75,14 +81,19 @@ class _MaintenancePageState extends State<MaintenancePage> {
 
   Future<void> _loadAssets() async {
     try {
-      final response = await supabase
-          .from('activo')
-          .select('id, numero_serie, tipo_activo(tipo)')
-          .neq('categoria_activo', 'SOFTWARE')
-          .order('numero_serie');
+      final localActivos = await LocalDbService.instance.getCollection('activo');
+      final filtered = localActivos
+          .where((a) => a['categoria_activo'] != 'SOFTWARE')
+          .toList()
+        ..sort((a, b) {
+          final sA = a['numero_serie']?.toString() ?? '';
+          final sB = b['numero_serie']?.toString() ?? '';
+          return sA.compareTo(sB);
+        });
+
       if (mounted) {
         setState(() {
-          _assets = List<Map<String, dynamic>>.from(response);
+          _assets = filtered;
           _isLoadingAssets = false;
         });
       }
@@ -93,15 +104,15 @@ class _MaintenancePageState extends State<MaintenancePage> {
 
   Future<void> _completeMaintenance(String id) async {
     try {
-      await supabase
-          .from('mantenimiento')
-          .update({
-            'estado': 'Completado',
-            'fecha_realizada': _formatDate(DateTime.now()),
-          })
-          .eq('id', id);
+      await LocalDbService.instance.enqueueOperation('table:mantenimiento:update', {
+        'id': id,
+        'estado': 'Completado',
+        'fecha_realizada': _formatDate(DateTime.now()),
+      });
+      if (SyncQueueService.instance.isOnline) SyncQueueService.instance.syncPendingOperations();
+
       if (!mounted) return;
-      context.showSnackBar('Mantenimiento marcado como completado.');
+      context.showSnackBar('Mantenimiento marcado como completado (Cola Local).');
       _loadMaintenances();
     } catch (e) {
       if (mounted) context.showSnackBar('Error: $e', isError: true);
@@ -128,9 +139,11 @@ class _MaintenancePageState extends State<MaintenancePage> {
     if (confirm != true) return;
 
     try {
-      await supabase.from('mantenimiento').delete().eq('id', id);
+      await LocalDbService.instance.enqueueOperation('table:mantenimiento:delete', {'id': id});
+      if (SyncQueueService.instance.isOnline) SyncQueueService.instance.syncPendingOperations();
+
       if (!mounted) return;
-      context.showSnackBar('Mantenimiento eliminado.');
+      context.showSnackBar('Mantenimiento eliminado de forma local.');
       _loadMaintenances();
     } catch (e) {
       if (mounted) context.showSnackBar('Error: $e', isError: true);
@@ -154,18 +167,22 @@ class _MaintenancePageState extends State<MaintenancePage> {
 
     try {
       if (_editingId == null) {
-        await supabase.from('mantenimiento').insert(data);
+        data['id'] = const Uuid().v4();
+        await LocalDbService.instance.enqueueOperation('table:mantenimiento:insert', data);
         if (!mounted) return;
-        context.showSnackBar('Mantenimiento programado.');
+        context.showSnackBar('Mantenimiento programado (Cola Local).');
       } else {
-        await supabase.from('mantenimiento').update(data).eq('id', _editingId!);
+        data['id'] = _editingId;
+        await LocalDbService.instance.enqueueOperation('table:mantenimiento:update', data);
         if (!mounted) return;
-        context.showSnackBar('Mantenimiento actualizado.');
+        context.showSnackBar('Mantenimiento actualizado (Cola Local).');
       }
+      if (SyncQueueService.instance.isOnline) SyncQueueService.instance.syncPendingOperations();
+
       Navigator.pop(context);
       _loadMaintenances();
     } catch (e) {
-      if (mounted) context.showSnackBar('Error: $e', isError: true);
+      if (mounted) context.showSnackBar('Error en la base de datos local: $e', isError: true);
     }
   }
 

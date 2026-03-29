@@ -12,6 +12,7 @@ import 'package:front_inventarios/pages/assets/pc_assets_page.dart';
 import 'package:front_inventarios/pages/assets/communication_assets_page.dart';
 import 'package:front_inventarios/pages/assets/generic_assets_page.dart';
 import 'package:front_inventarios/pages/assets/software_assets_page.dart';
+import 'package:front_inventarios/services/sync_queue_service.dart';
 
 /// Página principal de la aplicación.
 ///
@@ -41,7 +42,55 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sistema de Inventarios')),
+      appBar: AppBar(
+        title: const Text('Sistema de Inventarios'),
+        actions: [
+          ValueListenableBuilder<bool>(
+            valueListenable: SyncQueueService.instance.isOnlineNotifier,
+            builder: (context, isOnline, _) {
+              return ValueListenableBuilder<bool>(
+                valueListenable: SyncQueueService.instance.isSyncingNotifier,
+                builder: (context, isSyncing, _) {
+                  if (!isOnline) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Row(
+                        children: [
+                          Icon(Icons.cloud_off, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Offline', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    );
+                  } else if (isSyncing) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Row(
+                        children: [
+                          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orange)),
+                          SizedBox(width: 8),
+                          Text('Sincronizando...', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    );
+                  } else {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Row(
+                        children: [
+                          Icon(Icons.cloud_done, color: Colors.green),
+                          SizedBox(width: 8),
+                          Text('Online', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    );
+                  }
+                },
+              );
+            },
+          ),
+        ],
+      ),
 
       /// Drawer (menú lateral)
       drawer: SideMenu(

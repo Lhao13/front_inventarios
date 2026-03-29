@@ -4,6 +4,9 @@ import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
 import 'package:front_inventarios/widgets/asset_data_table.dart';
+import 'package:front_inventarios/services/local_db_service.dart';
+import 'package:front_inventarios/services/sync_queue_service.dart';
+import 'package:uuid/uuid.dart';
 
 class CommsAssetsPage extends StatefulWidget {
   const CommsAssetsPage({super.key});
@@ -166,57 +169,31 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
   Future<void> _loadAssets() async {
     setState(() => _isLoading = true);
     try {
+      final localActivos = await LocalDbService.instance.getCollection('activo');
+      
       final futures = await Future.wait([
-        supabase
-            .from('tipo_activo')
-            .select('id, tipo, categoria')
-            .eq('categoria', 'COMUNICACION')
-            .order('tipo'),
-        supabase
-            .from('condicion_activo')
-            .select('id, condicion')
-            .order('condicion'),
-        supabase.from('sede_activo').select('id, sede').order('sede'),
-        supabase.from('area_activo').select('id, area').order('area'),
-        supabase.from('ciudad_activo').select('id, ciudad').order('ciudad'),
-        supabase
-            .from('custodio')
-            .select('id, nombre_completo')
-            .order('nombre_completo'),
-        supabase.from('proveedor').select('id, nombre').order('nombre'),
-        supabase
-            .from('marca')
-            .select('id, marca_proveedor')
-            .order('marca_proveedor'),
-        supabase
-            .from('activo')
-            .select('''
-          *,
-          info_equipo_comunicacion(*, marca(marca_proveedor)),
-          tipo_activo(tipo),
-          condicion_activo(condicion),
-          ciudad_activo(ciudad),
-          sede_activo(sede),
-          area_activo(area),
-          proveedor(nombre),
-          custodio(nombre_completo)
-        ''')
-            .eq('categoria_activo', 'COMUNICACION')
-            .order('id'),
+        LocalDbService.instance.getCollection('tipo_activo'),
+        LocalDbService.instance.getCollection('condicion_activo'),
+        LocalDbService.instance.getCollection('sede_activo'),
+        LocalDbService.instance.getCollection('area_activo'),
+        LocalDbService.instance.getCollection('ciudad_activo'),
+        LocalDbService.instance.getCollection('custodio'),
+        LocalDbService.instance.getCollection('proveedor'),
+        LocalDbService.instance.getCollection('marca'),
       ]);
 
       if (mounted) {
         setState(() {
-          _tiposActivo = List<Map<String, dynamic>>.from(futures[0] as List);
-          _condiciones = List<Map<String, dynamic>>.from(futures[1] as List);
-          _sedes = List<Map<String, dynamic>>.from(futures[2] as List);
-          _areas = List<Map<String, dynamic>>.from(futures[3] as List);
-          _ciudades = List<Map<String, dynamic>>.from(futures[4] as List);
-          _custodios = List<Map<String, dynamic>>.from(futures[5] as List);
-          _proveedores = List<Map<String, dynamic>>.from(futures[6] as List);
-          _marcas = List<Map<String, dynamic>>.from(futures[7] as List);
+          _tiposActivo = futures[0].where((t) => t['categoria'] == 'COMUNICACION').toList();
+          _condiciones = futures[1];
+          _sedes = futures[2];
+          _areas = futures[3];
+          _ciudades = futures[4];
+          _custodios = futures[5];
+          _proveedores = futures[6];
+          _marcas = futures[7];
 
-          _allAssets = List<Map<String, dynamic>>.from(futures[8] as List);
+          _allAssets = localActivos.where((a) => a['categoria_activo'] == 'COMUNICACION').toList();
           _filteredAssets = _allAssets;
           _isLoading = false;
         });
@@ -417,8 +394,9 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
     if (confirmar != true) return;
 
     try {
-      await supabase.rpc('eliminar_activo', params: {'p_id_activo': id});
-      if (mounted) context.showSnackBar('Equipo eliminado correctamente.');
+      await LocalDbService.instance.enqueueOperation('eliminar_activo', {'p_id_activo': id});
+      if (SyncQueueService.instance.isOnline) SyncQueueService.instance.syncPendingOperations();
+      if (mounted) context.showSnackBar('Activo eliminado localmente (Cola activada).');
       _loadAssets();
     } catch (e) {
       if (mounted) context.showSnackBar('Error al eliminar: $e', isError: true);
@@ -532,24 +510,20 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
 
                             if (isUpdate) {
                               params['p_id_activo'] = existingAsset['id'];
-                              await supabase.rpc(
-                                'actualizar_activo_equipo_comunicacion',
-                                params: params,
-                              );
+                              await LocalDbService.instance.enqueueOperation('actualizar_equipo_comunicacion', params);
                               if (!mounted) return;
-                              context.showSnackBar(
-                                'Activo actualizado correctamente.',
-                              );
+                              context.showSnackBar('Activo Comunicación actualizado localmente.');
                             } else {
-                              await supabase.rpc(
-                                'crear_activo_equipo_comunicacion',
-                                params: params,
-                              );
+                              params['p_id_activo'] = const Uuid().v4();
+                              await LocalDbService.instance.enqueueOperation('crear_equipo_comunicacion', params);
                               if (!mounted) return;
-                              context.showSnackBar(
-                                'Activo creado correctamente.',
-                              );
+                              context.showSnackBar('Activo Comunicación creado localmente.');
                             }
+                            
+                            if (SyncQueueService.instance.isOnline) {
+                              SyncQueueService.instance.syncPendingOperations();
+                            }
+                            
                             Navigator.pop(dialogContext);
                             _loadAssets();
                           } catch (error) {

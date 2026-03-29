@@ -4,6 +4,9 @@ import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
 import 'package:front_inventarios/widgets/asset_data_table.dart';
+import 'package:front_inventarios/services/local_db_service.dart';
+import 'package:front_inventarios/services/sync_queue_service.dart';
+import 'package:uuid/uuid.dart';
 
 class SoftwareAssetsPage extends StatefulWidget {
   const SoftwareAssetsPage({super.key});
@@ -68,34 +71,25 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
   Future<void> _loadAssets() async {
     setState(() => _isLoading = true);
     try {
+      final localActivos = await LocalDbService.instance.getCollection('activo');
+      
       final futures = await Future.wait([
-        supabase.from('tipo_activo').select('id, tipo, categoria').eq('categoria', 'SOFTWARE').order('tipo'),
-        supabase.from('condicion_activo').select('id, condicion').order('condicion'),
-        supabase.from('area_activo').select('id, area').order('area'),
-        supabase.from('custodio').select('id, nombre_completo').order('nombre_completo'),
-        supabase.from('proveedor').select('id, nombre').order('nombre'),
-        supabase.from('activo').select('''
-          *,
-          info_software(*),
-          tipo_activo(tipo),
-          condicion_activo(condicion),
-          ciudad_activo(ciudad),
-          sede_activo(sede),
-          area_activo(area),
-          proveedor(nombre),
-          custodio(nombre_completo)
-        ''').eq('categoria_activo', 'SOFTWARE').order('id')
+        LocalDbService.instance.getCollection('tipo_activo'),
+        LocalDbService.instance.getCollection('condicion_activo'),
+        LocalDbService.instance.getCollection('area_activo'),
+        LocalDbService.instance.getCollection('custodio'),
+        LocalDbService.instance.getCollection('proveedor'),
       ]);
       
       if (mounted) {
         setState(() {
-          _tiposActivo = List<Map<String, dynamic>>.from(futures[0] as List);
-          _condiciones = List<Map<String, dynamic>>.from(futures[1] as List);
-          _areas = List<Map<String, dynamic>>.from(futures[2] as List);
-          _custodios = List<Map<String, dynamic>>.from(futures[3] as List);
-          _proveedores = List<Map<String, dynamic>>.from(futures[4] as List);
+          _tiposActivo = futures[0].where((t) => t['categoria'] == 'SOFTWARE').toList();
+          _condiciones = futures[1];
+          _areas = futures[2];
+          _custodios = futures[3];
+          _proveedores = futures[4];
 
-          _allAssets = List<Map<String, dynamic>>.from(futures[5] as List);
+          _allAssets = localActivos.where((a) => a['categoria_activo'] == 'SOFTWARE').toList();
           _filteredAssets = _allAssets;
           _isLoading = false;
         });
@@ -185,8 +179,9 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
     if (confirmar != true) return;
 
     try {
-      await supabase.rpc('eliminar_activo', params: {'p_id_activo': id});
-      if (mounted) context.showSnackBar('Software eliminado correctamente.');
+      await LocalDbService.instance.enqueueOperation('eliminar_activo', {'p_id_activo': id});
+      if (SyncQueueService.instance.isOnline) SyncQueueService.instance.syncPendingOperations();
+      if (mounted) context.showSnackBar('Software eliminado localmente (Cola activada).');
       _loadAssets();
     } catch (e) {
       if (mounted) context.showSnackBar('Error al eliminar: $e', isError: true);
@@ -270,14 +265,20 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
 
                         if (isUpdate) {
                           params['p_id_activo'] = existingAsset['id'];
-                          await supabase.rpc('actualizar_activo_software', params: params);
+                          await LocalDbService.instance.enqueueOperation('actualizar_activo_software', params);
                           if (!mounted) return;
-                          context.showSnackBar('Activo actualizado correctamente.');
+                          context.showSnackBar('Activo actualizado localmente.');
                         } else {
-                          await supabase.rpc('crear_activo_software', params: params);
+                          params['p_id_activo'] = const Uuid().v4();
+                          await LocalDbService.instance.enqueueOperation('crear_activo_software', params);
                           if (!mounted) return;
-                          context.showSnackBar('Activo creado correctamente.');
+                          context.showSnackBar('Activo creado localmente.');
                         }
+                        
+                        if (SyncQueueService.instance.isOnline) {
+                          SyncQueueService.instance.syncPendingOperations();
+                        }
+                        
                         Navigator.pop(dialogContext);
                         _loadAssets();
                       } catch (error) {
