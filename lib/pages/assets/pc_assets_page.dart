@@ -221,7 +221,7 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
     _applyFilters();
   }
 
-  Future<void> _deleteAsset(int id) async {
+  Future<void> _deleteAsset(String id) async {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

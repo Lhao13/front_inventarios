@@ -77,7 +77,7 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
     }
   }
 
-  Future<void> _deleteAsset(int id) async {
+  Future<void> _deleteAsset(String id) async {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

@@ -22,12 +22,12 @@ class _MaintenancePageState extends State<MaintenancePage> {
   final _formKey = GlobalKey<FormState>();
   
   // Form state
-  int? _selectedActivoId;
+  String? _selectedActivoId;
   DateTime? _selectedDate;
   String _selectedTipo = 'Preventivo';
   String _selectedEstado = 'Pendiente';
   final _observacionController = TextEditingController();
-  int? _editingId;
+  String? _editingId;
 
   final List<String> _tipoOptions = ['Preventivo', 'Correctivo'];
   final List<String> _estadoOptions = ['Pendiente', 'En Proceso', 'Cancelado'];
@@ -91,7 +91,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
     }
   }
 
-  Future<void> _completeMaintenance(int id) async {
+  Future<void> _completeMaintenance(String id) async {
     try {
       await supabase
           .from('mantenimiento')
@@ -108,7 +108,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
     }
   }
 
-  Future<void> _deleteMaintenance(int id) async {
+  Future<void> _deleteMaintenance(String id) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -172,8 +172,8 @@ class _MaintenancePageState extends State<MaintenancePage> {
   void _showAddMaintenanceDialog({Map<String, dynamic>? initialData}) {
     setState(() {
       if (initialData != null) {
-        _editingId = initialData['id'] as int;
-        _selectedActivoId = initialData['id_activo'] as int;
+        _editingId = initialData['id'] as String;
+        _selectedActivoId = initialData['id_activo'] as String;
         _selectedDate = DateTime.parse(initialData['fecha_programada'].toString());
         _selectedTipo = initialData['tipo']?.toString() ?? 'Preventivo';
         _selectedEstado = initialData['estado']?.toString() ?? 'Pendiente';
@@ -202,7 +202,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
                   children: [
                     _isLoadingAssets
                         ? const Center(child: CircularProgressIndicator())
-                        : DropdownButtonFormField<int>(
+                        : DropdownButtonFormField<String>(
                             value: _selectedActivoId,
                             decoration: const InputDecoration(
                               labelText: 'Activo (S/N - Tipo) *',
@@ -211,8 +211,8 @@ class _MaintenancePageState extends State<MaintenancePage> {
                             items: _assets.map((a) {
                               final sn = a['numero_serie'] ?? 'S/S';
                               final tipo = a['tipo_activo']?['tipo'] ?? 'Desconocido';
-                              return DropdownMenuItem<int>(
-                                value: a['id'] as int,
+                              return DropdownMenuItem<String>(
+                                value: a['id'] as String,
                                 child: Text('$sn - $tipo', overflow: TextOverflow.ellipsis),
                               );
                             }).toList(),
@@ -368,13 +368,13 @@ class _MaintenancePageState extends State<MaintenancePage> {
                                       IconButton(
                                         icon: const Icon(Icons.check_circle_outline, color: Colors.green),
                                         tooltip: 'Marcar como Completado',
-                                        onPressed: () => _completeMaintenance(m['id'] as int),
+                                        onPressed: () => _completeMaintenance(m['id'] as String),
                                       ),
                                     if (RoleService.currentRole != UserRole.ayudante)
                                       IconButton(
                                         icon: const Icon(Icons.delete_outline, color: Colors.red),
                                         tooltip: 'Eliminar',
-                                        onPressed: () => _deleteMaintenance(m['id'] as int),
+                                        onPressed: () => _deleteMaintenance(m['id'] as String),
                                       ),
                                   ],
                                 ),

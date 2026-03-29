@@ -29,7 +29,7 @@ class AssetDataTable extends StatefulWidget {
   final List<AssetColumnDef> columns;
   final bool isLoading;
   final Future<void> Function(Map<String, dynamic> asset)? onEdit;
-  final Future<void> Function(int id)? onDelete;
+  final Future<void> Function(String id)? onDelete;
 
   const AssetDataTable({
     super.key,
@@ -270,7 +270,7 @@ class _AssetDataTableState extends State<AssetDataTable> {
                                     icon: const Icon(Icons.delete, color: Colors.red),
                                     tooltip: 'Eliminar',
                                     onPressed: () =>
-                                        widget.onDelete!(asset['id'] as int),
+                                        widget.onDelete!(asset['id'] as String),
                                   ),
                               ],
                             ),

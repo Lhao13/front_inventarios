@@ -115,7 +115,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (sbContext, setDialogState) {
             return AlertDialog(
               title: Text(isUpdate ? 'Actualizar Registro' : 'Nuevo Registro'),
               content: SingleChildScrollView(
@@ -165,11 +165,15 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                   onPressed: saving
                       ? null
                       : () async {
+                          // Cerrar el teclado para evitar ANRs/cuelgues de ImeBackAnimationController en Android
+                          FocusManager.instance.primaryFocus?.unfocus();
+                          
                           setDialogState(() => saving = true);
                           final Map<String, dynamic> payload = {};
                           for (var col in columns) {
                             final text = controllers[col]!.text.trim();
-                            if (text.isNotEmpty) {
+                            // Permitimos strings vacios si es actualizacion para borrar descripciones
+                            if (text.isNotEmpty || isUpdate) {
                               payload[col] = text;
                             }
                           }
@@ -184,7 +188,13 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                               if (!mounted) return;
                               context.showSnackBar('Registro insertado');
                             }
-                            Navigator.pop(dialogContext);
+                            
+                            // Esperar un instante para que el teclado se cierre correctamente antes de hacer pop
+                            await Future.delayed(const Duration(milliseconds: 100));
+                            if (mounted && Navigator.canPop(dialogContext)) {
+                              Navigator.pop(dialogContext);
+                            }
+                            
                             _loadTableData(_selectedTable);
                           } catch (e) {
                             if (!mounted) return;
