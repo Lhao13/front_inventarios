@@ -75,6 +75,9 @@ class SyncQueueService {
     _internalIsSyncing = true;
     isSyncingNotifier.value = true;
 
+    bool anythingSynced = false;
+    bool hasPermanentError = false;
+
     try {
       final pendingOps = await LocalDbService.instance.getPendingOperations();
       
@@ -113,14 +116,28 @@ class SyncQueueService {
           
           // Si fue un éxito o un 200, eliminamos de la cola local
           await LocalDbService.instance.removeOperation(id);
+          anythingSynced = true;
           print('✅ Operación $id ($rpcName) enviada con éxito.');
           
         } catch (e) {
           // Si hay error en Supabase (ej: Unique Constraint, Error 500)
           print('❌ Error enviando Operación $id ($rpcName): $e');
-          // Nota: Si quieres que siga reintentando después, lo dejas ahí (no llamas a removeOperation)
-          // O podrías marcarlo con un estado de error irremediable para mostrarlo en la UI
+          
+          final errorString = e.toString();
+          // Errores permanentes: PGRST202 (función no encontrada), 23505 (llave duplicada), 23503 (llave foránea)
+          if (errorString.contains('code: PGRST202') || 
+              errorString.contains('code: 23505') || 
+              errorString.contains('code: 23503')) {
+            print('⚠️ Marcando operación $id ($rpcName) como FALLIDA (error permanente) para no reintentar infinitamente.');
+            await LocalDbService.instance.updateOperationStatus(id, 'failed');
+            hasPermanentError = true;
+          }
         }
+      }
+
+      if (anythingSynced || hasPermanentError) {
+        print('🔄 Operaciones sincronizadas o procesadas, actualizando cache local desde supabase para corregir UI...');
+        await refreshCache();
       }
     } catch (e) {
       print('❌ Falla Crítica en SyncQueue: $e');

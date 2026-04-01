@@ -108,12 +108,109 @@ class LocalDbService {
       'created_at': DateTime.now().toIso8601String(),
       'status': 'pending',
     });
+
+    // --- LÓGICA OPTIMISTA (Actualización inmediata en Caché Local) ---
+    // Inject fake row to reflect immediately in the UI.
+    try {
+      if (rpcName.startsWith('crear_activo_')) {
+        String cat = 'PC';
+        if (rpcName.contains('_comunicacion')) cat = 'Comunicación';
+        if (rpcName.contains('_software')) cat = 'Software';
+        if (rpcName.contains('_generico')) cat = 'Genérico';
+
+        Map<String, dynamic> fakeRow = {
+          'id': params['p_id_activo'],
+          'numero_serie': params['p_numero_serie'],
+          'nombre': params['p_nombre'],
+          'codigo': params['p_codigo'],
+          'categoria_activo': cat,
+          'id_tipo_activo': params['p_id_tipo_activo'],
+          'id_condicion_activo': params['p_id_condicion_activo'],
+          'id_custodio': params['p_id_custodio'],
+          'id_sede_activo': params['p_id_sede_activo'],
+          'id_area_activo': params['p_id_area_activo'],
+          'id_provedor': params['p_id_provedor'],
+          'fecha_adquisicion': params['p_fecha_adquisicion'],
+          'fecha_entrega': params['p_fecha_entrega'],
+          'ip': params['p_ip'],
+          'coordenada': params['p_coordenada'],
+        };
+        
+        // Joined fakes
+        if (cat == 'PC') {
+          fakeRow['info_pc'] = [{
+            'procesador': params['p_procesador'],
+            'ram': params['p_ram'],
+            'almacenamiento': params['p_almacenamiento'],
+            'modelo': params['p_modelo'],
+            'id_marca': params['p_id_marca'],
+            'cargador_codigo': params['p_cargador_codigo'],
+            'num_puertos': params['p_num_puertos'],
+            'observaciones': params['p_observaciones'],
+          }];
+        } else if (cat == 'Software') {
+          fakeRow['info_software'] = [{
+            'proveedor_software': params['p_proveedor_software'],
+            'fecha_inicio': params['p_fecha_inicio'],
+            'fecha_fin': params['p_fecha_fin'],
+            'observaciones': params['p_observaciones'],
+          }];
+        } else if (cat == 'Comunicación') {
+          fakeRow['info_equipo_comunicacion'] = [{
+            'num_puertos': params['p_num_puertos'],
+            'num_conexiones': params['p_num_conexiones'],
+            'tipo_extension': params['p_tipo_extension'],
+            'id_marca': params['p_id_marca'],
+            'modelo': params['p_modelo'],
+            'observaciones': params['p_observaciones'],
+          }];
+        } else if (cat == 'Genérico') {
+            fakeRow['info_equipo_generico'] = [{
+              'id_marca': params['p_id_marca'],
+              'modelo': params['p_modelo'],
+              'observaciones': params['p_observaciones'],
+          }];
+        }
+
+        await db.insert('cache_storage', {
+          'collection': 'activo',
+          'id': params['p_id_activo'],
+          'json_data': jsonEncode(fakeRow),
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+      } else if (rpcName.startsWith('actualizar_activo_')) {
+        // En una app más grande haríamos merge, aquí reemplazamos los top keys.
+        final id = params['p_id_activo'];
+        final existing = await db.query('cache_storage', where: 'collection = ? AND id = ?', whereArgs: ['activo', id]);
+        if (existing.isNotEmpty) {
+          Map<String, dynamic> oldData = jsonDecode(existing.first['json_data'] as String);
+          oldData['numero_serie'] = params['p_numero_serie'] ?? oldData['numero_serie'];
+          oldData['nombre'] = params['p_nombre'] ?? oldData['nombre'];
+          oldData['codigo'] = params['p_codigo'] ?? oldData['codigo'];
+          // Simple optimistic update for top fields only
+          await db.update('cache_storage', {
+            'json_data': jsonEncode(oldData),
+          }, where: 'collection = ? AND id = ?', whereArgs: ['activo', id]);
+        }
+      } else if (rpcName == 'eliminar_activo') {
+        final id = params['p_id_activo'];
+        await db.delete('cache_storage', where: 'collection = ? AND id = ?', whereArgs: ['activo', id]);
+      }
+    } catch (e) {
+      print('Aviso: Error inyectando cache optimista: $e');
+    }
   }
 
   /// Obtiene las operaciones pendientes
   Future<List<Map<String, dynamic>>> getPendingOperations() async {
     final db = await instance.database;
     return await db.query('sync_queue', where: 'status = ?', whereArgs: ['pending'], orderBy: 'created_at ASC');
+  }
+
+  /// Cambia el estado de una operación para que deje de reintentarse
+  Future<void> updateOperationStatus(String id, String newStatus) async {
+    final db = await instance.database;
+    await db.update('sync_queue', {'status': newStatus}, where: 'id = ?', whereArgs: [id]);
   }
 
   /// Elimina una operación de la cola tras haberse completado con éxito online

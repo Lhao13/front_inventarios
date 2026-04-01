@@ -510,12 +510,12 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
 
                             if (isUpdate) {
                               params['p_id_activo'] = existingAsset['id'];
-                              await LocalDbService.instance.enqueueOperation('actualizar_equipo_comunicacion', params);
+                              await LocalDbService.instance.enqueueOperation('actualizar_activo_equipo_comunicacion', params);
                               if (!mounted) return;
                               context.showSnackBar('Activo Comunicación actualizado localmente.');
                             } else {
                               params['p_id_activo'] = const Uuid().v4();
-                              await LocalDbService.instance.enqueueOperation('crear_equipo_comunicacion', params);
+                              await LocalDbService.instance.enqueueOperation('crear_activo_equipo_comunicacion', params);
                               if (!mounted) return;
                               context.showSnackBar('Activo Comunicación creado localmente.');
                             }

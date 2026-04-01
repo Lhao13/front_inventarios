@@ -622,6 +622,29 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                       if (!_formKey.currentState!.validate()) return;
                       setState(() => _saving = true);
                       try {
+                        // PRE-VALIDACIÓN OFFLINE: Evitar números de serie duplicados revisando Caché
+                        if (_categoria != 'SOFTWARE') {
+                          final currentSerial = _numeroSerieCtrl.text.trim();
+                          if (currentSerial.isNotEmpty) {
+                            final allAssets = await LocalDbService.instance.getCollection('activo');
+                            final isDuplicate = allAssets.any((a) =>
+                                a['numero_serie']?.toString().trim() == currentSerial &&
+                                a['id']?.toString() != widget.initialData?['id']?.toString());
+                            
+                            if (isDuplicate) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Error: El Número de Serie ya existe en el inventario.'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                              return; // Detenemos el guardado
+                            }
+                          }
+                        }
+
                         await widget.onSave(
                           numeroSerie: _categoria == 'SOFTWARE'
                               ? ''
