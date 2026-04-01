@@ -60,7 +60,11 @@ class SideMenu extends StatelessWidget {
             ),
           ),
 
-          /// Elemento: Página Principal
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                /// Elemento: Página Principal
           ListTile(
             leading: const Icon(Icons.home),
             title: const Text('Página Principal'),
@@ -123,12 +127,9 @@ class SideMenu extends StatelessWidget {
               },
             ),
           ],
-
-          /// Separador visual
-          const Divider(),
-
-          /// Espaciador para empujar el botón de cerrar sesión al fondo
-          const Spacer(),
+              ],
+            ),
+          ),
 
           /// Elemento: Cerrar Sesión (al fondo)
           ListTile(

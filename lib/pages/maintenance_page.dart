@@ -331,6 +331,11 @@ class _MaintenancePageState extends State<MaintenancePage> {
               const Expanded(
                 child: Text('Mantenimientos', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               ),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Actualizar',
+                onPressed: _loadMaintenances,
+              ),
               if (RoleService.currentRole != UserRole.ayudante)
                 ElevatedButton.icon(
                   onPressed: _showAddMaintenanceDialog,

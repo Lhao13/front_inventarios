@@ -114,9 +114,9 @@ class LocalDbService {
     try {
       if (rpcName.startsWith('crear_activo_')) {
         String cat = 'PC';
-        if (rpcName.contains('_comunicacion')) cat = 'Comunicación';
-        if (rpcName.contains('_software')) cat = 'Software';
-        if (rpcName.contains('_generico')) cat = 'Genérico';
+        if (rpcName.contains('_comunicacion')) cat = 'COMUNICACION';
+        if (rpcName.contains('_software')) cat = 'SOFTWARE';
+        if (rpcName.contains('_generico')) cat = 'GENERICO';
 
         Map<String, dynamic> fakeRow = {
           'id': params['p_id_activo'],
@@ -178,6 +178,26 @@ class LocalDbService {
           'json_data': jsonEncode(fakeRow),
         }, conflictAlgorithm: ConflictAlgorithm.replace);
 
+      } else if (rpcName.startsWith('table:')) {
+        // Optimistic UI for generic tables (e.g. table:mantenimiento:insert)
+        final parts = rpcName.split(':');
+        if (parts.length >= 3) {
+          final tableName = parts[1];
+          final action = parts[2];
+          
+          if (action == 'insert' || action == 'update') {
+            await db.insert('cache_storage', {
+              'collection': tableName,
+              'id': params['id'], // Asumiendo que params tiene 'id' siempre (como en maintenance_page)
+              'json_data': jsonEncode(params),
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
+          } else if (action == 'delete') {
+            await db.delete('cache_storage', 
+              where: 'collection = ? AND id = ?', 
+              whereArgs: [tableName, params['id']]
+            );
+          }
+        }
       } else if (rpcName.startsWith('actualizar_activo_')) {
         // En una app más grande haríamos merge, aquí reemplazamos los top keys.
         final id = params['p_id_activo'];
