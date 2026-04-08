@@ -160,11 +160,13 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     _areaActivoId = d['id_area_activo'] as int?;
     _proveedorId = d['id_provedor'] as int?;
 
-    // Category-specific fields — extracted from the nested sub-list
-    final infoList = d['info_pc'] as List? ??
-        d['info_equipo_comunicacion'] as List? ??
-        d['info_equipo_generico'] as List? ??
-        d['info_software'] as List?;
+    // Category-specific fields
+    List? infoList;
+    if (_categoria == 'PC') infoList = d['info_pc'] as List?;
+    else if (_categoria == 'COMUNICACION') infoList = d['info_equipo_comunicacion'] as List?;
+    else if (_categoria == 'GENERICO') infoList = d['info_equipo_generico'] as List?;
+    else if (_categoria == 'SOFTWARE') infoList = d['info_software'] as List?;
+    
     final info = (infoList != null && infoList.isNotEmpty)
         ? infoList[0] as Map<String, dynamic>
         : null;

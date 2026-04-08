@@ -35,6 +35,7 @@ class _SignUpPageState extends State<SignUpPage> {
 			await supabase.auth.signUp(
 				email: _emailController.text.trim(),
 				password: _passwordController.text.trim(),
+				data: {'name': _nameController.text.trim()},
 			);
 			if (mounted) {
 				context.showSnackBar('Cuenta creada');

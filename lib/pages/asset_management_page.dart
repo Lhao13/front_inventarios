@@ -505,17 +505,24 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
         final asset = _filteredAssets[index];
         final icon = _getIconForCategory(asset['categoria_activo']);
         
+        final isSoftware = asset['categoria_activo'] == 'SOFTWARE';
+        final displayTitle = isSoftware 
+            ? (asset['nombre'] ?? 'Software ${asset['id']}')
+            : 'S/N: ${asset['numero_serie'] ?? 'N/A'}';
+            
+        final displaySubtitle = isSoftware
+            ? 'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'}\n'
+              'Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}'
+            : 'Nombre: ${asset['nombre'] ?? 'Sin Nombre'} | Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'}\n'
+              'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}';
+
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           elevation: 2,
           child: ListTile(
             leading: Icon(icon, size: 40, color: Colors.blueGrey),
-            title: Text(asset['nombre'] ?? 'Activo ${asset['id']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(
-              'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'}\n'
-              'S/N: ${asset['numero_serie'] ?? 'N/A'} | Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'}\n'
-              'Área: ${asset['area_activo']?['area'] ?? 'N/A'}',
-            ),
+            title: Text(displayTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(displaySubtitle),
             isThreeLine: true,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,

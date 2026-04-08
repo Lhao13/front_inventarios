@@ -428,8 +428,11 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
         ],
       ),
       endDrawer: Drawer(
-        child: Column(
-          children: [
+        child: SafeArea(
+          top: false,
+          bottom: true,
+          child: Column(
+            children: [
             Container(
               padding: const EdgeInsets.only(top: 48, bottom: 16, left: 16, right: 16),
               color: Colors.blue.shade50,
@@ -472,9 +475,12 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
             ),
           ],
         ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
+      body: SafeArea(
+        bottom: true,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             Row(
@@ -502,6 +508,7 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
             Expanded(child: _isTableView ? _buildTableSection() : _buildListSection()),
           ],
         ),
+      ),
       ),
       floatingActionButton: Builder(
         builder: (context) => FloatingActionButton.extended(
@@ -539,9 +546,9 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
           elevation: 2,
           child: ListTile(
             leading: const Icon(Icons.devices_other, size: 40, color: Colors.orange),
-            title: Text(asset['nombre'] ?? 'Equipo Sin Nombre', style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text('S/N: ${asset['numero_serie'] ?? 'N/A'}', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(
-              'S/N: ${asset['numero_serie'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}\n'
+              'Nombre: ${asset['nombre'] ?? 'S/N'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}\n'
               'Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'} | Cargador: ${info?['cargador_codigo'] ?? 'N/A'}',
             ),
             isThreeLine: true,

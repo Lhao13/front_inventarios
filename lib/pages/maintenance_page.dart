@@ -60,6 +60,31 @@ class _MaintenancePageState extends State<MaintenancePage> {
   String _formatDate(DateTime dt) =>
       '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 
+  String _getAssetDisplayInfo(Map<String, dynamic> m) {
+    if (m['activo'] != null) {
+      if (m['activo']['categoria_activo'] == 'SOFTWARE') {
+        return m['activo']['nombre']?.toString() ?? 'Software Sin Nombre';
+      }
+      if (m['activo']['numero_serie'] != null) {
+        return m['activo']['numero_serie'];
+      }
+    }
+    // Búsqueda en los arreglos cargados offline
+    final asset = _assets.firstWhere(
+      (a) => a['id'] == m['id_activo'], 
+      orElse: () => <String, dynamic>{}, // Provide empty Map<String, dynamic>
+    );
+    if (asset.isNotEmpty) {
+      if (asset['categoria_activo'] == 'SOFTWARE') {
+        return asset['nombre']?.toString() ?? 'Software Sin Nombre';
+      }
+      if (asset['numero_serie'] != null) {
+        return asset['numero_serie'];
+      }
+    }
+    return 'ID: ${m['id_activo']}';
+  }
+
   Future<void> _loadMaintenances({bool showLoading = true}) async {
     if (showLoading) {
       setState(() {
@@ -95,8 +120,6 @@ class _MaintenancePageState extends State<MaintenancePage> {
     try {
       final localActivos = await LocalDbService.instance.getCollection('activo');
       final filtered = localActivos
-          .where((a) => a['categoria_activo'] != 'SOFTWARE')
-          .toList()
         ..sort((a, b) {
           final sA = a['numero_serie']?.toString() ?? '';
           final sB = b['numero_serie']?.toString() ?? '';
@@ -238,8 +261,10 @@ class _MaintenancePageState extends State<MaintenancePage> {
                               border: OutlineInputBorder(),
                             ),
                             items: _assets.map((a) {
-                              final sn = a['numero_serie'] ?? 'S/S';
-                              final tipo = a['tipo_activo']?['tipo'] ?? 'Desconocido';
+                              final sn = a['categoria_activo'] == 'SOFTWARE' 
+                                  ? (a['nombre'] ?? 'Sin Nombre') 
+                                  : (a['numero_serie'] ?? 'S/S');
+                              final tipo = a['tipo_activo']?['tipo'] ?? (a['categoria_activo'] ?? 'Desconocido');
                               return DropdownMenuItem<String>(
                                 value: a['id'] as String,
                                 child: Text('$sn - $tipo', overflow: TextOverflow.ellipsis),
@@ -388,7 +413,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
                                     size: 20,
                                   ),
                                 ),
-                                title: Text('${m['activo']?['numero_serie'] ?? 'ID: ${m['id_activo']}'} - ${m['tipo']}'),
+                                title: Text('${_getAssetDisplayInfo(m)} - ${m['tipo']}'),
                                 subtitle: Text(
                                   'Tipo Activo: ${m['activo']?['tipo_activo']?['tipo'] ?? 'N/A'}\n'
                                   'Programado: ${m['fecha_programada']} | Estado: ${m['estado']}'

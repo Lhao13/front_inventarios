@@ -484,8 +484,11 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
         ],
       ),
       endDrawer: Drawer(
-        child: Column(
-          children: [
+        child: SafeArea(
+          top: false,
+          bottom: true,
+          child: Column(
+            children: [
             Container(
               padding: const EdgeInsets.only(top: 48, bottom: 16, left: 16, right: 16),
               color: Colors.blue.shade50,
@@ -534,9 +537,12 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
             ),
           ],
         ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
+      body: SafeArea(
+        bottom: true,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             Row(
@@ -564,6 +570,7 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
             Expanded(child: _isTableView ? _buildTableSection() : _buildListSection()),
           ],
         ),
+      ),
       ),
       floatingActionButton: Builder(
         builder: (context) => FloatingActionButton.extended(
@@ -601,9 +608,9 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
           elevation: 2,
           child: ListTile(
             leading: const Icon(Icons.computer, size: 40, color: Colors.blue),
-            title: Text(asset['nombre']?.toString() ?? 'PC Sin Nombre', style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text('S/N: ${asset['numero_serie'] ?? 'N/A'}', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(
-              'S/N: ${asset['numero_serie'] ?? 'N/A'} | Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}\n'
+              'Nombre: ${asset['nombre']?.toString() ?? 'PC Sin Nombre'} | Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}\n'
               'CPU: ${info?['procesador'] ?? 'N/A'} | RAM: ${info?['ram'] ?? 'N/A'} | Disco: ${info?['almacenamiento'] ?? 'N/A'}',
             ),
             isThreeLine: true,

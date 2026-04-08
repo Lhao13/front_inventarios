@@ -13,6 +13,7 @@ import 'package:front_inventarios/pages/assets/communication_assets_page.dart';
 import 'package:front_inventarios/pages/assets/generic_assets_page.dart';
 import 'package:front_inventarios/pages/assets/software_assets_page.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
+import 'package:front_inventarios/services/local_db_service.dart';
 
 /// Página principal de la aplicación.
 ///
@@ -45,6 +46,19 @@ class _MainPageState extends State<MainPage> {
       appBar: AppBar(
         title: const Text('Sistema de Inventarios'),
         actions: [
+          ValueListenableBuilder<bool>(
+            valueListenable: SyncQueueService.instance.hasSyncErrorsNotifier,
+            builder: (context, hasErrors, _) {
+              if (hasErrors) {
+                return IconButton(
+                  icon: const Icon(Icons.warning_amber_rounded, color: Colors.amber),
+                  tooltip: 'Errores de Sincronización',
+                  onPressed: () => _showSyncErrorsDialog(),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           ValueListenableBuilder<bool>(
             valueListenable: SyncQueueService.instance.isOnlineNotifier,
             builder: (context, isOnline, _) {
@@ -103,7 +117,93 @@ class _MainPageState extends State<MainPage> {
       ),
 
       /// Cuerpo: muestra la página actual según el índice
-      body: _pages[_currentPageIndex],
+      body: SafeArea(
+        bottom: true,
+        child: _pages[_currentPageIndex],
+      ),
+    );
+  }
+
+  Future<void> _showSyncErrorsDialog() async {
+    final pendingOps = await LocalDbService.instance.getPendingOperations();
+    final failedOps = pendingOps.where((op) => op['status'] == 'failed').toList();
+
+    if (!mounted) return;
+
+    if (failedOps.isEmpty) {
+      SyncQueueService.instance.hasSyncErrorsNotifier.value = false;
+      context.showSnackBar('No hay errores pendientes.');
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Errores de Sincronización'),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Los siguientes registros no pudieron subirse porque hubo un conflicto (Ej: Número de Serie duplicado o no existe). Para continuar con la sincronización, debes descartarlos:',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: failedOps.length,
+                  itemBuilder: (context, index) {
+                    final op = failedOps[index];
+                    return ListTile(
+                      title: Text('Operación: ${op['rpc_name']}'),
+                      subtitle: Text('ID Local: ${op['id']}'),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        tooltip: 'Descartar operación',
+                        onPressed: () async {
+                          await LocalDbService.instance.removeOperation(op['id'] as String);
+                          if (mounted) {
+                            Navigator.pop(ctx);
+                            _showSyncErrorsDialog(); // Recargar diálogo
+                          }
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              for (var op in failedOps) {
+                await LocalDbService.instance.removeOperation(op['id'] as String);
+              }
+              SyncQueueService.instance.hasSyncErrorsNotifier.value = false;
+              if (mounted) {
+                Navigator.pop(ctx);
+                context.showSnackBar('Cola de errores limpiada.');
+              }
+            },
+            child: const Text('Descartar Todos', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 }

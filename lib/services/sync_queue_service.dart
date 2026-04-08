@@ -18,6 +18,7 @@ class SyncQueueService {
   // Notifiers for UI
   final ValueNotifier<bool> isOnlineNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isSyncingNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> hasSyncErrorsNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<DateTime> onCacheUpdated = ValueNotifier<DateTime>(DateTime.now()); // Para notificar a las pantallas
 
   bool get isOnline => isOnlineNotifier.value;
@@ -146,15 +147,20 @@ class SyncQueueService {
           print('❌ Error enviando Operación $id ($rpcName): $e');
           
           final errorString = e.toString();
-          // Errores permanentes: PGRST202 (función no encontrada), 23505 (llave duplicada), 23503 (llave foránea)
+          // Errores permanentes: PGRST202 (función no encontrada), 23505 (llave duplicada), 23503 (llave foránea), P0001 (Activo no existe o conflicto en código)
           if (errorString.contains('code: PGRST202') || 
               errorString.contains('code: 23505') || 
+              errorString.contains('code: P0001') || 
               errorString.contains('code: 23503')) {
             print('⚠️ Marcando operación $id ($rpcName) como FALLIDA (error permanente) para no reintentar infinitamente.');
             await LocalDbService.instance.updateOperationStatus(id, 'failed');
             hasPermanentError = true;
           }
         }
+      }
+
+      if (hasPermanentError) {
+         hasSyncErrorsNotifier.value = true;
       }
 
       if (anythingSynced || hasPermanentError) {

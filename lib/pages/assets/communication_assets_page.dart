@@ -677,8 +677,11 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
         ],
       ),
       endDrawer: Drawer(
-        child: Column(
-          children: [
+        child: SafeArea(
+          top: false,
+          bottom: true,
+          child: Column(
+            children: [
             Container(
               padding: const EdgeInsets.only(
                 top: 48,
@@ -808,9 +811,12 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
             ),
           ],
         ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
+      body: SafeArea(
+        bottom: true,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             Row(
@@ -853,6 +859,7 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
             ),
           ],
         ),
+      ),
       ),
       floatingActionButton: Builder(
         builder: (context) => FloatingActionButton.extended(
@@ -898,11 +905,11 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
           child: ListTile(
             leading: const Icon(Icons.router, size: 40, color: Colors.teal),
             title: Text(
-              asset['nombre'] ?? 'Equipo Sin Nombre',
+              'S/N: ${asset['numero_serie'] ?? 'N/A'}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              'S/N: ${asset['numero_serie'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}\n'
+              'Nombre: ${asset['nombre'] ?? 'S/N'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}\n'
               'Puertos: ${info?['num_puertos'] ?? 'N/A'} | Extensión: ${info?['tipo_extension'] ?? 'N/A'}',
             ),
             isThreeLine: true,

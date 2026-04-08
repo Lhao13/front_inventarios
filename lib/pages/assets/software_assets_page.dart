@@ -373,8 +373,11 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
         ],
       ),
       endDrawer: Drawer(
-        child: Column(
-          children: [
+        child: SafeArea(
+          top: false,
+          bottom: true,
+          child: Column(
+            children: [
             Container(
               padding: const EdgeInsets.only(top: 48, bottom: 16, left: 16, right: 16),
               color: Colors.blue.shade50,
@@ -412,9 +415,12 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
             ),
           ],
         ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
+      body: SafeArea(
+        bottom: true,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             Row(
@@ -442,6 +448,7 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
             Expanded(child: _isTableView ? _buildTableSection() : _buildListSection()),
           ],
         ),
+      ),
       ),
       floatingActionButton: Builder(
         builder: (context) => FloatingActionButton.extended(

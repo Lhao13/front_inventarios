@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:front_inventarios/main.dart';
+import 'package:front_inventarios/services/sync_queue_service.dart';
 
 class AdminTablesPage extends StatefulWidget {
   const AdminTablesPage({super.key});
@@ -232,7 +233,10 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
         ],
       ),
       endDrawer: Drawer(
-        child: Container(
+        child: SafeArea(
+          top: false,
+          bottom: true,
+          child: Container(
            color: Colors.blueGrey.shade50,
            child: Column(
              children: [
@@ -270,6 +274,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                ),
              ],
            ),
+        ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -309,6 +314,19 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
   }
 
   Widget _buildDataTable() {
+    if (!SyncQueueService.instance.isOnlineNotifier.value) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.wifi_off, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('Requiere conexión a internet para ver las tablas en vivo', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+      );
+    }
+
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_errorMessage != null) return Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)));
     if (_tableData.isEmpty) return const Center(child: Text('La tabla está vacía o sin datos.'));

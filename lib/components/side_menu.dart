@@ -23,8 +23,11 @@ class SideMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      child: Column(
-        children: [
+      child: SafeArea(
+        top: false,
+        bottom: true,
+        child: Column(
+          children: [
           /// Encabezado del drawer
           const DrawerHeader(
             decoration: BoxDecoration(
@@ -199,6 +202,7 @@ class SideMenu extends StatelessWidget {
           /// Padding inferior
           const SizedBox(height: 16),
         ],
+      ),
       ),
     );
   }

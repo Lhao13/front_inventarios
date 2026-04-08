@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:front_inventarios/main.dart';
+import 'package:front_inventarios/services/sync_queue_service.dart';
 
 class AdminUsersPage extends StatefulWidget {
   const AdminUsersPage({super.key});
@@ -29,9 +30,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       // In Supabase, getting auth.users directly from the client is restricted.
       // However, we can join usuario_rol, custadio, or use a custom RPC if necessary.
       // Let's first try to get from usuario_rol joined with rol
+      // Consultamos una vista SQL personalizada para poder extraer el nombre desde auth.users
       final response = await supabase
-          .from('usuario_rol')
-          .select('user_id, rol(nombre)');
+          .from('vista_usuarios_admin')
+          .select();
           
       if (!mounted) return;
       setState(() {
@@ -95,6 +97,19 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   }
 
   Widget _buildContent() {
+    if (!SyncQueueService.instance.isOnlineNotifier.value) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.wifi_off, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('Requiere conexión a internet para gestionar usuarios', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+      );
+    }
+
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -128,7 +143,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         itemBuilder: (context, index) {
           final user = _users[index];
           final userId = user['user_id']?.toString() ?? 'ID Desconocido';
-          final rolStr = user['rol']?['nombre']?.toString().toUpperCase() ?? 'DESCONOCIDO';
+          final rolStr = user['rol']?.toString().toUpperCase() ?? 'DESCONOCIDO';
+          final email = user['email']?.toString() ?? 'Sin Email';
+          final nombre = user['nombre_usuario']?.toString() ?? 'Sin Nombre';
           
           int currentRoleId = 3; // Default PRESTAMO
           if (rolStr == 'ADMIN') currentRoleId = 1;
@@ -141,8 +158,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               backgroundColor: _getRoleColor(rolStr),
               child: const Icon(Icons.person, color: Colors.white),
             ),
-            title: Text('Usuario ID: $userId'),
-            subtitle: Text(isCurrentUser ? 'Este es tu usuario' : 'Rol: $rolStr'),
+            title: Text('$nombre ($email)'),
+            subtitle: Text(isCurrentUser ? 'Este es tu usuario' : 'Rol: $rolStr\nID: $userId'),
+            isThreeLine: true,
             trailing: isCurrentUser
                 ? Chip(
                     label: Text(rolStr, style: const TextStyle(color: Colors.white, fontSize: 12)),

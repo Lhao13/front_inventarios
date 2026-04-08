@@ -148,14 +148,14 @@ class LocalDbService {
             'num_puertos': params['p_num_puertos'],
             'observaciones': params['p_observaciones'],
           }];
-        } else if (cat == 'Software') {
+        } else if (cat == 'SOFTWARE') {
           fakeRow['info_software'] = [{
             'proveedor_software': params['p_proveedor_software'],
             'fecha_inicio': params['p_fecha_inicio'],
             'fecha_fin': params['p_fecha_fin'],
             'observaciones': params['p_observaciones'],
           }];
-        } else if (cat == 'Comunicación') {
+        } else if (cat == 'COMUNICACION') {
           fakeRow['info_equipo_comunicacion'] = [{
             'num_puertos': params['p_num_puertos'],
             'num_conexiones': params['p_num_conexiones'],
@@ -164,7 +164,7 @@ class LocalDbService {
             'modelo': params['p_modelo'],
             'observaciones': params['p_observaciones'],
           }];
-        } else if (cat == 'Genérico') {
+        } else if (cat == 'GENERICO') {
             fakeRow['info_equipo_generico'] = [{
               'id_marca': params['p_id_marca'],
               'modelo': params['p_modelo'],
