@@ -40,10 +40,19 @@ class _MaintenancePageState extends State<MaintenancePage> {
     super.initState();
     _loadMaintenances();
     _loadAssets();
+    SyncQueueService.instance.onCacheUpdated.addListener(_onCacheUpdated);
+  }
+
+  void _onCacheUpdated() {
+    if (mounted) {
+      _loadMaintenances(showLoading: false);
+      _loadAssets(showLoading: false);
+    }
   }
 
   @override
   void dispose() {
+    SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
     _observacionController.dispose();
     super.dispose();
   }
@@ -51,11 +60,13 @@ class _MaintenancePageState extends State<MaintenancePage> {
   String _formatDate(DateTime dt) =>
       '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 
-  Future<void> _loadMaintenances() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _loadMaintenances({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
     try {
       final response = await LocalDbService.instance.getCollection('mantenimiento');
       // Sort response latest programada first locally
@@ -79,7 +90,8 @@ class _MaintenancePageState extends State<MaintenancePage> {
     }
   }
 
-  Future<void> _loadAssets() async {
+  Future<void> _loadAssets({bool showLoading = true}) async {
+    if (showLoading && mounted) setState(() => _isLoadingAssets = true);
     try {
       final localActivos = await LocalDbService.instance.getCollection('activo');
       final filtered = localActivos
@@ -333,8 +345,13 @@ class _MaintenancePageState extends State<MaintenancePage> {
               ),
               IconButton(
                 icon: const Icon(Icons.refresh),
-                tooltip: 'Actualizar',
-                onPressed: _loadMaintenances,
+                tooltip: 'Sincronizar de la Nube',
+                onPressed: () async {
+                  setState(() => _isLoading = true);
+                  await SyncQueueService.instance.forceSyncAndRefresh();
+                  await _loadMaintenances();
+                  await _loadAssets();
+                },
               ),
               if (RoleService.currentRole != UserRole.ayudante)
                 ElevatedButton.icon(

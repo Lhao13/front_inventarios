@@ -53,10 +53,24 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   void initState() {
     super.initState();
     _loadAssets();
+    SyncQueueService.instance.onCacheUpdated.addListener(_onCacheUpdated);
   }
 
-  Future<void> _loadAssets() async {
-    setState(() => _isLoading = true);
+  @override
+  void dispose() {
+    SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
+    _nombresController.dispose();
+    _codigosController.dispose();
+    _seriesController.dispose();
+    super.dispose();
+  }
+
+  void _onCacheUpdated() {
+    if (mounted) _loadAssets(showLoading: false);
+  }
+
+  Future<void> _loadAssets({bool showLoading = true}) async {
+    if (showLoading) setState(() => _isLoading = true);
     try {
       final localActivos = await LocalDbService.instance.getCollection('activo');
       
@@ -289,7 +303,14 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
       appBar: AppBar(
         title: const Text('Gestión de Activos (Global)'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAssets),
+          IconButton(
+            icon: const Icon(Icons.refresh), 
+            tooltip: 'Sincronizar Datos',
+            onPressed: () async {
+              await SyncQueueService.instance.forceSyncAndRefresh();
+              await _loadAssets();
+            }
+          ),
           Builder(
             builder: (context) => IconButton(
               icon: const Icon(Icons.filter_list),

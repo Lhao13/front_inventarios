@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/pages/login_page.dart';
-
+import 'package:front_inventarios/pages/main_page.dart';
+import 'package:front_inventarios/auth/role_service.dart';
 
 import 'package:front_inventarios/services/sync_queue_service.dart';
 
@@ -16,14 +17,25 @@ Future<void> main() async {
   // Iniciar el demonio de sincronización online/offline
   SyncQueueService.instance.startListening();
 
-  runApp(MyApp());
+  // Verificar sesión existente (incluso offline)
+  final initialSession = Supabase.instance.client.auth.currentSession;
+  final isLoggedIn = initialSession != null;
+
+  if (isLoggedIn) {
+    // Restaurar rol (lee de Supabase o SQLite offline)
+    await RoleService.fetchAndSetUserRole(initialSession.user.id);
+  }
+
+  runApp(MyApp(isLoggedIn: isLoggedIn));
 }
         
 
 final supabase = Supabase.instance.client;
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isLoggedIn;
+
+  const MyApp({super.key, required this.isLoggedIn});
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +101,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const LoginPage(),
+      home: isLoggedIn ? const MainPage() : const LoginPage(),
     );
   }
 }

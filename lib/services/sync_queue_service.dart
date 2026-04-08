@@ -13,11 +13,13 @@ class SyncQueueService {
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _internalIsSyncing = false;
+  Timer? _pollingTimer; // Timer para autorecarga iterativa
 
   // Notifiers for UI
   final ValueNotifier<bool> isOnlineNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isSyncingNotifier = ValueNotifier<bool>(false);
-  
+  final ValueNotifier<DateTime> onCacheUpdated = ValueNotifier<DateTime>(DateTime.now()); // Para notificar a las pantallas
+
   bool get isOnline => isOnlineNotifier.value;
   bool get isSyncing => isSyncingNotifier.value;
 
@@ -47,10 +49,21 @@ class SyncQueueService {
         isOnlineNotifier.value = false;
       }
     });
+
+    // Arrancar el Polling Automático (Cada 30 segundos si hay internet)
+    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
+      if (isOnline) {
+        // print('⏲️ Polling automático ejecutándose...');
+        // Llamar syncPendingOperations empuja a la nube y luego jala caché.
+        // Como syncPendingOperations tiene candado, no sobrecargará si ya está ocupado.
+        await forceSyncAndRefresh();
+      }
+    });
   }
 
   void stopListening() {
     _connectivitySubscription?.cancel();
+    _pollingTimer?.cancel();
   }
 
   /// Evento lanzado cuando vuelve el internet
@@ -62,8 +75,17 @@ class SyncQueueService {
 
     // 2. Descarga lo más reciente (para tener el cache de lectura fresco)
     await refreshCache();
-    
     print('📡 Sincronización Completada.');
+  }
+
+  /// Forzado manual desde la UI para empujar cambios pendientes y traer caché fresca
+  Future<void> forceSyncAndRefresh() async {
+    if (!isOnlineNotifier.value) return;
+    print('🔄 Sincronización Manual Solicitada...');
+    // 1. Intentamos subir (esto ignorará si ya hay otra subida en curso)
+    await syncPendingOperations();
+    // 2. Obligamos a recargar la caché sí o sí
+    await refreshCache();
   }
 
   // ==========================================================
@@ -194,6 +216,8 @@ class SyncQueueService {
       await _cacheSimpleTable('proveedor');
       await _cacheSimpleTable('marca');
 
+      // Notificar a toda la interfaz que los datos han cambiado
+      onCacheUpdated.value = DateTime.now();
     } catch (e) {
       print('❌ Error general recargando caché: $e');
     }

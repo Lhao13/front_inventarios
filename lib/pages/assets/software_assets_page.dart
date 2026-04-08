@@ -66,10 +66,23 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
   void initState() {
     super.initState();
     _loadAssets();
+    SyncQueueService.instance.onCacheUpdated.addListener(_onCacheUpdated);
   }
 
-  Future<void> _loadAssets() async {
-    setState(() => _isLoading = true);
+  void _onCacheUpdated() {
+    if (mounted) _loadAssets(showLoading: false);
+  }
+
+  @override
+  void dispose() {
+    SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
+    _nombresController.dispose();
+    _codigosController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadAssets({bool showLoading = true}) async {
+    if (showLoading) setState(() => _isLoading = true);
     try {
       final localActivos = await LocalDbService.instance.getCollection('activo');
       
@@ -346,7 +359,14 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
       appBar: AppBar(
         title: const Text('Licencias de Software'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAssets),
+          IconButton(
+            icon: const Icon(Icons.refresh), 
+            tooltip: 'Sincronizar Datos',
+            onPressed: () async {
+              await SyncQueueService.instance.forceSyncAndRefresh();
+              await _loadAssets();
+            }
+          ),
           Builder(
             builder: (context) => IconButton(icon: const Icon(Icons.filter_list), tooltip: 'Filtros', onPressed: () => Scaffold.of(context).openEndDrawer()),
           ),

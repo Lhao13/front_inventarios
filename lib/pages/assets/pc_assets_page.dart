@@ -92,11 +92,35 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
   @override
   void initState() {
     super.initState();
+    _loadBrands();
     _loadAssets();
+    SyncQueueService.instance.onCacheUpdated.addListener(_onCacheUpdated);
   }
 
-  Future<void> _loadAssets() async {
-    setState(() => _isLoading = true);
+  void _onCacheUpdated() {
+    if (mounted) _loadAssets(showLoading: false);
+  }
+
+  @override
+  void dispose() {
+    SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
+    _nombresController.dispose();
+    _codigosController.dispose();
+    _seriesController.dispose();
+    _modelosController.dispose();
+    _procesadoresController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadBrands() async {
+    try {
+      final res = await LocalDbService.instance.getCollection('marca');
+      if (mounted) setState(() => _marcas = res);
+    } catch (_) {}
+  }
+
+  Future<void> _loadAssets({bool showLoading = true}) async {
+    if (showLoading) setState(() => _isLoading = true);
     try {
       // LECTURA OFFLINE FIRST DIRECTA (Ultra Rápida)
       final localActivos = await LocalDbService.instance.getCollection('activo');
@@ -446,7 +470,14 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
       appBar: AppBar(
         title: const Text('Equipos PC'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAssets),
+          IconButton(
+            icon: const Icon(Icons.refresh), 
+            tooltip: 'Sincronizar Datos',
+            onPressed: () async {
+              await SyncQueueService.instance.forceSyncAndRefresh();
+              await _loadAssets();
+            }
+          ),
           Builder(
             builder: (context) => IconButton(icon: const Icon(Icons.filter_list), tooltip: 'Filtros', onPressed: () => Scaffold.of(context).openEndDrawer()),
           ),
