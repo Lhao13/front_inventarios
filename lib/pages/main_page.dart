@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:front_inventarios/components/side_menu.dart';
 import 'package:front_inventarios/pages/asset_management_page.dart';
 import 'package:front_inventarios/pages/maintenance_page.dart';
@@ -51,7 +52,10 @@ class _MainPageState extends State<MainPage> {
             builder: (context, hasErrors, _) {
               if (hasErrors) {
                 return IconButton(
-                  icon: const Icon(Icons.warning_amber_rounded, color: Colors.amber),
+                  icon: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.amber,
+                  ),
                   tooltip: 'Errores de Sincronización',
                   onPressed: () => _showSyncErrorsDialog(),
                 );
@@ -72,7 +76,13 @@ class _MainPageState extends State<MainPage> {
                         children: [
                           Icon(Icons.cloud_off, color: Colors.red),
                           SizedBox(width: 8),
-                          Text('Offline', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                          Text(
+                            'Offline',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -81,9 +91,22 @@ class _MainPageState extends State<MainPage> {
                       padding: EdgeInsets.symmetric(horizontal: 16.0),
                       child: Row(
                         children: [
-                          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orange)),
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.orange,
+                            ),
+                          ),
                           SizedBox(width: 8),
-                          Text('Sincronizando...', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                          Text(
+                            'Sincronizando...',
+                            style: TextStyle(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -94,7 +117,13 @@ class _MainPageState extends State<MainPage> {
                         children: [
                           Icon(Icons.cloud_done, color: Colors.green),
                           SizedBox(width: 8),
-                          Text('Online', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                          Text(
+                            'Online',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -117,16 +146,15 @@ class _MainPageState extends State<MainPage> {
       ),
 
       /// Cuerpo: muestra la página actual según el índice
-      body: SafeArea(
-        bottom: true,
-        child: _pages[_currentPageIndex],
-      ),
+      body: SafeArea(bottom: true, child: _pages[_currentPageIndex]),
     );
   }
 
   Future<void> _showSyncErrorsDialog() async {
     final pendingOps = await LocalDbService.instance.getPendingOperations();
-    final failedOps = pendingOps.where((op) => op['status'] == 'failed').toList();
+    final failedOps = pendingOps
+        .where((op) => op['status'] == 'failed')
+        .toList();
 
     if (!mounted) return;
 
@@ -143,7 +171,7 @@ class _MainPageState extends State<MainPage> {
           children: [
             Icon(Icons.error_outline, color: Colors.red),
             SizedBox(width: 8),
-            Text('Errores de Sincronización'),
+            Text('Errores'),
           ],
         ),
         content: SizedBox(
@@ -162,14 +190,38 @@ class _MainPageState extends State<MainPage> {
                   itemCount: failedOps.length,
                   itemBuilder: (context, index) {
                     final op = failedOps[index];
+                    Map<String, dynamic> params = {};
+                    try {
+                      params = jsonDecode(op['params_json'] as String);
+                    } catch (_) {}
+                    final serie = params['p_numero_serie'] ?? params['numero_serie'] ?? '';
+                    final nombre = params['p_nombre'] ?? params['nombre'] ?? '';
+                    final tipo = op['rpc_name'].toString().replaceAll('_', ' ');
+
                     return ListTile(
-                      title: Text('Operación: ${op['rpc_name']}'),
-                      subtitle: Text('ID Local: ${op['id']}'),
+                      title: Text('Operación: $tipo'),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (serie.isNotEmpty) Text('Serie: $serie'),
+                          if (nombre.isNotEmpty) Text('Nombre: $nombre'),
+                          if (op['error_msg'] != null)
+                            Text(
+                              'Motivo: ${op['error_msg']}',
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete, color: Colors.red),
                         tooltip: 'Descartar operación',
                         onPressed: () async {
-                          await LocalDbService.instance.removeOperation(op['id'] as String);
+                          await LocalDbService.instance.removeOperation(
+                            op['id'] as String,
+                          );
                           if (mounted) {
                             Navigator.pop(ctx);
                             _showSyncErrorsDialog(); // Recargar diálogo
@@ -192,7 +244,9 @@ class _MainPageState extends State<MainPage> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               for (var op in failedOps) {
-                await LocalDbService.instance.removeOperation(op['id'] as String);
+                await LocalDbService.instance.removeOperation(
+                  op['id'] as String,
+                );
               }
               SyncQueueService.instance.hasSyncErrorsNotifier.value = false;
               if (mounted) {
@@ -200,7 +254,10 @@ class _MainPageState extends State<MainPage> {
                 context.showSnackBar('Cola de errores limpiada.');
               }
             },
-            child: const Text('Descartar Todos', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Descartar Todos',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

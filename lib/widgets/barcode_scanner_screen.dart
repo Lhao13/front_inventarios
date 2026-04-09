@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:front_inventarios/main.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
   final bool isOnlyNumeric;
@@ -35,12 +36,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                       if (_lastErrorTime == null || now.difference(_lastErrorTime!) > const Duration(seconds: 3)) {
                         _lastErrorTime = now;
                         if (mounted) {
-                          ScaffoldMessenger.of(context).clearSnackBars();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Por favor, escanee un código numérico válido'),
-                              duration: Duration(seconds: 2)
-                            ),
+                          context.showSnackBar(
+                            'Por favor, escanee un código numérico válido',
+                            isError: true,
                           );
                         }
                       }
@@ -53,7 +51,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                       _scannedCode = rawValue;
                     });
                     if (mounted) {
-                      ScaffoldMessenger.of(context).clearSnackBars(); // Limpiar errores antes de volver
+                      // SnackBar overlay maneja su propio ciclo de vida
                       Navigator.pop(context, rawValue);
                     }
                   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:front_inventarios/widgets/barcode_scanner_screen.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
+import 'package:front_inventarios/main.dart';
 
 class DynamicAssetForm extends StatefulWidget {
   /// If passed, the form will be pre-populated with the existing asset's data.
@@ -236,10 +237,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Error al cargar datos maestros: $e'),
-              backgroundColor: Colors.red),
+        context.showSnackBar(
+          'Error al cargar datos maestros: $e',
+          isError: true,
         );
         setState(() => _isLoadingMasterData = false);
       }
@@ -371,8 +371,10 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Servicio de ubicación desactivado')));
+        if (mounted) {
+          context.showSnackBar('Servicio de ubicación desactivado', isError: true);
+        }
+        setState(() => _gettingLocation = false);
         return;
       }
 
@@ -380,15 +382,19 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permiso de ubicación denegado')));
+          if (mounted) {
+            context.showSnackBar('Permiso de ubicación denegado', isError: true);
+          }
+          setState(() => _gettingLocation = false);
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permisos de ubicación denegados permanentemente')));
+        if (mounted) {
+          context.showSnackBar('Permisos de ubicación denegados permanentemente', isError: true);
+        }
+        setState(() => _gettingLocation = false);
         return;
       }
 
@@ -398,7 +404,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error obteniendo ubicación: $e'), backgroundColor: Colors.red));
+      context.showSnackBar('Error obteniendo ubicación: $e', isError: true);
     } finally {
       if (mounted) setState(() => _gettingLocation = false);
     }
@@ -635,11 +641,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                             
                             if (isDuplicate) {
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Error: El Número de Serie ya existe en el inventario.'),
-                                    backgroundColor: Colors.red,
-                                  ),
+                                context.showSnackBar(
+                                  'Error: El Número de Serie ya existe en el inventario.',
+                                  isError: true,
                                 );
                               }
                               return; // Detenemos el guardado

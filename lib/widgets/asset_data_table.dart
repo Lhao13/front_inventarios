@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/widgets/map_dialog.dart';
+import 'package:front_inventarios/main.dart';
 
 /// Defines a single column in the [AssetDataTable].
 /// [label] is the header text. [getValue] extracts the display value from an
@@ -220,23 +221,29 @@ class _AssetDataTableState extends State<AssetDataTable> {
                               return DataCell(
                                 InkWell(
                                   onTap: () {
-                                    final parts = value.split(',');
-                                    if (parts.length == 2) {
-                                      final lat = double.tryParse(parts[0].trim());
-                                      final lng = double.tryParse(parts[1].trim());
-                                      if (lat != null && lng != null) {
-                                        showDialog(
-                                          context: context,
-                                          builder: (_) => MapDialog(
-                                            latitude: lat,
-                                            longitude: lng,
-                                            title: asset['nombre']?.toString() ?? asset['numero_serie']?.toString() ?? 'Activo',
-                                          ),
-                                        );
-                                        return;
+                                    try {
+                                      final parts = value.split(',');
+                                      if (parts.length == 2) {
+                                        final lat = double.tryParse(parts[0].trim());
+                                        final lng = double.tryParse(parts[1].trim());
+                                        if (lat != null && lng != null) {
+                                          showDialog(
+                                            context: context,
+                                            builder: (_) => MapDialog(
+                                              latitude: lat,
+                                              longitude: lng,
+                                              title: asset['nombre']?.toString() ?? asset['numero_serie']?.toString() ?? 'Activo',
+                                            ),
+                                          );
+                                          return;
+                                        }
+                                      }
+                                      throw Exception('Formato inválido');
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        context.showSnackBar('Coordenada inválida', isError: true);
                                       }
                                     }
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coordenada inválida')));
                                   },
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,

@@ -23,8 +23,13 @@ class LocalDbService {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE sync_queue ADD COLUMN error_msg TEXT');
+        }
+      },
     );
   }
 
@@ -46,7 +51,8 @@ class LocalDbService {
         rpc_name TEXT NOT NULL,
         params_json TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        status TEXT NOT NULL
+        status TEXT NOT NULL,
+        error_msg TEXT
       )
     ''');
   }
@@ -221,16 +227,20 @@ class LocalDbService {
     }
   }
 
-  /// Obtiene las operaciones pendientes
+  /// Obtiene las operaciones pendientes y fallidas
   Future<List<Map<String, dynamic>>> getPendingOperations() async {
     final db = await instance.database;
-    return await db.query('sync_queue', where: 'status = ?', whereArgs: ['pending'], orderBy: 'created_at ASC');
+    return await db.query('sync_queue', where: 'status IN (?, ?)', whereArgs: ['pending', 'failed'], orderBy: 'created_at ASC');
   }
 
-  /// Cambia el estado de una operación para que deje de reintentarse
-  Future<void> updateOperationStatus(String id, String newStatus) async {
+  /// Cambia el estado de una operación para que deje de reintentarse (y opcionalmente guarda el error)
+  Future<void> updateOperationStatus(String id, String newStatus, {String? errorMsg}) async {
     final db = await instance.database;
-    await db.update('sync_queue', {'status': newStatus}, where: 'id = ?', whereArgs: [id]);
+    final Map<String, dynamic> data = {'status': newStatus};
+    if (errorMsg != null) {
+      data['error_msg'] = errorMsg;
+    }
+    await db.update('sync_queue', data, where: 'id = ?', whereArgs: [id]);
   }
 
   /// Elimina una operación de la cola tras haberse completado con éxito online

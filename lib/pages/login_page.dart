@@ -4,6 +4,9 @@ import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/pages/sign_up.dart';
 import 'package:front_inventarios/pages/main_page.dart';
 import 'package:front_inventarios/auth/auth_service.dart';
+import 'package:front_inventarios/services/local_db_service.dart';
+import 'package:sqflite/sqflite.dart';
+import 'dart:convert';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,6 +32,25 @@ class _LoginPageState extends State<LoginPage> {
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
+
+      // Guardar hash local (XOR) de la contraseña para Offline LockScreen
+      try {
+        final password = _passwordController.text.trim();
+        final bytes = utf8.encode(password);
+        final xorBytes = bytes.map((b) => b ^ 0x55).toList();
+        final db = await LocalDbService.instance.database;
+        await db.insert(
+          'cache_storage',
+          {
+            'collection': 'system',
+            'id': 'user_lock_hash',
+            'json_data': base64Encode(xorBytes),
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      } catch (e) {
+        print('Error saving local hash: $e');
+      }
 
       if (mounted) {
         context.showSnackBar('¡Login exitoso!');

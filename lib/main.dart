@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/pages/login_page.dart';
 import 'package:front_inventarios/pages/main_page.dart';
+import 'package:front_inventarios/pages/lock_screen_page.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 
 import 'package:front_inventarios/services/sync_queue_service.dart';
@@ -101,20 +102,54 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: isLoggedIn ? const MainPage() : const LoginPage(),
+      home: isLoggedIn ? const LockScreenPage() : const LoginPage(),
     );
   }
 }
 
 extension ContextExtension on BuildContext {
   void showSnackBar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(this).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError
-            ? Theme.of(this).colorScheme.error
-            : Theme.of(this).snackBarTheme.backgroundColor,
+    final overlay = Overlay.of(this);
+    late OverlayEntry overlayEntry;
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        bottom: 0,
+        left: 0,
+        right: 0,
+        child: SafeArea(
+          minimum: const EdgeInsets.only(bottom: 16.0),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isError
+                      ? Theme.of(context).colorScheme.error
+                      : Theme.of(context).primaryColor,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+                  ],
+                ),
+                child: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
+
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 3), () {
+      if (overlayEntry.mounted) {
+        overlayEntry.remove();
+      }
+    });
   }
 }

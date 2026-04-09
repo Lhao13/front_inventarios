@@ -153,7 +153,7 @@ class SyncQueueService {
               errorString.contains('code: P0001') || 
               errorString.contains('code: 23503')) {
             print('⚠️ Marcando operación $id ($rpcName) como FALLIDA (error permanente) para no reintentar infinitamente.');
-            await LocalDbService.instance.updateOperationStatus(id, 'failed');
+            await LocalDbService.instance.updateOperationStatus(id, 'failed', errorMsg: errorString);
             hasPermanentError = true;
           }
         }
