@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/widgets/map_dialog.dart';
+import 'package:front_inventarios/widgets/asset_data_source.dart';
 import 'package:front_inventarios/main.dart';
 
 /// Defines a single column in the [AssetDataTable].
@@ -48,6 +49,7 @@ class AssetDataTable extends StatefulWidget {
 class _AssetDataTableState extends State<AssetDataTable> {
   // Tracks which column labels are currently visible.
   late Set<String> _visibleLabels;
+  int _rowsPerPage = PaginatedDataTable.defaultRowsPerPage;
 
   @override
   void initState() {
@@ -187,13 +189,24 @@ class _AssetDataTableState extends State<AssetDataTable> {
 
         // Data table
         Expanded(
-          child: Card(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SingleChildScrollView(
-                child: DataTable(
+          child: SingleChildScrollView(
+            child: SizedBox(
+              width: double.infinity,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  cardTheme: const CardThemeData(elevation: 0, margin: EdgeInsets.zero, color: Colors.transparent),
+                ),
+                child: PaginatedDataTable(
+                  header: null,
                   columnSpacing: 24,
-                  headingRowColor: WidgetStateProperty.all(Colors.blue.shade50),
+                  rowsPerPage: _rowsPerPage,
+                  availableRowsPerPage: const [10, 20, 30, 40, 50, 100],
+                  onRowsPerPageChanged: (value) {
+                    setState(() {
+                      _rowsPerPage = value ?? PaginatedDataTable.defaultRowsPerPage;
+                    });
+                  },
+                  showFirstLastButtons: true,
                   columns: [
                     ...visibleCols.map(
                       (col) => DataColumn(
@@ -211,80 +224,14 @@ class _AssetDataTableState extends State<AssetDataTable> {
                         ),
                       ),
                   ],
-                  rows: widget.assets.map((asset) {
-                    return DataRow(
-                      cells: [
-                        ...visibleCols.map(
-                          (col) {
-                            final String value = col.getValue(asset);
-                            if (col.label == 'Coordenada' && value != 'N/A' && value.isNotEmpty) {
-                              return DataCell(
-                                InkWell(
-                                  onTap: () {
-                                    try {
-                                      final parts = value.split(',');
-                                      if (parts.length == 2) {
-                                        final lat = double.tryParse(parts[0].trim());
-                                        final lng = double.tryParse(parts[1].trim());
-                                        if (lat != null && lng != null) {
-                                          showDialog(
-                                            context: context,
-                                            builder: (_) => MapDialog(
-                                              latitude: lat,
-                                              longitude: lng,
-                                              title: asset['nombre']?.toString() ?? asset['numero_serie']?.toString() ?? 'Activo',
-                                            ),
-                                          );
-                                          return;
-                                        }
-                                      }
-                                      throw Exception('Formato inválido');
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        context.showSnackBar('Coordenada inválida', isError: true);
-                                      }
-                                    }
-                                  },
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.location_on, size: 16, color: Colors.blue),
-                                      const SizedBox(width: 4),
-                                      Text(value, style: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline)),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }
-                            return DataCell(Text(value));
-                          },
-                        ),
-                        if (hasActions)
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (widget.onEdit != null)
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.blue),
-                                    tooltip: 'Editar',
-                                    onPressed: () => widget.onEdit!(asset),
-                                  ),
-                                if (widget.onDelete != null &&
-                                    asset['id'] != null &&
-                                    RoleService.currentRole != UserRole.ayudante)
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
-                                    tooltip: 'Eliminar',
-                                    onPressed: () =>
-                                        widget.onDelete!(asset['id'] as String),
-                                  ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    );
-                  }).toList(),
+                  source: AssetDataSource(
+                    assets: widget.assets,
+                    visibleCols: visibleCols,
+                    hasActions: hasActions,
+                    context: context,
+                    onEdit: widget.onEdit,
+                    onDelete: widget.onDelete,
+                  ),
                 ),
               ),
             ),

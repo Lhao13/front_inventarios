@@ -56,8 +56,8 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
   List<int> _selectedCustodios = [];
   List<int> _selectedProveedores = [];
 
-  final TextEditingController _nombresController = TextEditingController();
-  final TextEditingController _codigosController = TextEditingController();
+  final List<String> _selectedNombres = [];
+  final List<String> _selectedCodigos = [];
 
   DateTimeRange? _rangoAdquisicion;
   DateTimeRange? _rangoEntrega;
@@ -76,8 +76,8 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
   @override
   void dispose() {
     SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
-    _nombresController.dispose();
-    _codigosController.dispose();
+    _selectedNombres.clear();
+    _selectedCodigos.clear();
     super.dispose();
   }
 
@@ -117,12 +117,9 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
   }
 
   void _applyFilters() {
-    final nombres = _nombresController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final codigos = _codigosController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-
     final result = _allAssets.where((asset) {
-      bool matchesNombre = nombres.isEmpty || nombres.any((n) => (asset['nombre'] ?? '').toString().toLowerCase().contains(n));
-      bool matchesCodigo = codigos.isEmpty || codigos.any((c) => (asset['codigo'] ?? '').toString().toLowerCase().contains(c));
+      bool matchesNombre = _selectedNombres.isEmpty || _selectedNombres.contains((asset['nombre'] ?? '').toString());
+      bool matchesCodigo = _selectedCodigos.isEmpty || _selectedCodigos.contains((asset['codigo'] ?? '').toString());
 
       bool matchesTipo = _selectedTiposActivo.isEmpty || _selectedTiposActivo.contains(asset['id_tipo_activo']);
       bool matchesCondicion = _selectedCondiciones.isEmpty || _selectedCondiciones.contains(asset['id_condicion_activo']);
@@ -164,8 +161,8 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
       _selectedAreas.clear();
       _selectedCustodios.clear();
       _selectedProveedores.clear();
-      _nombresController.clear();
-      _codigosController.clear();
+      _selectedNombres.clear();
+      _selectedCodigos.clear();
       _rangoAdquisicion = null;
       _rangoEntrega = null;
     });
@@ -309,15 +306,15 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
     );
   }
 
-  Widget _buildDrawerFilterButton(String label, List<int> selectedIds, List<Map<String, dynamic>> items, String displayKey) {
+  Widget _buildDrawerFilterButton<T>(String label, List<T> selectedIds, List<Map<String, dynamic>> items, String displayKey) {
     return ListTile(
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados'),
       trailing: const Icon(Icons.arrow_drop_down),
       onTap: () async {
-        final result = await showDialog<List<int>>(
+        final result = await showDialog<List<T>>(
           context: context,
-          builder: (_) => MultiSelectDialog<int>(title: label, items: items, initialSelectedIds: selectedIds, displayKey: displayKey),
+          builder: (_) => MultiSelectDialog<T>(title: label, items: items, initialSelectedIds: selectedIds, displayKey: displayKey),
         );
         if (result != null) {
           setState(() {
@@ -330,15 +327,15 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
     );
   }
 
-  Widget _buildDrawerTextField(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(labelText: label, hintText: 'Ej: val1, val2', border: const OutlineInputBorder(), isDense: true),
-        onChanged: (_) => _applyFilters(),
-      ),
-    );
+  List<Map<String, dynamic>> _getUniquePredictiveList(String key) {
+    if (_allAssets.isEmpty) return [];
+    final items = _allAssets
+        .map((a) => a[key]?.toString())
+        .where((val) => val != null && val.trim().isNotEmpty)
+        .toSet()
+        .toList();
+    items.sort();
+    return items.map((val) => {'id': val, 'valor': val}).toList();
   }
 
   Widget _buildDrawerDateFilter(String label, DateTimeRange? currentRange, ValueChanged<DateTimeRange?> onChanged) {
@@ -393,9 +390,9 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Descripciones (Separados por coma)', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
-                  _buildDrawerTextField('Nombres', _nombresController),
-                  _buildDrawerTextField('Códigos', _codigosController),
+                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Identificadores Predictivos', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                  _buildDrawerFilterButton<String>('Nombres', _selectedNombres, _getUniquePredictiveList('nombre'), 'valor'),
+                  _buildDrawerFilterButton<String>('Códigos', _selectedCodigos, _getUniquePredictiveList('codigo'), 'valor'),
                   
                   const Divider(),
                   const Padding(padding: EdgeInsets.all(16.0), child: Text('Listas Maestras', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),

@@ -22,11 +22,28 @@ class MultiSelectDialog<T> extends StatefulWidget {
 
 class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
   late List<T> _selectedIds;
+  late List<Map<String, dynamic>> _filteredItems;
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _selectedIds = List.from(widget.initialSelectedIds);
+    _filteredItems = List.from(widget.items);
+  }
+
+  void _filterItems(String query) {
+    setState(() {
+      _searchQuery = query;
+      if (query.isEmpty) {
+        _filteredItems = List.from(widget.items);
+      } else {
+        _filteredItems = widget.items.where((item) {
+          final display = item[widget.displayKey]?.toString().toLowerCase() ?? '';
+          return display.contains(query.toLowerCase());
+        }).toList();
+      }
+    });
   }
 
   @override
@@ -38,6 +55,17 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
         height: 400,
         child: Column(
           children: [
+            TextField(
+              decoration: const InputDecoration(
+                hintText: 'Buscar...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.all(8),
+              ),
+              onChanged: _filterItems,
+            ),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -47,18 +75,19 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
                 ),
                 TextButton(
                   onPressed: () => setState(() {
-                    _selectedIds = widget.items.map((e) => e[widget.valueKey] as T).toList();
+                    final filteredIds = _filteredItems.map((e) => e[widget.valueKey] as T).toList();
+                    _selectedIds.addAll(filteredIds.where((id) => !_selectedIds.contains(id)));
                   }),
-                  child: const Text('Seleccionar Todo'),
+                  child: const Text('Seleccionar Visibles'),
                 ),
               ],
             ),
             const Divider(),
             Expanded(
               child: ListView.builder(
-                itemCount: widget.items.length,
+                itemCount: _filteredItems.length,
                 itemBuilder: (context, index) {
-                  final item = widget.items[index];
+                  final item = _filteredItems[index];
                   final val = item[widget.valueKey] as T;
                   final display = item[widget.displayKey]?.toString() ?? '';
 

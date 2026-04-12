@@ -74,11 +74,11 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
   List<int> _selectedProveedores = [];
   List<int> _selectedMarcas = [];
 
-  final TextEditingController _nombresController = TextEditingController();
-  final TextEditingController _codigosController = TextEditingController();
-  final TextEditingController _seriesController = TextEditingController();
-  final TextEditingController _modelosController = TextEditingController();
-  final TextEditingController _procesadoresController = TextEditingController();
+  final List<String> _selectedNombres = [];
+  final List<String> _selectedCodigos = [];
+  final List<String> _selectedSeries = [];
+  final List<String> _selectedModelos = [];
+  final List<String> _selectedCpu = [];
 
   List<String> _selectedRams = [];
   List<String> _selectedStorages = [];
@@ -104,11 +104,11 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
   @override
   void dispose() {
     SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
-    _nombresController.dispose();
-    _codigosController.dispose();
-    _seriesController.dispose();
-    _modelosController.dispose();
-    _procesadoresController.dispose();
+    _selectedNombres.clear();
+    _selectedCodigos.clear();
+    _selectedSeries.clear();
+    _selectedModelos.clear();
+    _selectedCpu.clear();
     super.dispose();
   }
 
@@ -162,20 +162,14 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
   }
 
   void _applyFilters() {
-    final nombres = _nombresController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final codigos = _codigosController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final series = _seriesController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final modelos = _modelosController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final cpus = _procesadoresController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-
     final result = _allAssets.where((asset) {
       final info = asset['info_pc'] != null && (asset['info_pc'] as List).isNotEmpty ? (asset['info_pc'] as List)[0] : null;
 
-      bool matchesNombre = nombres.isEmpty || nombres.any((n) => (asset['nombre'] ?? '').toString().toLowerCase().contains(n));
-      bool matchesCodigo = codigos.isEmpty || codigos.any((c) => (asset['codigo'] ?? '').toString().toLowerCase().contains(c));
-      bool matchesSerie = series.isEmpty || series.any((s) => (asset['numero_serie'] ?? '').toString().toLowerCase().contains(s));
-      bool matchesModelo = modelos.isEmpty || modelos.any((m) => (info?['modelo'] ?? '').toString().toLowerCase().contains(m));
-      bool matchesCpu = cpus.isEmpty || cpus.any((c) => (info?['procesador'] ?? '').toString().toLowerCase().contains(c));
+      bool matchesNombre = _selectedNombres.isEmpty || _selectedNombres.contains((asset['nombre'] ?? '').toString());
+      bool matchesCodigo = _selectedCodigos.isEmpty || _selectedCodigos.contains((asset['codigo'] ?? '').toString());
+      bool matchesSerie = _selectedSeries.isEmpty || _selectedSeries.contains((asset['numero_serie'] ?? '').toString());
+      bool matchesModelo = _selectedModelos.isEmpty || _selectedModelos.contains((info?['modelo'] ?? '').toString());
+      bool matchesCpu = _selectedCpu.isEmpty || _selectedCpu.contains((info?['procesador'] ?? '').toString());
       bool matchesRam = _selectedRams.isEmpty || _selectedRams.contains(info?['ram']?.toString());
       bool matchesStorage = _selectedStorages.isEmpty || _selectedStorages.contains(info?['almacenamiento']?.toString());
 
@@ -227,11 +221,11 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
       _selectedCustodios.clear();
       _selectedProveedores.clear();
       _selectedMarcas.clear();
-      _nombresController.clear();
-      _codigosController.clear();
-      _seriesController.clear();
-      _modelosController.clear();
-      _procesadoresController.clear();
+      _selectedNombres.clear();
+      _selectedCodigos.clear();
+      _selectedSeries.clear();
+      _selectedModelos.clear();
+      _selectedCpu.clear();
       _selectedRams.clear();
       _selectedStorages.clear();
       _rangoAdquisicion = null;
@@ -389,15 +383,15 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
     );
   }
 
-  Widget _buildDrawerFilterButton(String label, List<int> selectedIds, List<Map<String, dynamic>> items, String displayKey) {
+  Widget _buildDrawerFilterButton<T>(String label, List<T> selectedIds, List<Map<String, dynamic>> items, String displayKey) {
     return ListTile(
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados'),
       trailing: const Icon(Icons.arrow_drop_down),
       onTap: () async {
-        final result = await showDialog<List<int>>(
+        final result = await showDialog<List<T>>(
           context: context,
-          builder: (_) => MultiSelectDialog<int>(title: label, items: items, initialSelectedIds: selectedIds, displayKey: displayKey),
+          builder: (_) => MultiSelectDialog<T>(title: label, items: items, initialSelectedIds: selectedIds, displayKey: displayKey),
         );
         if (result != null) {
           setState(() {
@@ -408,6 +402,23 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
         }
       },
     );
+  }
+
+  List<Map<String, dynamic>> _getUniquePredictiveList(String key, {String? subKey}) {
+    if (_allAssets.isEmpty) return [];
+    final items = _allAssets
+        .map((a) {
+          if (subKey != null) {
+            final info = _info(a, subKey);
+            return info?[key]?.toString();
+          }
+          return a[key]?.toString();
+        })
+        .where((val) => val != null && val.trim().isNotEmpty)
+        .toSet()
+        .toList();
+    items.sort();
+    return items.map((val) => {'id': val, 'valor': val}).toList();
   }
 
   Widget _buildStringDrawerFilterButton(String label, List<String> selectedItems, List<String> allItems) {
@@ -441,16 +452,6 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
     );
   }
 
-  Widget _buildDrawerTextField(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(labelText: label, hintText: 'Ej: val1, val2', border: const OutlineInputBorder(), isDense: true),
-        onChanged: (_) => _applyFilters(),
-      ),
-    );
-  }
 
   Widget _buildDrawerDateFilter(String label, DateTimeRange? currentRange, ValueChanged<DateTimeRange?> onChanged) {
     return ListTile(
@@ -504,12 +505,12 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Descripciones (Separados por coma)', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
-                  _buildDrawerTextField('Nombres', _nombresController),
-                  _buildDrawerTextField('Códigos', _codigosController),
-                  _buildDrawerTextField('Números de Serie', _seriesController),
-                  _buildDrawerTextField('Modelos', _modelosController),
-                  _buildDrawerTextField('Procesadores', _procesadoresController),
+                  const Padding(padding: EdgeInsets.all(16.0), child: Text('Identificadores Predictivos', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+                  _buildDrawerFilterButton<String>('Nombres', _selectedNombres, _getUniquePredictiveList('nombre'), 'valor'),
+                  _buildDrawerFilterButton<String>('Códigos', _selectedCodigos, _getUniquePredictiveList('codigo'), 'valor'),
+                  _buildDrawerFilterButton<String>('Números de Serie', _selectedSeries, _getUniquePredictiveList('numero_serie'), 'valor'),
+                  _buildDrawerFilterButton<String>('Modelos', _selectedModelos, _getUniquePredictiveList('modelo', subKey: 'info_pc'), 'valor'),
+                  _buildDrawerFilterButton<String>('Procesadores', _selectedCpu, _getUniquePredictiveList('procesador', subKey: 'info_pc'), 'valor'),
                   
                   const Divider(),
                   const Padding(padding: EdgeInsets.all(16.0), child: Text('Capacidad', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),

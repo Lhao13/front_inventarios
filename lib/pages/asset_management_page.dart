@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:front_inventarios/widgets/global_asset_data_source.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
@@ -22,6 +23,10 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   bool _isLoading = true;
   bool _isTableView = true;
 
+  int _rowsPerPage = PaginatedDataTable.defaultRowsPerPage;
+  int _listRowsPerPage = 10;
+  int _listCurrentPage = 0;
+
   // Master Data Cache
   List<Map<String, dynamic>> _tiposActivo = [];
   List<Map<String, dynamic>> _condiciones = [];
@@ -42,9 +47,9 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   List<int> _selectedProveedores = [];
   List<int> _selectedMarcas = [];
 
-  final TextEditingController _nombresController = TextEditingController();
-  final TextEditingController _codigosController = TextEditingController();
-  final TextEditingController _seriesController = TextEditingController();
+  final List<String> _selectedNombres = [];
+  final List<String> _selectedCodigos = [];
+  final List<String> _selectedSeries = [];
 
   DateTimeRange? _rangoAdquisicion;
   DateTimeRange? _rangoEntrega;
@@ -59,9 +64,9 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   @override
   void dispose() {
     SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
-    _nombresController.dispose();
-    _codigosController.dispose();
-    _seriesController.dispose();
+    _selectedNombres.clear();
+    _selectedCodigos.clear();
+    _selectedSeries.clear();
     super.dispose();
   }
 
@@ -110,10 +115,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   }
 
   void _applyFilters() {
-    // Parser text separated by commas
-    final nombres = _nombresController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final codigos = _codigosController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    final series = _seriesController.text.trim().toLowerCase().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    // Filtrado reactivo basado en selecciones exactas
 
     final result = _allAssets.where((asset) {
       // Find dynamic sub-marca ID
@@ -136,10 +138,10 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
       bool matchesProveedor = _selectedProveedores.isEmpty || _selectedProveedores.contains(asset['id_provedor']);
       bool matchesMarca = _selectedMarcas.isEmpty || _selectedMarcas.contains(assetMarcaId);
 
-      // Check multi texts (OR logic inside the separated strings)
-      bool matchesNombre = nombres.isEmpty || nombres.any((n) => (asset['nombre'] ?? '').toString().toLowerCase().contains(n));
-      bool matchesCodigo = codigos.isEmpty || codigos.any((c) => (asset['codigo'] ?? '').toString().toLowerCase().contains(c));
-      bool matchesSerie = series.isEmpty || series.any((s) => (asset['numero_serie'] ?? '').toString().toLowerCase().contains(s));
+      // Check multi texts (AND logic between groups)
+      bool matchesNombre = _selectedNombres.isEmpty || _selectedNombres.contains((asset['nombre'] ?? '').toString());
+      bool matchesCodigo = _selectedCodigos.isEmpty || _selectedCodigos.contains((asset['codigo'] ?? '').toString());
+      bool matchesSerie = _selectedSeries.isEmpty || _selectedSeries.contains((asset['numero_serie'] ?? '').toString());
 
       // Dates
       bool matchesAdquisicion = true;
@@ -179,9 +181,9 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
       _selectedCustodios.clear();
       _selectedProveedores.clear();
       _selectedMarcas.clear();
-      _nombresController.clear();
-      _codigosController.clear();
-      _seriesController.clear();
+      _selectedNombres.clear();
+      _selectedCodigos.clear();
+      _selectedSeries.clear();
       _rangoAdquisicion = null;
       _rangoEntrega = null;
     });
@@ -217,15 +219,15 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     }
   }
 
-  Widget _buildDrawerFilterButton(String label, List<int> selectedIds, List<Map<String, dynamic>> items, String displayKey) {
+  Widget _buildDrawerFilterButton<T>(String label, List<T> selectedIds, List<Map<String, dynamic>> items, String displayKey) {
     return ListTile(
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados'),
       trailing: const Icon(Icons.arrow_drop_down),
       onTap: () async {
-        final result = await showDialog<List<int>>(
+        final result = await showDialog<List<T>>(
           context: context,
-          builder: (_) => MultiSelectDialog(
+          builder: (_) => MultiSelectDialog<T>(
             title: label,
             items: items,
             initialSelectedIds: selectedIds,
@@ -236,11 +238,23 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
           setState(() {
             selectedIds.clear();
             selectedIds.addAll(result);
+            _listCurrentPage = 0; // Reset page on filter
           });
           _applyFilters();
         }
       },
     );
+  }
+
+  List<Map<String, dynamic>> _getUniquePredictiveList(String key) {
+    if (_allAssets.isEmpty) return [];
+    final items = _allAssets
+        .map((a) => a[key]?.toString())
+        .where((val) => val != null && val.trim().isNotEmpty)
+        .toSet()
+        .toList();
+    items.sort();
+    return items.map((val) => {'id': val, 'valor': val}).toList();
   }
 
   Widget _buildDrawerTextField(String label, TextEditingController controller) {
@@ -343,11 +357,11 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                 children: [
                   const Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Text('Descripciones (Separados por coma)', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                    child: Text('Identificadores Predictivos', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
                   ),
-                  _buildDrawerTextField('Nombres', _nombresController),
-                  _buildDrawerTextField('Códigos', _codigosController),
-                  _buildDrawerTextField('Números de Serie', _seriesController),
+                  _buildDrawerFilterButton<String>('Nombres', _selectedNombres, _getUniquePredictiveList('nombre'), 'valor'),
+                  _buildDrawerFilterButton<String>('Códigos', _selectedCodigos, _getUniquePredictiveList('codigo'), 'valor'),
+                  _buildDrawerFilterButton<String>('Números de Serie', _selectedSeries, _getUniquePredictiveList('numero_serie'), 'valor'),
                   
                   const Divider(),
                   const Padding(
@@ -418,12 +432,15 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
           ],
         ),
       ),
-      floatingActionButton: Builder(
-        builder: (context) => FloatingActionButton.extended(
-          onPressed: () => Scaffold.of(context).openEndDrawer(),
-          tooltip: 'Abrir Filtros',
-          icon: const Icon(Icons.filter_list),
-          label: const Text('Filtros')
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 60.0), // Elevar el botón para no tapar los controles de página
+        child: Builder(
+          builder: (context) => FloatingActionButton.extended(
+            onPressed: () => Scaffold.of(context).openEndDrawer(),
+            tooltip: 'Abrir Filtros',
+            icon: const Icon(Icons.filter_list),
+            label: const Text('Filtros')
+          ),
         ),
       ),
     );
@@ -433,62 +450,46 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
 
-    return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SingleChildScrollView(
-          child: DataTable(
+    return SingleChildScrollView(
+      child: SizedBox(
+        width: double.infinity,
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            cardTheme: const CardThemeData(elevation: 0, margin: EdgeInsets.zero, color: Colors.transparent),
+          ),
+          child: PaginatedDataTable(
+            header: null,
             columnSpacing: 24,
+            rowsPerPage: _rowsPerPage,
+            availableRowsPerPage: const [10, 20, 30, 40, 50, 100],
+            onRowsPerPageChanged: (value) {
+              setState(() {
+                _rowsPerPage = value ?? PaginatedDataTable.defaultRowsPerPage;
+              });
+            },
+            showFirstLastButtons: true,
             columns: const [
-              DataColumn(label: Text('S/N')),
-              DataColumn(label: Text('Nombre')),
-              DataColumn(label: Text('Código')),
-              DataColumn(label: Text('Tipo Activo')),
-              DataColumn(label: Text('Condición')),
-              DataColumn(label: Text('Custodio')),
-              DataColumn(label: Text('Ciudad')),
-              DataColumn(label: Text('Sede')),
-              DataColumn(label: Text('Área')),
-              DataColumn(label: Text('Proveedor')),
-              DataColumn(label: Text('Fe. Adquisición')),
-              DataColumn(label: Text('IP')),
-              DataColumn(label: Text('Fe. Entrega')),
-              DataColumn(label: Text('Coordenada')),
-              DataColumn(label: Text('Acciones')),
+              DataColumn(label: Text('S/N', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Nombre', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Código', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Tipo Activo', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Condición', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Custodio', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Ciudad', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Sede', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Área', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Proveedor', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Fe. Adquisición', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('IP', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Fe. Entrega', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Coordenada', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Acciones', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
-            rows: _filteredAssets.map((asset) {
-              return DataRow(
-                cells: [
-                  DataCell(Text(asset['numero_serie']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['nombre']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['codigo']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['tipo_activo']?['tipo']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['condicion_activo']?['condicion']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['custodio']?['nombre_completo']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['ciudad_activo']?['ciudad']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['sede_activo']?['sede']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['area_activo']?['area']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['proveedor']?['nombre']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['fecha_adquisicion']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['ip']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['fecha_entrega']?.toString() ?? 'N/A')),
-                  DataCell(Text(asset['coordenada']?.toString() ?? 'N/A')),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (RoleService.currentRole != UserRole.ayudante)
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteAsset(asset['id']),
-                            tooltip: 'Eliminar',
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
+            source: GlobalAssetDataSource(
+              assets: _filteredAssets,
+              context: context,
+              onDelete: _deleteAsset,
+            ),
           ),
         ),
       ),
@@ -499,45 +500,118 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
 
-    return ListView.builder(
-      itemCount: _filteredAssets.length,
-      itemBuilder: (context, index) {
-        final asset = _filteredAssets[index];
-        final icon = _getIconForCategory(asset['categoria_activo']);
-        
-        final isSoftware = asset['categoria_activo'] == 'SOFTWARE';
-        final displayTitle = isSoftware 
-            ? (asset['nombre'] ?? 'Software ${asset['id']}')
-            : 'S/N: ${asset['numero_serie'] ?? 'N/A'}';
-            
-        final displaySubtitle = isSoftware
-            ? 'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'}\n'
-              'Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}'
-            : 'Nombre: ${asset['nombre'] ?? 'Sin Nombre'} | Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'}\n'
-              'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}';
+    final totalItems = _filteredAssets.length;
+    final totalPages = (totalItems / _listRowsPerPage).ceil();
 
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          elevation: 2,
-          child: ListTile(
-            leading: Icon(icon, size: 40, color: Colors.blueGrey),
-            title: Text(displayTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(displaySubtitle),
-            isThreeLine: true,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (RoleService.currentRole != UserRole.ayudante)
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _deleteAsset(asset['id']),
-                    tooltip: 'Eliminar',
+    // Ensure current page is valid after filters drop
+    if (_listCurrentPage >= totalPages && totalPages > 0) {
+      _listCurrentPage = totalPages - 1;
+    }
+
+    final startIndex = _listCurrentPage * _listRowsPerPage;
+    final endIndex = (startIndex + _listRowsPerPage) > totalItems 
+        ? totalItems 
+        : (startIndex + _listRowsPerPage);
+        
+    final pageAssets = _filteredAssets.sublist(startIndex, endIndex);
+
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            itemCount: pageAssets.length,
+            itemBuilder: (context, index) {
+              final asset = pageAssets[index];
+              final icon = _getIconForCategory(asset['categoria_activo']);
+              
+              final isSoftware = asset['categoria_activo'] == 'SOFTWARE';
+              final displayTitle = isSoftware 
+                  ? (asset['nombre'] ?? 'Software ${asset['id']}')
+                  : 'S/N: ${asset['numero_serie'] ?? 'N/A'}';
+                  
+              final displaySubtitle = isSoftware
+                  ? 'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'}\n'
+                    'Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}'
+                  : 'Nombre: ${asset['nombre'] ?? 'Sin Nombre'} | Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'}\n'
+                    'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}';
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                elevation: 2,
+                child: ListTile(
+                  leading: Icon(icon, size: 40, color: Colors.blueGrey),
+                  title: Text(displayTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(displaySubtitle),
+                  isThreeLine: true,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (RoleService.currentRole != UserRole.ayudante)
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteAsset(asset['id']),
+                          tooltip: 'Eliminar',
+                        ),
+                    ],
                   ),
+                ),
+              );
+            },
+          ),
+        ),
+        // Paginator bar for cards matching material theme
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: Colors.grey.shade300)),
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const Text('Filas: '),
+                DropdownButton<int>(
+                  value: _listRowsPerPage,
+                  underline: const SizedBox(),
+                  items: const [
+                    DropdownMenuItem(value: 10, child: Text('10')),
+                    DropdownMenuItem(value: 20, child: Text('20')),
+                    DropdownMenuItem(value: 30, child: Text('30')),
+                    DropdownMenuItem(value: 40, child: Text('40')),
+                    DropdownMenuItem(value: 50, child: Text('50')),
+                    DropdownMenuItem(value: 100, child: Text('100')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _listRowsPerPage = val;
+                        _listCurrentPage = 0; // Reset page
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(width: 12),
+                Text('${startIndex + 1}-${endIndex} de $totalItems'),
+                const SizedBox(width: 12),
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: _listCurrentPage > 0 
+                      ? () => setState(() => _listCurrentPage--) 
+                      : null,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: _listCurrentPage < totalPages - 1 
+                      ? () => setState(() => _listCurrentPage++) 
+                      : null,
+                ),
               ],
             ),
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }
+

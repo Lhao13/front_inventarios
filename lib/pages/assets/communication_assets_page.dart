@@ -151,11 +151,11 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
   List<int> _selectedProveedores = [];
   List<int> _selectedMarcas = [];
 
-  final TextEditingController _nombresController = TextEditingController();
-  final TextEditingController _codigosController = TextEditingController();
-  final TextEditingController _seriesController = TextEditingController();
-  final TextEditingController _modelosController = TextEditingController();
-  final TextEditingController _puertosController = TextEditingController();
+  final List<String> _selectedNombres = [];
+  final List<String> _selectedCodigos = [];
+  final List<String> _selectedSeries = [];
+  final List<String> _selectedModelos = [];
+  final List<String> _selectedPuertos = [];
 
   DateTimeRange? _rangoAdquisicion;
   DateTimeRange? _rangoEntrega;
@@ -175,11 +175,11 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
   @override
   void dispose() {
     SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
-    _nombresController.dispose();
-    _codigosController.dispose();
-    _seriesController.dispose();
-    _modelosController.dispose();
-    _puertosController.dispose();
+    _selectedNombres.clear();
+    _selectedCodigos.clear();
+    _selectedSeries.clear();
+    _selectedModelos.clear();
+    _selectedPuertos.clear();
     super.dispose();
   }
 
@@ -232,42 +232,6 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
   }
 
   void _applyFilters() {
-    final nombres = _nombresController.text
-        .trim()
-        .toLowerCase()
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-    final codigos = _codigosController.text
-        .trim()
-        .toLowerCase()
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-    final series = _seriesController.text
-        .trim()
-        .toLowerCase()
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-    final modelos = _modelosController.text
-        .trim()
-        .toLowerCase()
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-    final puertos = _puertosController.text
-        .trim()
-        .toLowerCase()
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-
     final result = _allAssets.where((asset) {
       final info =
           asset['info_equipo_comunicacion'] != null &&
@@ -275,37 +239,11 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
           ? (asset['info_equipo_comunicacion'] as List)[0]
           : null;
 
-      bool matchesNombre =
-          nombres.isEmpty ||
-          nombres.any(
-            (n) => (asset['nombre'] ?? '').toString().toLowerCase().contains(n),
-          );
-      bool matchesCodigo =
-          codigos.isEmpty ||
-          codigos.any(
-            (c) => (asset['codigo'] ?? '').toString().toLowerCase().contains(c),
-          );
-      bool matchesSerie =
-          series.isEmpty ||
-          series.any(
-            (s) => (asset['numero_serie'] ?? '')
-                .toString()
-                .toLowerCase()
-                .contains(s),
-          );
-      bool matchesModelo =
-          modelos.isEmpty ||
-          modelos.any(
-            (m) => (info?['modelo'] ?? '').toString().toLowerCase().contains(m),
-          );
-      bool matchesPuertos =
-          puertos.isEmpty ||
-          puertos.any(
-            (p) => (info?['num_puertos'] ?? '')
-                .toString()
-                .toLowerCase()
-                .contains(p),
-          );
+      bool matchesNombre = _selectedNombres.isEmpty || _selectedNombres.contains((asset['nombre'] ?? '').toString());
+      bool matchesCodigo = _selectedCodigos.isEmpty || _selectedCodigos.contains((asset['codigo'] ?? '').toString());
+      bool matchesSerie = _selectedSeries.isEmpty || _selectedSeries.contains((asset['numero_serie'] ?? '').toString());
+      bool matchesModelo = _selectedModelos.isEmpty || _selectedModelos.contains((info?['modelo'] ?? '').toString());
+      bool matchesPuertos = _selectedPuertos.isEmpty || _selectedPuertos.contains((info?['num_puertos'] ?? '').toString());
 
       bool matchesTipo =
           _selectedTiposActivo.isEmpty ||
@@ -384,11 +322,11 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
       _selectedCustodios.clear();
       _selectedProveedores.clear();
       _selectedMarcas.clear();
-      _nombresController.clear();
-      _codigosController.clear();
-      _seriesController.clear();
-      _modelosController.clear();
-      _puertosController.clear();
+      _selectedNombres.clear();
+      _selectedCodigos.clear();
+      _selectedSeries.clear();
+      _selectedModelos.clear();
+      _selectedPuertos.clear();
       _rangoAdquisicion = null;
       _rangoEntrega = null;
     });
@@ -568,9 +506,9 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
     );
   }
 
-  Widget _buildDrawerFilterButton(
+  Widget _buildDrawerFilterButton<T>(
     String label,
-    List<int> selectedIds,
+    List<T> selectedIds,
     List<Map<String, dynamic>> items,
     String displayKey,
   ) {
@@ -581,9 +519,9 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
       ),
       trailing: const Icon(Icons.arrow_drop_down),
       onTap: () async {
-        final result = await showDialog<List<int>>(
+        final result = await showDialog<List<T>>(
           context: context,
-          builder: (_) => MultiSelectDialog<int>(
+          builder: (_) => MultiSelectDialog<T>(
             title: label,
             items: items,
             initialSelectedIds: selectedIds,
@@ -601,21 +539,24 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
     );
   }
 
-  Widget _buildDrawerTextField(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: 'Ej: val1, val2',
-          border: const OutlineInputBorder(),
-          isDense: true,
-        ),
-        onChanged: (_) => _applyFilters(),
-      ),
-    );
+  List<Map<String, dynamic>> _getUniquePredictiveList(String key, {String? subKey}) {
+    if (_allAssets.isEmpty) return [];
+    final items = _allAssets
+        .map((a) {
+          if (subKey != null) {
+            final info = _info(a, subKey);
+            return info?[key]?.toString();
+          }
+          return a[key]?.toString();
+        })
+        .where((val) => val != null && val.trim().isNotEmpty)
+        .toSet()
+        .toList();
+    items.sort();
+    return items.map((val) => {'id': val, 'valor': val}).toList();
   }
+
+
 
   Widget _buildDrawerDateFilter(
     String label,
@@ -711,18 +652,18 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
                   const Padding(
                     padding: EdgeInsets.all(16.0),
                     child: Text(
-                      'Descripciones (Separados por coma)',
+                      'Identificadores Predictivos',
                       style: TextStyle(
                         color: Colors.blue,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  _buildDrawerTextField('Nombres', _nombresController),
-                  _buildDrawerTextField('Códigos', _codigosController),
-                  _buildDrawerTextField('Números de Serie', _seriesController),
-                  _buildDrawerTextField('Modelos', _modelosController),
-                  _buildDrawerTextField('Num Puertos', _puertosController),
+                  _buildDrawerFilterButton<String>('Nombres', _selectedNombres, _getUniquePredictiveList('nombre'), 'valor'),
+                  _buildDrawerFilterButton<String>('Códigos', _selectedCodigos, _getUniquePredictiveList('codigo'), 'valor'),
+                  _buildDrawerFilterButton<String>('Números de Serie', _selectedSeries, _getUniquePredictiveList('numero_serie'), 'valor'),
+                  _buildDrawerFilterButton<String>('Modelos', _selectedModelos, _getUniquePredictiveList('modelo', subKey: 'info_equipo_comunicacion'), 'valor'),
+                  _buildDrawerFilterButton<String>('Num Puertos', _selectedPuertos, _getUniquePredictiveList('num_puertos', subKey: 'info_equipo_comunicacion'), 'valor'),
 
                   const Divider(),
                   const Padding(
