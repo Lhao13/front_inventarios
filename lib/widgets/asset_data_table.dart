@@ -32,6 +32,7 @@ class AssetDataTable extends StatefulWidget {
   final bool isLoading;
   final Future<void> Function(Map<String, dynamic> asset)? onEdit;
   final Future<void> Function(String id)? onDelete;
+  final List<Widget> Function(Map<String, dynamic> asset)? customActionsBuilder;
 
   const AssetDataTable({
     super.key,
@@ -40,6 +41,7 @@ class AssetDataTable extends StatefulWidget {
     this.isLoading = false,
     this.onEdit,
     this.onDelete,
+    this.customActionsBuilder,
   });
 
   @override
@@ -156,7 +158,7 @@ class _AssetDataTableState extends State<AssetDataTable> {
         .where((c) => _visibleLabels.contains(c.label))
         .toList();
 
-    final hasActions = widget.onEdit != null || widget.onDelete != null;
+    final hasActions = widget.onEdit != null || widget.onDelete != null || widget.customActionsBuilder != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,6 +233,7 @@ class _AssetDataTableState extends State<AssetDataTable> {
                     context: context,
                     onEdit: widget.onEdit,
                     onDelete: widget.onDelete,
+                    customActionsBuilder: widget.customActionsBuilder,
                   ),
                 ),
               ),

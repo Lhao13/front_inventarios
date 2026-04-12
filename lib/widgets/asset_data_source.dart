@@ -11,6 +11,7 @@ class AssetDataSource extends DataTableSource {
   final BuildContext context;
   final Future<void> Function(Map<String, dynamic> asset)? onEdit;
   final Future<void> Function(String id)? onDelete;
+  final List<Widget> Function(Map<String, dynamic> asset)? customActionsBuilder;
 
   AssetDataSource({
     required this.assets,
@@ -19,6 +20,7 @@ class AssetDataSource extends DataTableSource {
     required this.context,
     this.onEdit,
     this.onDelete,
+    this.customActionsBuilder,
   });
 
   @override
@@ -84,6 +86,8 @@ class AssetDataSource extends DataTableSource {
                     tooltip: 'Editar',
                     onPressed: () => onEdit!(asset),
                   ),
+                if (customActionsBuilder != null)
+                  ...customActionsBuilder!(asset),
                 if (onDelete != null &&
                     asset['id'] != null &&
                     RoleService.currentRole != UserRole.ayudante)
