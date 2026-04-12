@@ -25,20 +25,36 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
   late List<Map<String, dynamic>> _filteredItems;
   String _searchQuery = '';
 
+  late List<Map<String, dynamic>> _sortedItems;
+
   @override
   void initState() {
     super.initState();
     _selectedIds = List.from(widget.initialSelectedIds);
-    _filteredItems = List.from(widget.items);
+    _sortedItems = List.from(widget.items);
+    _sortItems();
+    _filteredItems = List.from(_sortedItems);
+  }
+
+  void _sortItems() {
+    _sortedItems.sort((a, b) {
+      final aSelected = _selectedIds.contains(a[widget.valueKey ?? 'id']);
+      final bSelected = _selectedIds.contains(b[widget.valueKey ?? 'id']);
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      final valA = a[widget.displayKey]?.toString().toLowerCase() ?? '';
+      final valB = b[widget.displayKey]?.toString().toLowerCase() ?? '';
+      return valA.compareTo(valB);
+    });
   }
 
   void _filterItems(String query) {
     setState(() {
       _searchQuery = query;
       if (query.isEmpty) {
-        _filteredItems = List.from(widget.items);
+        _filteredItems = List.from(_sortedItems);
       } else {
-        _filteredItems = widget.items.where((item) {
+        _filteredItems = _sortedItems.where((item) {
           final display = item[widget.displayKey]?.toString().toLowerCase() ?? '';
           return display.contains(query.toLowerCase());
         }).toList();
@@ -84,29 +100,34 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
             ),
             const Divider(),
             Expanded(
-              child: ListView.builder(
-                itemCount: _filteredItems.length,
-                itemBuilder: (context, index) {
-                  final item = _filteredItems[index];
-                  final val = item[widget.valueKey] as T;
-                  final display = item[widget.displayKey]?.toString() ?? '';
+              child: Scrollbar(
+                thumbVisibility: true,
+                child: ListView.builder(
+                  itemCount: _filteredItems.length,
+                  itemBuilder: (context, index) {
+                    final item = _filteredItems[index];
+                    final val = item[widget.valueKey] as T;
+                    final display = item[widget.displayKey]?.toString() ?? '';
 
-                  return CheckboxListTile(
-                    title: Text(display),
-                    value: _selectedIds.contains(val),
-                    onChanged: (bool? checked) {
-                      setState(() {
-                        if (checked == true) {
-                          _selectedIds.add(val);
-                        } else {
-                          _selectedIds.remove(val);
-                        }
-                      });
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                  );
-                },
+                    return CheckboxListTile(
+                      title: Text(display),
+                      value: _selectedIds.contains(val),
+                      onChanged: (bool? checked) {
+                        setState(() {
+                          if (checked == true) {
+                            _selectedIds.add(val);
+                          } else {
+                            _selectedIds.remove(val);
+                          }
+                        });
+                      },
+                      dense: true,
+                      visualDensity: VisualDensity.compact,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                    );
+                  },
+                ),
               ),
             ),
           ],

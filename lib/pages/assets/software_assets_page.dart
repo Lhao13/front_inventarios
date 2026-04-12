@@ -116,41 +116,41 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
     }
   }
 
+  bool _assetMatches(Map<String, dynamic> asset, {String? ignoreField}) {
+    bool matchesNombre = ignoreField == 'nombre' || _selectedNombres.isEmpty || _selectedNombres.contains((asset['nombre'] ?? '').toString());
+    bool matchesCodigo = ignoreField == 'codigo' || _selectedCodigos.isEmpty || _selectedCodigos.contains((asset['codigo'] ?? '').toString());
+
+    bool matchesTipo = ignoreField == 'id_tipo_activo' || _selectedTiposActivo.isEmpty || _selectedTiposActivo.contains(asset['id_tipo_activo']);
+    bool matchesCondicion = ignoreField == 'id_condicion_activo' || _selectedCondiciones.isEmpty || _selectedCondiciones.contains(asset['id_condicion_activo']);
+    bool matchesArea = ignoreField == 'id_area_activo' || _selectedAreas.isEmpty || _selectedAreas.contains(asset['id_area_activo']);
+    bool matchesCustodio = ignoreField == 'id_custodio' || _selectedCustodios.isEmpty || _selectedCustodios.contains(asset['id_custodio']);
+    bool matchesProveedor = ignoreField == 'id_provedor' || _selectedProveedores.isEmpty || _selectedProveedores.contains(asset['id_provedor']);
+
+    bool matchesAdquisicion = true;
+    if (ignoreField != 'fecha_adquisicion' && _rangoAdquisicion != null && asset['fecha_adquisicion'] != null) {
+      try {
+        final dt = DateTime.parse(asset['fecha_adquisicion'].toString());
+        if (dt.isBefore(_rangoAdquisicion!.start) || dt.isAfter(_rangoAdquisicion!.end)) matchesAdquisicion = false;
+      } catch (_) {}
+    }
+
+    bool matchesEntrega = true;
+    if (ignoreField != 'fecha_entrega' && _rangoEntrega != null && asset['fecha_entrega'] != null) {
+      try {
+        final dt = DateTime.parse(asset['fecha_entrega'].toString());
+        if (dt.isBefore(_rangoEntrega!.start) || dt.isAfter(_rangoEntrega!.end)) matchesEntrega = false;
+      } catch (_) {}
+    }
+
+    return matchesNombre && matchesCodigo &&
+           matchesTipo && matchesCondicion && matchesArea && 
+           matchesCustodio && matchesProveedor &&
+           matchesAdquisicion && matchesEntrega;
+  }
+
   void _applyFilters() {
-    final result = _allAssets.where((asset) {
-      bool matchesNombre = _selectedNombres.isEmpty || _selectedNombres.contains((asset['nombre'] ?? '').toString());
-      bool matchesCodigo = _selectedCodigos.isEmpty || _selectedCodigos.contains((asset['codigo'] ?? '').toString());
-
-      bool matchesTipo = _selectedTiposActivo.isEmpty || _selectedTiposActivo.contains(asset['id_tipo_activo']);
-      bool matchesCondicion = _selectedCondiciones.isEmpty || _selectedCondiciones.contains(asset['id_condicion_activo']);
-      bool matchesArea = _selectedAreas.isEmpty || _selectedAreas.contains(asset['id_area_activo']);
-      bool matchesCustodio = _selectedCustodios.isEmpty || _selectedCustodios.contains(asset['id_custodio']);
-      bool matchesProveedor = _selectedProveedores.isEmpty || _selectedProveedores.contains(asset['id_provedor']);
-
-      bool matchesAdquisicion = true;
-      if (_rangoAdquisicion != null && asset['fecha_adquisicion'] != null) {
-        try {
-          final dt = DateTime.parse(asset['fecha_adquisicion'].toString());
-          if (dt.isBefore(_rangoAdquisicion!.start) || dt.isAfter(_rangoAdquisicion!.end)) matchesAdquisicion = false;
-        } catch (_) {}
-      }
-
-      bool matchesEntrega = true;
-      if (_rangoEntrega != null && asset['fecha_entrega'] != null) {
-        try {
-          final dt = DateTime.parse(asset['fecha_entrega'].toString());
-          if (dt.isBefore(_rangoEntrega!.start) || dt.isAfter(_rangoEntrega!.end)) matchesEntrega = false;
-        } catch (_) {}
-      }
-
-      return matchesNombre && matchesCodigo &&
-             matchesTipo && matchesCondicion && matchesArea && 
-             matchesCustodio && matchesProveedor &&
-             matchesAdquisicion && matchesEntrega;
-    }).toList();
-
     setState(() {
-      _filteredAssets = result;
+      _filteredAssets = _allAssets.where((a) => _assetMatches(a)).toList();
     });
   }
 
@@ -329,13 +329,24 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
 
   List<Map<String, dynamic>> _getUniquePredictiveList(String key) {
     if (_allAssets.isEmpty) return [];
-    final items = _allAssets
+    final possibleAssets = _allAssets.where((a) => _assetMatches(a, ignoreField: key));
+    final items = possibleAssets
         .map((a) => a[key]?.toString())
         .where((val) => val != null && val.trim().isNotEmpty)
         .toSet()
         .toList();
     items.sort();
     return items.map((val) => {'id': val, 'valor': val}).toList();
+  }
+
+  List<Map<String, dynamic>> _getFilteredMasterList(List<Map<String, dynamic>> masterList, String ignoreField) {
+    if (_allAssets.isEmpty || masterList.isEmpty) return [];
+    final validKeys = <int>{};
+    for (var a in _allAssets.where((asset) => _assetMatches(asset, ignoreField: ignoreField))) {
+       final val = a[ignoreField];
+       if (val is int) validKeys.add(val);
+    }
+    return masterList.where((m) => validKeys.contains(m['id'])).toList();
   }
 
   Widget _buildDrawerDateFilter(String label, DateTimeRange? currentRange, ValueChanged<DateTimeRange?> onChanged) {
@@ -396,11 +407,11 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
                   
                   const Divider(),
                   const Padding(padding: EdgeInsets.all(16.0), child: Text('Listas Maestras', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
-                  _buildDrawerFilterButton('Tipo Activo', _selectedTiposActivo, _tiposActivo, 'tipo'),
-                  _buildDrawerFilterButton('Condición', _selectedCondiciones, _condiciones, 'condicion'),
-                  _buildDrawerFilterButton('Custodio', _selectedCustodios, _custodios, 'nombre_completo'),
-                  _buildDrawerFilterButton('Área', _selectedAreas, _areas, 'area'),
-                  _buildDrawerFilterButton('Proveedor', _selectedProveedores, _proveedores, 'nombre'),
+                  _buildDrawerFilterButton('Tipo Activo', _selectedTiposActivo, _getFilteredMasterList(_tiposActivo, 'id_tipo_activo'), 'tipo'),
+                  _buildDrawerFilterButton('Condición', _selectedCondiciones, _getFilteredMasterList(_condiciones, 'id_condicion_activo'), 'condicion'),
+                  _buildDrawerFilterButton('Custodio', _selectedCustodios, _getFilteredMasterList(_custodios, 'id_custodio'), 'nombre_completo'),
+                  _buildDrawerFilterButton('Área', _selectedAreas, _getFilteredMasterList(_areas, 'id_area_activo'), 'area'),
+                  _buildDrawerFilterButton('Proveedor', _selectedProveedores, _getFilteredMasterList(_proveedores, 'id_provedor'), 'nombre'),
 
                   const Divider(),
                   const Padding(padding: EdgeInsets.all(16.0), child: Text('Rango de Fechas', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),

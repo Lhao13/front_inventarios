@@ -231,84 +231,50 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
     }
   }
 
+  bool _assetMatches(Map<String, dynamic> asset, {String? ignoreField}) {
+    final info = asset['info_equipo_comunicacion'] != null && (asset['info_equipo_comunicacion'] as List).isNotEmpty ? (asset['info_equipo_comunicacion'] as List)[0] : null;
+
+    bool matchesNombre = ignoreField == 'nombre' || _selectedNombres.isEmpty || _selectedNombres.contains((asset['nombre'] ?? '').toString());
+    bool matchesCodigo = ignoreField == 'codigo' || _selectedCodigos.isEmpty || _selectedCodigos.contains((asset['codigo'] ?? '').toString());
+    bool matchesSerie = ignoreField == 'numero_serie' || _selectedSeries.isEmpty || _selectedSeries.contains((asset['numero_serie'] ?? '').toString());
+    bool matchesModelo = ignoreField == 'modelo' || _selectedModelos.isEmpty || _selectedModelos.contains((info?['modelo'] ?? '').toString());
+    bool matchesPuertos = ignoreField == 'num_puertos' || _selectedPuertos.isEmpty || _selectedPuertos.contains((info?['num_puertos'] ?? '').toString());
+
+    bool matchesTipo = ignoreField == 'id_tipo_activo' || _selectedTiposActivo.isEmpty || _selectedTiposActivo.contains(asset['id_tipo_activo']);
+    bool matchesCondicion = ignoreField == 'id_condicion_activo' || _selectedCondiciones.isEmpty || _selectedCondiciones.contains(asset['id_condicion_activo']);
+    bool matchesSede = ignoreField == 'id_sede_activo' || _selectedSedes.isEmpty || _selectedSedes.contains(asset['id_sede_activo']);
+    bool matchesArea = ignoreField == 'id_area_activo' || _selectedAreas.isEmpty || _selectedAreas.contains(asset['id_area_activo']);
+    bool matchesCiudad = ignoreField == 'id_ciudad_activo' || _selectedCiudades.isEmpty || _selectedCiudades.contains(asset['id_ciudad_activo']);
+    bool matchesCustodio = ignoreField == 'id_custodio' || _selectedCustodios.isEmpty || _selectedCustodios.contains(asset['id_custodio']);
+    bool matchesProveedor = ignoreField == 'id_provedor' || _selectedProveedores.isEmpty || _selectedProveedores.contains(asset['id_provedor']);
+    bool matchesMarca = ignoreField == 'id_marca' || _selectedMarcas.isEmpty || _selectedMarcas.contains(info?['id_marca']);
+
+    bool matchesAdquisicion = true;
+    if (ignoreField != 'fecha_adquisicion' && _rangoAdquisicion != null && asset['fecha_adquisicion'] != null) {
+      try {
+        final dt = DateTime.parse(asset['fecha_adquisicion'].toString());
+        if (dt.isBefore(_rangoAdquisicion!.start) || dt.isAfter(_rangoAdquisicion!.end)) matchesAdquisicion = false;
+      } catch (_) {}
+    }
+
+    bool matchesEntrega = true;
+    if (ignoreField != 'fecha_entrega' && _rangoEntrega != null && asset['fecha_entrega'] != null) {
+      try {
+        final dt = DateTime.parse(asset['fecha_entrega'].toString());
+        if (dt.isBefore(_rangoEntrega!.start) || dt.isAfter(_rangoEntrega!.end)) matchesEntrega = false;
+      } catch (_) {}
+    }
+
+    return matchesNombre && matchesCodigo && matchesSerie && matchesModelo && matchesPuertos &&
+           matchesTipo && matchesCondicion && matchesSede &&
+           matchesArea && matchesCiudad && matchesCustodio &&
+           matchesProveedor && matchesMarca &&
+           matchesAdquisicion && matchesEntrega;
+  }
+
   void _applyFilters() {
-    final result = _allAssets.where((asset) {
-      final info =
-          asset['info_equipo_comunicacion'] != null &&
-              (asset['info_equipo_comunicacion'] as List).isNotEmpty
-          ? (asset['info_equipo_comunicacion'] as List)[0]
-          : null;
-
-      bool matchesNombre = _selectedNombres.isEmpty || _selectedNombres.contains((asset['nombre'] ?? '').toString());
-      bool matchesCodigo = _selectedCodigos.isEmpty || _selectedCodigos.contains((asset['codigo'] ?? '').toString());
-      bool matchesSerie = _selectedSeries.isEmpty || _selectedSeries.contains((asset['numero_serie'] ?? '').toString());
-      bool matchesModelo = _selectedModelos.isEmpty || _selectedModelos.contains((info?['modelo'] ?? '').toString());
-      bool matchesPuertos = _selectedPuertos.isEmpty || _selectedPuertos.contains((info?['num_puertos'] ?? '').toString());
-
-      bool matchesTipo =
-          _selectedTiposActivo.isEmpty ||
-          _selectedTiposActivo.contains(asset['id_tipo_activo']);
-      bool matchesCondicion =
-          _selectedCondiciones.isEmpty ||
-          _selectedCondiciones.contains(asset['id_condicion_activo']);
-      bool matchesSede =
-          _selectedSedes.isEmpty ||
-          _selectedSedes.contains(asset['id_sede_activo']);
-      bool matchesArea =
-          _selectedAreas.isEmpty ||
-          _selectedAreas.contains(asset['id_area_activo']);
-      bool matchesCiudad =
-          _selectedCiudades.isEmpty ||
-          _selectedCiudades.contains(asset['id_ciudad_activo']);
-      bool matchesCustodio =
-          _selectedCustodios.isEmpty ||
-          _selectedCustodios.contains(asset['id_custodio']);
-      bool matchesProveedor =
-          _selectedProveedores.isEmpty ||
-          _selectedProveedores.contains(asset['id_provedor']);
-      bool matchesMarca =
-          _selectedMarcas.isEmpty ||
-          _selectedMarcas.contains(info?['id_marca']);
-
-      bool matchesAdquisicion = true;
-      if (_rangoAdquisicion != null && asset['fecha_adquisicion'] != null) {
-        try {
-          final dt = DateTime.parse(asset['fecha_adquisicion'].toString());
-          if (dt.isBefore(_rangoAdquisicion!.start) ||
-              dt.isAfter(_rangoAdquisicion!.end))
-            matchesAdquisicion = false;
-        } catch (_) {}
-      }
-
-      bool matchesEntrega = true;
-      if (_rangoEntrega != null && asset['fecha_entrega'] != null) {
-        try {
-          final dt = DateTime.parse(asset['fecha_entrega'].toString());
-          if (dt.isBefore(_rangoEntrega!.start) ||
-              dt.isAfter(_rangoEntrega!.end))
-            matchesEntrega = false;
-        } catch (_) {}
-      }
-
-      return matchesNombre &&
-          matchesCodigo &&
-          matchesSerie &&
-          matchesModelo &&
-          matchesPuertos &&
-          matchesTipo &&
-          matchesCondicion &&
-          matchesSede &&
-          matchesArea &&
-          matchesCiudad &&
-          matchesCustodio &&
-          matchesProveedor &&
-          matchesMarca &&
-          matchesAdquisicion &&
-          matchesEntrega;
-    }).toList();
-
     setState(() {
-      _filteredAssets = result;
+      _filteredAssets = _allAssets.where((a) => _assetMatches(a)).toList();
     });
   }
 
@@ -541,19 +507,35 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
 
   List<Map<String, dynamic>> _getUniquePredictiveList(String key, {String? subKey}) {
     if (_allAssets.isEmpty) return [];
-    final items = _allAssets
+    final possibleAssets = _allAssets.where((a) => _assetMatches(a, ignoreField: key));
+    final items = possibleAssets
         .map((a) {
           if (subKey != null) {
             final info = _info(a, subKey);
             return info?[key]?.toString();
           }
-          return a[key]?.toString();
+           return a[key]?.toString();
         })
         .where((val) => val != null && val.trim().isNotEmpty)
         .toSet()
         .toList();
     items.sort();
     return items.map((val) => {'id': val, 'valor': val}).toList();
+  }
+
+  List<Map<String, dynamic>> _getFilteredMasterList(List<Map<String, dynamic>> masterList, String ignoreField) {
+    if (_allAssets.isEmpty || masterList.isEmpty) return [];
+    final validKeys = <int>{};
+    for (var a in _allAssets.where((asset) => _assetMatches(asset, ignoreField: ignoreField))) {
+      if (ignoreField == 'id_marca') {
+         final info = _info(a, 'info_equipo_comunicacion');
+         if (info != null && info['id_marca'] != null) validKeys.add(info['id_marca']);
+      } else {
+         final val = a[ignoreField];
+         if (val is int) validKeys.add(val);
+      }
+    }
+    return masterList.where((m) => validKeys.contains(m['id'])).toList();
   }
 
 
@@ -679,49 +661,49 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
                   _buildDrawerFilterButton(
                     'Tipo Activo',
                     _selectedTiposActivo,
-                    _tiposActivo,
+                    _getFilteredMasterList(_tiposActivo, 'id_tipo_activo'),
                     'tipo',
                   ),
                   _buildDrawerFilterButton(
                     'Condición',
                     _selectedCondiciones,
-                    _condiciones,
+                    _getFilteredMasterList(_condiciones, 'id_condicion_activo'),
                     'condicion',
                   ),
                   _buildDrawerFilterButton(
                     'Custodio',
                     _selectedCustodios,
-                    _custodios,
+                    _getFilteredMasterList(_custodios, 'id_custodio'),
                     'nombre_completo',
                   ),
                   _buildDrawerFilterButton(
                     'Sede',
                     _selectedSedes,
-                    _sedes,
+                    _getFilteredMasterList(_sedes, 'id_sede_activo'),
                     'sede',
                   ),
                   _buildDrawerFilterButton(
                     'Área',
                     _selectedAreas,
-                    _areas,
+                    _getFilteredMasterList(_areas, 'id_area_activo'),
                     'area',
                   ),
                   _buildDrawerFilterButton(
                     'Ciudad',
                     _selectedCiudades,
-                    _ciudades,
+                    _getFilteredMasterList(_ciudades, 'id_ciudad_activo'),
                     'ciudad',
                   ),
                   _buildDrawerFilterButton(
                     'Proveedor',
                     _selectedProveedores,
-                    _proveedores,
+                    _getFilteredMasterList(_proveedores, 'id_provedor'),
                     'nombre',
                   ),
                   _buildDrawerFilterButton(
                     'Marca',
                     _selectedMarcas,
-                    _marcas,
+                    _getFilteredMasterList(_marcas, 'id_marca'),
                     'marca_proveedor',
                   ),
 
