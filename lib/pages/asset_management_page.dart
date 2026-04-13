@@ -9,6 +9,7 @@ import 'package:front_inventarios/pages/assets/generic_assets_page.dart';
 import 'package:front_inventarios/pages/assets/software_assets_page.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
+import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
 
 class AssetManagementPage extends StatefulWidget {
   const AssetManagementPage({super.key});
@@ -507,6 +508,10 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
               assets: _filteredAssets,
               context: context,
               onDelete: _deleteAsset,
+              onScheduleMaintenance: (a) => showDialog(
+                context: context,
+                builder: (_) => MaintenanceFormDialog(initialAssetId: a['id']),
+              ),
             ),
           ),
         ),
@@ -564,6 +569,14 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      IconButton(
+                        icon: const Icon(Icons.build_circle, color: Colors.blueGrey),
+                        tooltip: 'Programar Mantenimiento',
+                        onPressed: () => showDialog(
+                          context: context,
+                          builder: (_) => MaintenanceFormDialog(initialAssetId: asset['id']),
+                        ),
+                      ),
                       if (RoleService.currentRole != UserRole.ayudante)
                         IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),

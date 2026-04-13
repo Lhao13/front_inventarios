@@ -4,6 +4,7 @@ import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
 import 'package:front_inventarios/widgets/asset_data_table.dart';
+import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
 import 'package:uuid/uuid.dart';
@@ -546,6 +547,16 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
       isLoading: _isLoading,
       onEdit: (asset) => _showAssetDialog(existingAsset: asset),
       onDelete: _deleteAsset,
+      customActionsBuilder: (asset) => [
+        IconButton(
+          icon: const Icon(Icons.build_circle, color: Colors.blueGrey),
+          tooltip: 'Programar Mantenimiento',
+          onPressed: () => showDialog(
+            context: context,
+            builder: (_) => MaintenanceFormDialog(initialAssetId: asset['id']),
+          ),
+        ),
+      ],
     );
   }
 
@@ -573,6 +584,14 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                IconButton(
+                  icon: const Icon(Icons.build_circle, color: Colors.blueGrey),
+                  tooltip: 'Programar Mantenimiento',
+                  onPressed: () => showDialog(
+                    context: context,
+                    builder: (_) => MaintenanceFormDialog(initialAssetId: asset['id']),
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.edit, color: Colors.blue),
                   onPressed: () => _showAssetDialog(existingAsset: asset),

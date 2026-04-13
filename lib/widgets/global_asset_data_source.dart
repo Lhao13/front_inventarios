@@ -5,11 +5,13 @@ class GlobalAssetDataSource extends DataTableSource {
   final List<Map<String, dynamic>> assets;
   final BuildContext context;
   final Future<void> Function(String id)? onDelete;
+  final void Function(Map<String, dynamic> asset)? onScheduleMaintenance;
 
   GlobalAssetDataSource({
     required this.assets,
     required this.context,
     this.onDelete,
+    this.onScheduleMaintenance,
   });
 
   @override
@@ -37,6 +39,12 @@ class GlobalAssetDataSource extends DataTableSource {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (onScheduleMaintenance != null)
+                IconButton(
+                  icon: const Icon(Icons.build_circle, color: Colors.blueGrey),
+                  onPressed: () => onScheduleMaintenance!(asset),
+                  tooltip: 'Programar Mantenimiento',
+                ),
               if (RoleService.currentRole != UserRole.ayudante)
                 IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),

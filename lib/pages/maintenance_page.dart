@@ -5,7 +5,7 @@ import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
 import 'package:front_inventarios/widgets/asset_data_table.dart';
-import 'package:uuid/uuid.dart';
+import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
 
 /// Página de Mantenimientos.
 /// 
@@ -37,13 +37,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
   DateTimeRange? _rangoProgramada;
   DateTimeRange? _rangoRealizada;
 
-  // Form state
-  String? _selectedActivoId;
   DateTime? _selectedDate;
-  String _selectedTipo = 'Preventivo';
-  String _selectedEstado = 'Pendiente';
-  final _observacionController = TextEditingController();
-  String? _editingId;
 
   final List<String> _tipoOptions = ['Preventivo', 'Correctivo'];
   final List<String> _estadoOptions = ['Pendiente', 'En Proceso', 'Cancelado'];
@@ -75,7 +69,6 @@ class _MaintenancePageState extends State<MaintenancePage> {
   @override
   void dispose() {
     SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
-    _observacionController.dispose();
     super.dispose();
   }
 
@@ -301,173 +294,13 @@ class _MaintenancePageState extends State<MaintenancePage> {
     }
   }
 
-  Future<void> _saveMaintenance() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedActivoId == null || _selectedDate == null) {
-      context.showSnackBar('Por favor completa los campos obligatorios.', isError: true);
-      return;
-    }
-
-    final data = {
-      'id_activo': _selectedActivoId,
-      'fecha_programada': _formatDate(_selectedDate!),
-      'tipo': _selectedTipo,
-      'estado': _selectedEstado,
-      'observacion': _observacionController.text.trim(),
-    };
-
-    try {
-      if (_editingId == null) {
-        data['id'] = const Uuid().v4();
-        await LocalDbService.instance.enqueueOperation('table:mantenimiento:insert', data);
-        if (!mounted) return;
-        context.showSnackBar('Mantenimiento programado (Cola Local).');
-      } else {
-        data['id'] = _editingId;
-        await LocalDbService.instance.enqueueOperation('table:mantenimiento:update', data);
-        if (!mounted) return;
-        context.showSnackBar('Mantenimiento actualizado (Cola Local).');
-      }
-      if (SyncQueueService.instance.isOnline) SyncQueueService.instance.syncPendingOperations();
-
-      Navigator.pop(context);
-      _loadMaintenances();
-    } catch (e) {
-      if (mounted) context.showSnackBar('Error en la base de datos local: $e', isError: true);
-    }
-  }
-
   void _showAddMaintenanceDialog({Map<String, dynamic>? initialData}) {
-    setState(() {
-      if (initialData != null) {
-        _editingId = initialData['id'] as String;
-        _selectedActivoId = initialData['id_activo'] as String;
-        _selectedDate = DateTime.parse(initialData['fecha_programada'].toString());
-        _selectedTipo = initialData['tipo']?.toString() ?? 'Preventivo';
-        _selectedEstado = initialData['estado']?.toString() ?? 'Pendiente';
-        _observacionController.text = initialData['observacion']?.toString() ?? '';
-      } else {
-        _editingId = null;
-        _selectedActivoId = null;
-        _selectedDate = null;
-        _selectedTipo = 'Preventivo';
-        _selectedEstado = 'Pendiente';
-        _observacionController.clear();
-      }
-    });
-
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Text(_editingId == null ? 'Programar Mantenimiento' : 'Editar Mantenimiento'),
-            content: Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _isLoadingAssets
-                        ? const Center(child: CircularProgressIndicator())
-                        : DropdownButtonFormField<String>(
-                            value: _selectedActivoId,
-                            decoration: const InputDecoration(
-                              labelText: 'Activo (S/N - Tipo) *',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: _assets.map((a) {
-                              final sn = a['categoria_activo'] == 'SOFTWARE' 
-                                  ? (a['nombre'] ?? 'Sin Nombre') 
-                                  : (a['numero_serie'] ?? 'S/S');
-                              final tipo = a['tipo_activo']?['tipo'] ?? (a['categoria_activo'] ?? 'Desconocido');
-                              return DropdownMenuItem<String>(
-                                value: a['id'] as String,
-                                child: Text('$sn - $tipo', overflow: TextOverflow.ellipsis),
-                              );
-                            }).toList(),
-                            onChanged: (v) {
-                              setDialogState(() => _selectedActivoId = v);
-                              setState(() => _selectedActivoId = v);
-                            },
-                            validator: (v) => v == null ? 'Requerido' : null,
-                          ),
-                    const SizedBox(height: 16),
-                    InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: DateTime.now(),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2100),
-                        );
-                        if (picked != null) {
-                          setDialogState(() => _selectedDate = picked);
-                          setState(() => _selectedDate = picked);
-                        }
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Fecha Programada *',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Icon(Icons.calendar_today),
-                        ),
-                        child: Text(
-                          _selectedDate == null ? 'Seleccionar fecha' : _formatDate(_selectedDate!),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedTipo,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipo de Mantenimiento *',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _tipoOptions.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                      onChanged: (v) {
-                        setDialogState(() => _selectedTipo = v!);
-                        setState(() => _selectedTipo = v!);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedEstado,
-                      decoration: const InputDecoration(
-                        labelText: 'Estado *',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: () {
-                        final items = _estadoOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList();
-                        // Si el estado actual es 'Completado', lo añadimos temporalmente para evitar el error de Flutter
-                        if (_selectedEstado == 'Completado') {
-                          items.add(const DropdownMenuItem(value: 'Completado', child: Text('Completado')));
-                        }
-                        return items;
-                      }(),
-                      onChanged: (v) {
-                        setDialogState(() => _selectedEstado = v!);
-                        setState(() => _selectedEstado = v!);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _observacionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Observaciones',
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 2,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-              ElevatedButton(onPressed: _saveMaintenance, child: const Text('Guardar')),
-            ],
-          );
+      builder: (_) => MaintenanceFormDialog(
+        initialData: initialData,
+        onSaved: () {
+          _loadMaintenances();
         },
       ),
     );

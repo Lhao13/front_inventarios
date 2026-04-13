@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:front_inventarios/widgets/barcode_scanner_screen.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
+import 'package:front_inventarios/widgets/single_select_search_dialog.dart';
 import 'package:front_inventarios/main.dart';
 
 class DynamicAssetForm extends StatefulWidget {
@@ -314,26 +315,50 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     ValueChanged<int?> onChanged, {
     bool required = false,
   }) {
-    // Validate that the current value exists in the items list (prevents invalid dropdown state)
     final validValue = items.any((item) => item['id'] == value) ? value : null;
+    
+    final dropdownItems = items.map((item) {
+      return DropdownMenuItem<int?>(
+        value: item['id'],
+        child: Text(item[displayKey]?.toString() ?? '', overflow: TextOverflow.ellipsis),
+      );
+    }).toList();
+    
+    dropdownItems.insert(0, const DropdownMenuItem<int?>(value: null, child: Text('-- Ninguno --', style: TextStyle(color: Colors.grey))));
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
-      child: DropdownButtonFormField<int>(
+      child: DropdownButtonFormField<int?>(
         value: validValue,
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
           isDense: true,
           border: const OutlineInputBorder(),
         ),
-        items: items.map((item) {
-          return DropdownMenuItem<int>(
-            value: item['id'] as int,
-            child: Text(item[displayKey]?.toString() ?? 'N/A'),
-          );
-        }).toList(),
+        items: dropdownItems,
         onChanged: onChanged,
         validator: required ? (val) => val == null ? 'Seleccione una opción' : null : null,
       ),
+    );
+  }
+
+  Widget _buildSearchableDropdown(
+    String label,
+    int? value,
+    List<Map<String, dynamic>> items,
+    String displayKey,
+    ValueChanged<int?> onChanged, {
+    bool required = false,
+  }) {
+    final validValue = items.any((item) => item['id'] == value) ? value : null;
+    return SearchableDropdownFormField<int>(
+      label: label,
+      items: items,
+      displayKey: displayKey,
+      value: validValue,
+      onChanged: onChanged,
+      required: required,
+      validator: required ? (val) => val == null ? 'Seleccione una opción' : null : null,
     );
   }
 
@@ -345,21 +370,26 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     bool required = false,
   }) {
     final validValue = items.contains(value) ? value : null;
+    
+    final dropdownItems = items.map((item) {
+      return DropdownMenuItem<String?>(
+        value: item,
+        child: Text(item, overflow: TextOverflow.ellipsis),
+      );
+    }).toList();
+    
+    dropdownItems.insert(0, const DropdownMenuItem<String?>(value: null, child: Text('-- Ninguno --', style: TextStyle(color: Colors.grey))));
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
-      child: DropdownButtonFormField<String>(
+      child: DropdownButtonFormField<String?>(
         value: validValue,
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
           isDense: true,
           border: const OutlineInputBorder(),
         ),
-        items: items.map((item) {
-          return DropdownMenuItem<String>(
-            value: item,
-            child: Text(item),
-          );
-        }).toList(),
+        items: dropdownItems,
         onChanged: onChanged,
         validator: required ? (val) => val == null ? 'Seleccione una opción' : null : null,
       ),
@@ -543,9 +573,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
             ),
             _buildDropdown('Condición', _condicionActivoId, _condicionesActivo, 'condicion',
                 (v) => setState(() => _condicionActivoId = v)),
-            _buildDropdown('Custodio', _custodioId, _custodios, 'nombre_completo',
+            _buildSearchableDropdown('Custodio', _custodioId, _custodios, 'nombre_completo',
                 (v) => setState(() => _custodioId = v)),
-            _buildDropdown('Área', _areaActivoId, _areas, 'area',
+            _buildSearchableDropdown('Área', _areaActivoId, _areas, 'area',
                 (v) => setState(() => _areaActivoId = v)),
             _buildDropdown('Proveedor General', _proveedorId, _proveedores, 'nombre',
                 (v) => setState(() => _proveedorId = v)),
@@ -553,7 +583,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
             if (_categoria != 'SOFTWARE') ...[
               _buildDropdown('Ciudad', _ciudadActivoId, _ciudades, 'ciudad',
                   (v) => setState(() => _ciudadActivoId = v)),
-              _buildDropdown('Sede', _sedeActivoId, _sedes, 'sede',
+              _buildSearchableDropdown('Sede', _sedeActivoId, _sedes, 'sede',
                   (v) => setState(() => _sedeActivoId = v)),
               _buildTextField(_ipCtrl, 'IP (opcional)'),
               _buildDropdown('Marca', _marcaId, _marcas, 'marca_proveedor',
