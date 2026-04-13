@@ -395,7 +395,26 @@ class _MaintenancePageState extends State<MaintenancePage> {
                   : _errorMessage != null
                       ? Center(child: Text(_errorMessage!))
                       : _filteredMaintenances.isEmpty
-                          ? const Center(child: Text('No hay mantenimientos. Modifique los filtros.'))
+                          ? (_maintenances.isEmpty
+                              ? ValueListenableBuilder<bool>(
+                                  valueListenable: SyncQueueService.instance.isSyncingNotifier,
+                                  builder: (context, isSyncing, child) {
+                                    if (isSyncing) {
+                                      return const Center(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            CircularProgressIndicator(),
+                                            SizedBox(height: 16),
+                                            Text('Sincronizando mantenimientos por primera vez...', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                    return const Center(child: Text('No hay mantenimientos. Modifique los filtros.'));
+                                  },
+                                )
+                              : const Center(child: Text('No hay mantenimientos. Modifique los filtros.')))
                           : _isTableView ? _buildTableSection() : _buildListSection(),
             ),
           ],

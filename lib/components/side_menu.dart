@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:front_inventarios/auth/auth_service.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/login_page.dart';
+import 'package:front_inventarios/services/local_db_service.dart';
 
 /// Widget de menú lateral (Drawer) para la navegación principal de la aplicación.
 /// 
@@ -166,6 +167,11 @@ class SideMenu extends StatelessWidget {
                           Navigator.pop(dialogContext);
 
                           try {
+                            // Limpiar la caché local antes de cerrar sesión.
+                            // Esto evita que el siguiente usuario vea datos del anterior
+                            // mientras la nueva sesión descarga su propia caché.
+                            await LocalDbService.instance.clearAll();
+
                             // Cerrar sesión usando AuthService
                             await AuthService.signOut();
 

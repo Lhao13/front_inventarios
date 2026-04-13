@@ -13,6 +13,7 @@ class SyncQueueService {
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _internalIsSyncing = false;
+  bool _internalIsRefreshing = false;
   Timer? _pollingTimer; // Timer para autorecarga iterativa
 
   // Notifiers for UI
@@ -53,7 +54,7 @@ class SyncQueueService {
 
     // Arrancar el Polling Automático (Cada 30 segundos si hay internet)
     _pollingTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
-      if (isOnline) {
+      if (isOnline && supabase.auth.currentSession != null) {
         // debugPrint('⏲️ Polling automático ejecutándose...');
         // Llamar syncPendingOperations empuja a la nube y luego jala caché.
         // Como syncPendingOperations tiene candado, no sobrecargará si ya está ocupado.
@@ -69,6 +70,11 @@ class SyncQueueService {
 
   /// Evento lanzado cuando vuelve el internet
   Future<void> _handleInternetRecovered() async {
+    if (supabase.auth.currentSession == null) {
+      debugPrint('📡 Internet Recuperado pero no hay sesión activa. Posponiendo Sincronización.');
+      return;
+    }
+
     debugPrint('📡 Internet Recuperado. Iniciando Sincronización Automática...');
     
     // 1. Envía todo lo que se hizo offline (las escrituras ganan primero)
@@ -82,6 +88,8 @@ class SyncQueueService {
   /// Forzado manual desde la UI para empujar cambios pendientes y traer caché fresca
   Future<void> forceSyncAndRefresh() async {
     if (!isOnlineNotifier.value) return;
+    if (supabase.auth.currentSession == null) return;
+    
     debugPrint('🔄 Sincronización Manual Solicitada...');
     // 1. Intentamos subir (esto ignorará si ya hay otra subida en curso)
     await syncPendingOperations();
@@ -181,25 +189,20 @@ class SyncQueueService {
 
   /// Descarga absolutamente todas las tablas necesarias y las clona en SQLite
   Future<void> refreshCache() async {
+    if (supabase.auth.currentSession == null) return;
+    if (_internalIsRefreshing) return;
+    
+    _internalIsRefreshing = true;
+    if (!isSyncingNotifier.value) {
+      isSyncingNotifier.value = true;
+    }
+
     try {
       // Usaremos try/catch separados por si una falla, que no mate la recarga de las demás
       
-      // -- 1. Tabla de Activos Principal (Full Query)
+      // -- 1. Tabla de Activos Principal (Full Query Vía RPC)
       try {
-        final activosResponse = await supabase.from('activo').select('''
-          *,
-          info_pc(*, marca(marca_proveedor)),
-          info_equipo_comunicacion(*, marca(marca_proveedor)),
-          info_equipo_generico(*, marca(marca_proveedor)),
-          info_software(*),
-          tipo_activo(tipo),
-          condicion_activo(condicion),
-          ciudad_activo(ciudad),
-          sede_activo(sede),
-          area_activo(area),
-          proveedor(nombre),
-          custodio(nombre_completo)
-        ''');
+        final activosResponse = await supabase.rpc('get_activos_completos');
         // Salvamos en la colección 'activo' (cuyo ID primario es 'id' tipo UUID)
         await LocalDbService.instance.saveCollection('activo', List<Map<String, dynamic>>.from(activosResponse), 'id');
       } catch (e) { debugPrint('Error cacheando Activos: $e'); }
@@ -226,6 +229,11 @@ class SyncQueueService {
       onCacheUpdated.value = DateTime.now();
     } catch (e) {
       debugPrint('❌ Error general recargando caché: $e');
+    } finally {
+      _internalIsRefreshing = false;
+      if (!_internalIsSyncing) {
+        isSyncingNotifier.value = false;
+      }
     }
   }
 

@@ -541,6 +541,32 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
   }
 
   Widget _buildTableSection() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_filteredAssets.isEmpty) {
+      if (_allAssets.isEmpty) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: SyncQueueService.instance.isSyncingNotifier,
+          builder: (context, isSyncing, child) {
+            if (isSyncing) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Sincronizando inventario por primera vez...', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                  ],
+                ),
+              );
+            }
+            return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
+          },
+        );
+      } else {
+        return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
+      }
+    }
+
     return AssetDataTable(
       assets: _filteredAssets,
       columns: _genericColumns,
@@ -562,7 +588,30 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
 
   Widget _buildListSection() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_filteredAssets.isEmpty) return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
+    if (_filteredAssets.isEmpty) {
+      if (_allAssets.isEmpty) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: SyncQueueService.instance.isSyncingNotifier,
+          builder: (context, isSyncing, child) {
+            if (isSyncing) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Sincronizando inventario por primera vez...', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                  ],
+                ),
+              );
+            }
+            return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
+          },
+        );
+      } else {
+        return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
+      }
+    }
 
     return ListView.builder(
       itemCount: _filteredAssets.length,

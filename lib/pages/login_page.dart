@@ -5,6 +5,7 @@ import 'package:front_inventarios/pages/sign_up.dart';
 import 'package:front_inventarios/pages/main_page.dart';
 import 'package:front_inventarios/auth/auth_service.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
+import 'package:front_inventarios/services/sync_queue_service.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
 
@@ -61,6 +62,11 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const MainPage()),
         );
+
+        // Forzar descarga inmediata de caché al iniciar sesión.
+        // Esto garantiza que los datos estén actualizados sin esperar al
+        // listener de conectividad (que no se dispara si ya había internet).
+        SyncQueueService.instance.forceSyncAndRefresh();
       }
     } on AuthException catch (error) {
       if (mounted) context.showSnackBar(error.message, isError: true);
