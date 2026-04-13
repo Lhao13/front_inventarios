@@ -35,7 +35,7 @@ class SyncQueueService {
         _handleInternetRecovered();
       } else {
         isOnlineNotifier.value = false;
-        print('📡 Señal Perdida: Modo Offline Activo');
+        debugPrint('📡 Señal Perdida: Modo Offline Activo');
       }
     });
 
@@ -54,7 +54,7 @@ class SyncQueueService {
     // Arrancar el Polling Automático (Cada 30 segundos si hay internet)
     _pollingTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
       if (isOnline) {
-        // print('⏲️ Polling automático ejecutándose...');
+        // debugPrint('⏲️ Polling automático ejecutándose...');
         // Llamar syncPendingOperations empuja a la nube y luego jala caché.
         // Como syncPendingOperations tiene candado, no sobrecargará si ya está ocupado.
         await forceSyncAndRefresh();
@@ -69,20 +69,20 @@ class SyncQueueService {
 
   /// Evento lanzado cuando vuelve el internet
   Future<void> _handleInternetRecovered() async {
-    print('📡 Internet Recuperado. Iniciando Sincronización Automática...');
+    debugPrint('📡 Internet Recuperado. Iniciando Sincronización Automática...');
     
     // 1. Envía todo lo que se hizo offline (las escrituras ganan primero)
     await syncPendingOperations();
 
     // 2. Descarga lo más reciente (para tener el cache de lectura fresco)
     await refreshCache();
-    print('📡 Sincronización Completada.');
+    debugPrint('📡 Sincronización Completada.');
   }
 
   /// Forzado manual desde la UI para empujar cambios pendientes y traer caché fresca
   Future<void> forceSyncAndRefresh() async {
     if (!isOnlineNotifier.value) return;
-    print('🔄 Sincronización Manual Solicitada...');
+    debugPrint('🔄 Sincronización Manual Solicitada...');
     // 1. Intentamos subir (esto ignorará si ya hay otra subida en curso)
     await syncPendingOperations();
     // 2. Obligamos a recargar la caché sí o sí
@@ -110,7 +110,7 @@ class SyncQueueService {
         return;
       }
 
-      print('🔄 Sincronizando ${pendingOps.length} operaciones pendientes...');
+      debugPrint('🔄 Sincronizando ${pendingOps.length} operaciones pendientes...');
 
       for (var op in pendingOps) {
         final id = op['id'] as String;
@@ -140,11 +140,11 @@ class SyncQueueService {
           // Si fue un éxito o un 200, eliminamos de la cola local
           await LocalDbService.instance.removeOperation(id);
           anythingSynced = true;
-          print('✅ Operación $id ($rpcName) enviada con éxito.');
+          debugPrint('✅ Operación $id ($rpcName) enviada con éxito.');
           
         } catch (e) {
           // Si hay error en Supabase (ej: Unique Constraint, Error 500)
-          print('❌ Error enviando Operación $id ($rpcName): $e');
+          debugPrint('❌ Error enviando Operación $id ($rpcName): $e');
           
           final errorString = e.toString();
           // Errores permanentes: PGRST202 (función no encontrada), 23505 (llave duplicada), 23503 (llave foránea), P0001 (Activo no existe o conflicto en código)
@@ -152,7 +152,7 @@ class SyncQueueService {
               errorString.contains('code: 23505') || 
               errorString.contains('code: P0001') || 
               errorString.contains('code: 23503')) {
-            print('⚠️ Marcando operación $id ($rpcName) como FALLIDA (error permanente) para no reintentar infinitamente.');
+            debugPrint('⚠️ Marcando operación $id ($rpcName) como FALLIDA (error permanente) para no reintentar infinitamente.');
             await LocalDbService.instance.updateOperationStatus(id, 'failed', errorMsg: errorString);
             hasPermanentError = true;
           }
@@ -164,11 +164,11 @@ class SyncQueueService {
       }
 
       if (anythingSynced || hasPermanentError) {
-        print('🔄 Operaciones sincronizadas o procesadas, actualizando cache local desde supabase para corregir UI...');
+        debugPrint('🔄 Operaciones sincronizadas o procesadas, actualizando cache local desde supabase para corregir UI...');
         await refreshCache();
       }
     } catch (e) {
-      print('❌ Falla Crítica en SyncQueue: $e');
+      debugPrint('❌ Falla Crítica en SyncQueue: $e');
     } finally {
       _internalIsSyncing = false;
       isSyncingNotifier.value = false;
@@ -202,7 +202,7 @@ class SyncQueueService {
         ''');
         // Salvamos en la colección 'activo' (cuyo ID primario es 'id' tipo UUID)
         await LocalDbService.instance.saveCollection('activo', List<Map<String, dynamic>>.from(activosResponse), 'id');
-      } catch (e) { print('Error cacheando Activos: $e'); }
+      } catch (e) { debugPrint('Error cacheando Activos: $e'); }
 
       // -- 2. Tabla Mantenimientos
       try {
@@ -210,7 +210,7 @@ class SyncQueueService {
             .from('mantenimiento')
             .select('*, activo(numero_serie, tipo_activo(tipo))');
         await LocalDbService.instance.saveCollection('mantenimiento', List<Map<String, dynamic>>.from(mttoResponse), 'id');
-      } catch (e) { print('Error cacheando Mantenimientos: $e'); }
+      } catch (e) { debugPrint('Error cacheando Mantenimientos: $e'); }
 
       // -- 3. Tablas Maestras
       await _cacheSimpleTable('tipo_activo');
@@ -225,7 +225,7 @@ class SyncQueueService {
       // Notificar a toda la interfaz que los datos han cambiado
       onCacheUpdated.value = DateTime.now();
     } catch (e) {
-      print('❌ Error general recargando caché: $e');
+      debugPrint('❌ Error general recargando caché: $e');
     }
   }
 
@@ -234,7 +234,8 @@ class SyncQueueService {
       final resp = await supabase.from(tableName).select();
       await LocalDbService.instance.saveCollection(tableName, List<Map<String, dynamic>>.from(resp), 'id');
     } catch (e) {
-      print('Error en caching de tabla maestra $tableName: $e');
+      debugPrint('Error en caching de tabla maestra $tableName: $e');
     }
   }
 }
+

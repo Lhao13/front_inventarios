@@ -49,7 +49,7 @@ class _LoginPageState extends State<LoginPage> {
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       } catch (e) {
-        print('Error saving local hash: $e');
+        debugPrint('Error saving local hash: $e');
       }
 
       if (mounted) {

@@ -19,28 +19,20 @@ class MaintenancePage extends StatefulWidget {
 
 class _MaintenancePageState extends State<MaintenancePage> {
   bool _isLoading = true;
-  bool _isLoadingAssets = true;
   String? _errorMessage;
   List<Map<String, dynamic>> _maintenances = [];
   List<Map<String, dynamic>> _assets = [];
-
-  final _formKey = GlobalKey<FormState>();
   
   // Variables for view and filters
   bool _isTableView = true;
   List<Map<String, dynamic>> _filteredMaintenances = [];
 
   // Filter models
-  List<String> _selectedTipos = [];
-  List<String> _selectedEstados = [];
-  List<String> _selectedActivosStr = [];
+  final List<String> _selectedTipos = [];
+  final List<String> _selectedEstados = [];
+  final List<String> _selectedActivosStr = [];
   DateTimeRange? _rangoProgramada;
   DateTimeRange? _rangoRealizada;
-
-  DateTime? _selectedDate;
-
-  final List<String> _tipoOptions = ['Preventivo', 'Correctivo'];
-  final List<String> _estadoOptions = ['Pendiente', 'En Proceso', 'Cancelado'];
 
   late final List<AssetColumnDef> _columns = [
     AssetColumnDef(label: 'Activo', getValue: (m) => _getAssetDisplayInfo(m)),
@@ -132,7 +124,6 @@ class _MaintenancePageState extends State<MaintenancePage> {
   }
 
   Future<void> _loadAssets({bool showLoading = true}) async {
-    if (showLoading && mounted) setState(() => _isLoadingAssets = true);
     try {
       final localActivos = await LocalDbService.instance.getCollection('activo');
       final filtered = localActivos
@@ -145,12 +136,11 @@ class _MaintenancePageState extends State<MaintenancePage> {
       if (mounted) {
         setState(() {
           _assets = filtered;
-          _isLoadingAssets = false;
         });
         _applyFilters();
       }
     } catch (e) {
-      if (mounted) print('Error loading assets: $e');
+      if (mounted) debugPrint('Error loading assets: $e');
     }
   }
 

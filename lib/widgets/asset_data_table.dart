@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:front_inventarios/auth/role_service.dart';
-import 'package:front_inventarios/widgets/map_dialog.dart';
 import 'package:front_inventarios/widgets/asset_data_source.dart';
-import 'package:front_inventarios/main.dart';
 
 /// Defines a single column in the [AssetDataTable].
 /// [label] is the header text. [getValue] extracts the display value from an

@@ -223,7 +223,9 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
 
                         if (!mounted) return;
                         context.showSnackBar('Activo actualizado correctamente.');
-                        Navigator.pop(dialogContext);
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                        }
                         _fetchAsset(); // Recargar datos
                       } catch (error) {
                         if (!mounted) return;
@@ -252,11 +254,17 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
 
   Map<String, dynamic>? _getSpecificInfo(Map<String, dynamic> asset, String category) {
     String key;
-    if (category == 'PC') key = 'info_pc';
-    else if (category == 'SOFTWARE') key = 'info_software';
-    else if (category == 'COMUNICACION') key = 'info_equipo_comunicacion';
-    else if (category == 'GENERICO') key = 'info_equipo_generico';
-    else return null;
+    if (category == 'PC') {
+      key = 'info_pc';
+    } else if (category == 'SOFTWARE') {
+      key = 'info_software';
+    } else if (category == 'COMUNICACION') {
+      key = 'info_equipo_comunicacion';
+    } else if (category == 'GENERICO') {
+      key = 'info_equipo_generico';
+    } else {
+      return null;
+    }
 
     final list = asset[key];
     if (list is List && list.isNotEmpty) return list[0] as Map<String, dynamic>?;

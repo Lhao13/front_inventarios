@@ -222,7 +222,7 @@ class _MainPageState extends State<MainPage> {
                           await LocalDbService.instance.removeOperation(
                             op['id'] as String,
                           );
-                          if (mounted) {
+                          if (ctx.mounted) {
                             Navigator.pop(ctx);
                             _showSyncErrorsDialog(); // Recargar diálogo
                           }
@@ -249,9 +249,9 @@ class _MainPageState extends State<MainPage> {
                 );
               }
               SyncQueueService.instance.hasSyncErrorsNotifier.value = false;
-              if (mounted) {
+              if (ctx.mounted) {
                 Navigator.pop(ctx);
-                context.showSnackBar('Cola de errores limpiada.');
+                if (mounted) context.showSnackBar('Cola de errores limpiada.');
               }
             },
             child: const Text(
@@ -507,14 +507,14 @@ class _HomePageState extends State<_HomePage> {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color, color.withBlue(color.blue + 50)],
+          colors: [color, color.withValues(alpha: 0.6)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -526,7 +526,7 @@ class _HomePageState extends State<_HomePage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 48, color: Colors.white),
@@ -648,10 +648,10 @@ class _HomePageState extends State<_HomePage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3), width: 2),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -667,7 +667,7 @@ class _HomePageState extends State<_HomePage> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: color.withOpacity(0.9),
+                color: color.withValues(alpha: 0.9),
                 fontSize: 14,
               ),
             ),

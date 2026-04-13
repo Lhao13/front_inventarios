@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/pages/login_page.dart';
-import 'package:front_inventarios/pages/main_page.dart';
 import 'package:front_inventarios/pages/lock_screen_page.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 

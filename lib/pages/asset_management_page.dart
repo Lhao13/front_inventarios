@@ -276,21 +276,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     return masterList.where((m) => validKeys.contains(m['id'])).toList();
   }
 
-  Widget _buildDrawerTextField(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: 'Ej: val1, val2',
-          border: const OutlineInputBorder(),
-          isDense: true,
-        ),
-        onChanged: (_) => _applyFilters(),
-      ),
-    );
-  }
+
 
   Widget _buildDrawerDateFilter(String label, DateTimeRange? currentRange, ValueChanged<DateTimeRange?> onChanged) {
     return ListTile(

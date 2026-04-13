@@ -181,7 +181,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
 
                           try {
                             if (isUpdate) {
-                              await supabase.from(_selectedTable).update(payload).eq('id', existingRow!['id']);
+                              await supabase.from(_selectedTable).update(payload).eq('id', existingRow['id']);
                               if (!mounted) return;
                               context.showSnackBar('Registro actualizado');
                             } else {

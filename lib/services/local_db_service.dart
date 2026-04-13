@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -223,7 +224,7 @@ class LocalDbService {
         await db.delete('cache_storage', where: 'collection = ? AND id = ?', whereArgs: ['activo', id]);
       }
     } catch (e) {
-      print('Aviso: Error inyectando cache optimista: $e');
+      debugPrint('Aviso: Error inyectando cache optimista: $e');
     }
   }
 

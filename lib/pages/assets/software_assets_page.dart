@@ -55,7 +55,7 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
   List<int> _selectedCondiciones = [];
   List<int> _selectedAreas = [];
   List<int> _selectedCustodios = [];
-  List<int> _selectedProveedores = [];
+  final List<int> _selectedProveedores = [];
 
   final List<String> _selectedNombres = [];
   final List<String> _selectedCodigos = [];
@@ -290,7 +290,9 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
                           SyncQueueService.instance.syncPendingOperations();
                         }
                         
-                        Navigator.pop(dialogContext);
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                        }
                         _loadAssets();
                       } catch (error) {
                         if (!mounted) return;

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
@@ -25,7 +26,7 @@ void main() {
           .from('usuario_rol')
           .select('*, rol(*)')
           .eq('user_id', res.session!.user.id);
-      print('Leandro role details: $dbRes');
+      debugPrint('Leandro role details: $dbRes');
       
       await supabase.auth.signOut();
 
@@ -40,7 +41,7 @@ void main() {
           .from('usuario_rol')
           .select('*, rol(*)')
           .eq('user_id', res.session!.user.id);
-      print('VeroFI role details: $dbRes');
+      debugPrint('VeroFI role details: $dbRes');
     });
 
     test('Crear Activo PC and Delete Activo', () async {
@@ -48,7 +49,7 @@ void main() {
       final testDetailId = 999999;
       
       try {
-        print('Intentando crear activo...');
+        debugPrint('Intentando crear activo...');
         // If parameters are wrong, this will throw PostgrestException
         await supabase.rpc('crear_activo_pc', params: {
           "p_numero_serie": "HP-TEST-001",
@@ -75,9 +76,9 @@ void main() {
           "p_observaciones": "Equipo de prueba"
         });
 
-        print('Activo creado satisfactoriamente.');
+        debugPrint('Activo creado satisfactoriamente.');
       } catch (e) {
-        print('Error en crear_activo_pc: $e');
+        debugPrint('Error en crear_activo_pc: $e');
       }
 
       // Find the ID of the created asset
@@ -90,16 +91,16 @@ void main() {
 
         if (findResponse != null && findResponse['id'] != null) {
           final int createdId = findResponse['id'];
-          print('Intentando eliminar activo $createdId...');
+          debugPrint('Intentando eliminar activo $createdId...');
           await supabase.rpc('eliminar_activo', params: {
             'p_id_activo': createdId,
           });
-          print('Activo eliminado satisfactoriamente.');
+          debugPrint('Activo eliminado satisfactoriamente.');
         } else {
-           print('Activo no encontrado para eliminar.');
+           debugPrint('Activo no encontrado para eliminar.');
         }
       } catch (e) {
-        print('Error en eliminar_activo: $e');
+        debugPrint('Error en eliminar_activo: $e');
       }
     });
 
@@ -108,3 +109,4 @@ void main() {
     });
   });
 }
+
