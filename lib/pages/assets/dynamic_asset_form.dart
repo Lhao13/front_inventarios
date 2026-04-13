@@ -626,7 +626,18 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
               _buildTextField(_procesadorCtrl, 'Procesador'),
               _buildStringDropdown('RAM', _selectedRam, _ramOptions, (v) => setState(() => _selectedRam = v)),
               _buildStringDropdown('Almacenamiento', _selectedAlmacenamiento, _storageOptions, (v) => setState(() => _selectedAlmacenamiento = v)),
-              _buildTextField(_cargadorCodigoCtrl, 'Código Cargador'),
+              _buildTextField(
+                _cargadorCodigoCtrl, 
+                'Código Cargador',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.qr_code_scanner),
+                  tooltip: 'Escanear Código',
+                  onPressed: () async {
+                    final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(isOnlyNumeric: true)));
+                    if (result != null && result is String) setState(() => _cargadorCodigoCtrl.text = result);
+                  },
+                ),
+              ),
               _buildTextField(_numPuertosCtrl, 'Número de Puertos', isNumber: true),
             ],
 
@@ -636,7 +647,18 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
             ],
 
             if (_categoria == 'GENERICO') ...[
-              _buildTextField(_cargadorCodigoCtrl, 'Código Cargador'),
+              _buildTextField(
+                _cargadorCodigoCtrl, 
+                'Código Cargador',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.qr_code_scanner),
+                  tooltip: 'Escanear Código',
+                  onPressed: () async {
+                    final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(isOnlyNumeric: true)));
+                    if (result != null && result is String) setState(() => _cargadorCodigoCtrl.text = result);
+                  },
+                ),
+              ),
               _buildTextField(_numConexionesCtrl, 'Número de Conexiones', isNumber: true),
               _buildTextField(_varImpresoraColorCtrl, 'Impresora Color (opcional)'),
               _buildTextField(_varMonitorTipoConexionCtrl, 'Monitor Tipo Conexión (opcional)'),

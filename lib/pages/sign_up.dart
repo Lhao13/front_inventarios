@@ -77,56 +77,110 @@ class _SignUpPageState extends State<SignUpPage> {
 		super.dispose();
 	}
 
-	@override
-	Widget build(BuildContext context) {
-		return Scaffold(
-			body: Center(
-				child: ListView(
-					shrinkWrap: true,
-					physics: const NeverScrollableScrollPhysics(),
-					padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-					children: [
-						const Text(
-							'Crea tu cuenta',
-							textAlign: TextAlign.center,
-							style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-						),
-						const SizedBox(height: 30),
-						const Text(
-							'Ingresa tus datos para registrarte',
-							textAlign: TextAlign.center,
-						),
-						const SizedBox(height: 18),
-						TextFormField(
-							controller: _nameController,
-							decoration: const InputDecoration(labelText: 'Nombre'),
-						),
-						const SizedBox(height: 18),
-						TextFormField(
-							controller: _emailController,
-							decoration: const InputDecoration(labelText: 'Email'),
-							keyboardType: TextInputType.emailAddress,
-						),
-						const SizedBox(height: 18),
-						TextFormField(
-							controller: _passwordController,
-							decoration: const InputDecoration(labelText: 'Contraseña'),
-							obscureText: true,
-						),
-						const SizedBox(height: 18),
-						TextFormField(
-							controller: _confirmPasswordController,
-							decoration: const InputDecoration(labelText: 'Confirmar contraseña'),
-							obscureText: true,
-						),
-						const SizedBox(height: 18),
-						ElevatedButton(
-							onPressed: _isLoading ? null : _signUp,
-							child: Text(_isLoading ? 'Creando...' : 'Crear cuenta'),
-						),
-					],
-				),
-			),
-		);
-	}
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).primaryColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+          child: Container(
+            padding: const EdgeInsets.all(24.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.person_add_alt_1_outlined, size: 64, color: Theme.of(context).primaryColor),
+                const SizedBox(height: 16),
+                const Text(
+                  'Crea tu cuenta',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Ingresa tus datos para registrarte',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre',
+                    prefixIcon: Icon(Icons.person_outline),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Contraseña',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureConfirmPassword,
+                  decoration: InputDecoration(
+                    labelText: 'Confirmar contraseña',
+                    prefixIcon: const Icon(Icons.lock_reset_outlined),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                    ),
+                  ),
+                  onFieldSubmitted: (_) {
+                    if (!_isLoading) _signUp();
+                  },
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _signUp,
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('Crear cuenta', style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
