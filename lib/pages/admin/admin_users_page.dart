@@ -31,10 +31,8 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       // However, we can join usuario_rol, custadio, or use a custom RPC if necessary.
       // Let's first try to get from usuario_rol joined with rol
       // Consultamos una vista SQL personalizada para poder extraer el nombre desde auth.users
-      final response = await supabase
-          .from('vista_usuarios_admin')
-          .select();
-          
+      final response = await supabase.from('vista_usuarios_admin').select();
+
       if (!mounted) return;
       setState(() {
         _users = List<Map<String, dynamic>>.from(response);
@@ -53,7 +51,11 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     }
   }
 
-  Future<void> _changeUserRole(String userId, int newRoleId, String newRoleName) async {
+  Future<void> _changeUserRole(
+    String userId,
+    int newRoleId,
+    String newRoleName,
+  ) async {
     try {
       if (!mounted) return;
       showDialog(
@@ -62,7 +64,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      await supabase.from('usuario_rol').update({'rol_id': newRoleId}).eq('user_id', userId);
+      await supabase
+          .from('usuario_rol')
+          .update({'rol_id': newRoleId})
+          .eq('user_id', userId);
 
       if (mounted) {
         Navigator.pop(context); // close loader
@@ -83,10 +88,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       appBar: AppBar(
         title: const Text('Usuarios Registrados'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadUsers,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadUsers),
         ],
       ),
       body: Padding(
@@ -104,7 +106,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
           children: const [
             Icon(Icons.wifi_off, size: 64, color: Colors.grey),
             SizedBox(height: 16),
-            Text('Requiere conexión a internet para gestionar usuarios', style: TextStyle(fontSize: 16)),
+            Text(
+              'Requiere conexión a internet para gestionar usuarios',
+              style: TextStyle(fontSize: 16),
+            ),
           ],
         ),
       );
@@ -146,7 +151,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
           final rolStr = user['rol']?.toString().toUpperCase() ?? 'DESCONOCIDO';
           final email = user['email']?.toString() ?? 'Sin Email';
           final nombre = user['nombre_usuario']?.toString() ?? 'Sin Nombre';
-          
+
           int currentRoleId = 3; // Default PRESTAMO
           if (rolStr == 'ADMIN') currentRoleId = 1;
           if (rolStr == 'TI') currentRoleId = 2;
@@ -158,21 +163,55 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               backgroundColor: _getRoleColor(rolStr),
               child: const Icon(Icons.person, color: Colors.white),
             ),
-            title: Text('$nombre ($email)'),
-            subtitle: Text(isCurrentUser ? 'Este es tu usuario' : 'Rol: $rolStr\nID: $userId'),
+            title: Text('$nombre '),
+            subtitle: Text(
+              isCurrentUser
+                  ? 'Este es tu usuario'
+                  : 'Email: $email\nRol: $rolStr\nID: $userId',
+            ),
             isThreeLine: true,
             trailing: isCurrentUser
                 ? Chip(
-                    label: Text(rolStr, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    label: Text(
+                      rolStr,
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
                     backgroundColor: _getRoleColor(rolStr),
                   )
                 : DropdownButton<int>(
                     value: currentRoleId,
                     underline: Container(),
                     items: const [
-                      DropdownMenuItem(value: 1, child: Text('ADMIN', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold))),
-                      DropdownMenuItem(value: 2, child: Text('TI', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
-                      DropdownMenuItem(value: 3, child: Text('PRESTAMO', style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold))),
+                      DropdownMenuItem(
+                        value: 1,
+                        child: Text(
+                          'ADMIN',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 2,
+                        child: Text(
+                          'TI',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 3,
+                        child: Text(
+                          'PRESTAMO',
+                          style: TextStyle(
+                            color: Colors.purple,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ],
                     onChanged: (int? newValue) {
                       if (newValue != null && newValue != currentRoleId) {

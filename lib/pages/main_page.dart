@@ -45,7 +45,11 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sistema de Inventarios'),
+        title: const Text(
+          'Sistema de\nInventarios',
+          textScaler: TextScaler.linear(0.9),
+          textAlign: TextAlign.center,
+        ),
         actions: [
           ValueListenableBuilder<bool>(
             valueListenable: SyncQueueService.instance.hasSyncErrorsNotifier,
@@ -194,7 +198,10 @@ class _MainPageState extends State<MainPage> {
                     try {
                       params = jsonDecode(op['params_json'] as String);
                     } catch (_) {}
-                    final serie = params['p_numero_serie'] ?? params['numero_serie'] ?? '';
+                    final serie =
+                        params['p_numero_serie'] ??
+                        params['numero_serie'] ??
+                        '';
                     final nombre = params['p_nombre'] ?? params['nombre'] ?? '';
                     final tipo = op['rpc_name'].toString().replaceAll('_', ' ');
 

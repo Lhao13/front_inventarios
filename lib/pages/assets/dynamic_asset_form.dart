@@ -23,7 +23,7 @@ class DynamicAssetForm extends StatefulWidget {
     String? fechaEntrega,
     String? coordenada,
     String? nombre,
-    int? codigo,
+    String? codigo,
     String? ip,
     int? marcaId,
     String? modelo,
@@ -273,6 +273,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     TextEditingController controller,
     String label, {
     bool isNumber = false,
+    bool isNumericOnly = false,
     bool required = false,
     Widget? suffixIcon,
   }) {
@@ -280,7 +281,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
-        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+        keyboardType: (isNumber || isNumericOnly) ? TextInputType.number : TextInputType.text,
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
           isDense: true,
@@ -553,7 +554,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
             _buildTextField(
               _codigoCtrl, 
               'Código', 
-              isNumber: true,
+              isNumericOnly: true,
               suffixIcon: _categoria == 'SOFTWARE' ? null : IconButton(
                 icon: const Icon(Icons.qr_code_scanner),
                 tooltip: 'Escanear Código Numérico',
@@ -725,7 +726,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                               ? null
                               : _coordenadaCtrl.text,
                           nombre: _nombreCtrl.text.isEmpty ? null : _nombreCtrl.text,
-                          codigo: int.tryParse(_codigoCtrl.text),
+                          codigo: _codigoCtrl.text.isEmpty ? null : _codigoCtrl.text,
                           ip: _ipCtrl.text.isEmpty ? null : _ipCtrl.text,
                           marcaId: _marcaId,
                           modelo: _modeloCtrl.text.isEmpty ? null : _modeloCtrl.text,

@@ -104,10 +104,9 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
       columns = existingRow.keys.where((k) => k != 'id' && !excludedCols.contains(k)).toList();
     }
 
-    final Map<String, TextEditingController> controllers = {};
-    for (var col in columns) {
-      controllers[col] = TextEditingController(text: existingRow?[col]?.toString() ?? '');
-    }
+    final Map<String, String> fieldValues = {
+      for (var col in columns) col: existingRow?[col]?.toString() ?? '',
+    };
 
     final isUpdate = existingRow != null;
     bool saving = false;
@@ -124,7 +123,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: columns.map((col) {
                     if (_selectedTable == 'tipo_activo' && col == 'categoria') {
-                      final currentVal = controllers[col]!.text;
+                      final currentVal = fieldValues[col] ?? '';
                       final validOptions = ['PC', 'COMUNICACION', 'SOFTWARE', 'GENERICO'];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
@@ -138,7 +137,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                             return DropdownMenuItem(value: opt, child: Text(opt));
                           }).toList(),
                           onChanged: (val) {
-                            if (val != null) controllers[col]!.text = val;
+                            if (val != null) fieldValues[col] = val;
                           },
                         ),
                       );
@@ -146,8 +145,9 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12.0),
-                      child: TextField(
-                        controller: controllers[col],
+                      child: TextFormField(
+                        initialValue: fieldValues[col],
+                        onChanged: (value) => fieldValues[col] = value,
                         decoration: InputDecoration(
                           labelText: col.toUpperCase(),
                           border: const OutlineInputBorder(),
@@ -159,7 +159,14 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
               ),
               actions: [
                 TextButton(
-                  onPressed: saving ? null : () => Navigator.pop(dialogContext),
+                  onPressed: saving ? null : () async {
+                    // Cerrar el teclado antes de cerrar para evitar conflictos con la animación de salida
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    await Future.delayed(const Duration(milliseconds: 100));
+                    if (Navigator.canPop(dialogContext)) {
+                      Navigator.pop(dialogContext);
+                    }
+                  },
                   child: const Text('Cancelar'),
                 ),
                 ElevatedButton(
@@ -172,7 +179,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                           setDialogState(() => saving = true);
                           final Map<String, dynamic> payload = {};
                           for (var col in columns) {
-                            final text = controllers[col]!.text.trim();
+                            final text = fieldValues[col]?.trim() ?? '';
                             // Permitimos strings vacios si es actualizacion para borrar descripciones
                             if (text.isNotEmpty || isUpdate) {
                               payload[col] = text;
@@ -200,7 +207,10 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                           } catch (e) {
                             if (!mounted) return;
                             context.showSnackBar('Error al guardar: $e', isError: true);
-                            setDialogState(() => saving = false);
+                            // Solo actualizar estado si el diálogo sigue abierto
+                            if (sbContext.mounted) {
+                              setDialogState(() => saving = false);
+                            }
                           }
                         },
                   child: Text(saving ? 'Guardando...' : 'Guardar'),
@@ -211,10 +221,6 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
         );
       },
     );
-
-    for (var controller in controllers.values) {
-      controller.dispose();
-    }
   }
 
   @override

@@ -59,15 +59,25 @@ class _AssetDataTableState extends State<AssetDataTable> {
     };
   }
 
+  @override
+  void dispose() {
+    // Limpieza de recursos si es necesario
+    super.dispose();
+  }
+
   // When the column list changes (e.g. page navigation), re-init.
   @override
   void didUpdateWidget(AssetDataTable oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.columns != widget.columns) {
-      _visibleLabels = {
-        for (final col in widget.columns)
-          if (col.visibleByDefault) col.label,
-      };
+      if (mounted) {
+        setState(() {
+          _visibleLabels = {
+            for (final col in widget.columns)
+              if (col.visibleByDefault) col.label,
+          };
+        });
+      }
     }
   }
 
@@ -124,7 +134,9 @@ class _AssetDataTableState extends State<AssetDataTable> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    setState(() => _visibleLabels = Set.from(tempVisible));
+                    if (mounted) {
+                      setState(() => _visibleLabels = Set.from(tempVisible));
+                    }
                     Navigator.pop(ctx);
                   },
                   child: const Text('Aplicar'),

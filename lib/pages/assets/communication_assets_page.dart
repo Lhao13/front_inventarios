@@ -175,6 +175,7 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
 
   @override
   void dispose() {
+    // Remove listeners and clear resources to avoid memory leaks
     SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
     _selectedNombres.clear();
     _selectedCodigos.clear();
@@ -187,15 +188,21 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
   Future<void> _loadBrands() async {
     try {
       final res = await LocalDbService.instance.getCollection('marca');
-      if (mounted) setState(() => _marcas = res);
+      if (mounted) {
+        setState(() => _marcas = res);
+      }
     } catch (_) {}
   }
 
   Future<void> _loadAssets({bool showLoading = true}) async {
-    if (showLoading) setState(() => _isLoading = true);
+    if (showLoading && mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
-      final localActivos = await LocalDbService.instance.getCollection('activo');
-      
+      final localActivos = await LocalDbService.instance.getCollection(
+        'activo',
+      );
+
       final futures = await Future.wait([
         LocalDbService.instance.getCollection('tipo_activo'),
         LocalDbService.instance.getCollection('condicion_activo'),
@@ -209,7 +216,9 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
 
       if (mounted) {
         setState(() {
-          _tiposActivo = futures[0].where((t) => t['categoria'] == 'COMUNICACION').toList();
+          _tiposActivo = futures[0]
+              .where((t) => t['categoria'] == 'COMUNICACION')
+              .toList();
           _condiciones = futures[1];
           _sedes = futures[2];
           _areas = futures[3];
@@ -218,86 +227,151 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
           _proveedores = futures[6];
           _marcas = futures[7];
 
-          _allAssets = localActivos.where((a) => a['categoria_activo'] == 'COMUNICACION').toList();
-          _filteredAssets = _allAssets;
+          _allAssets = localActivos
+              .where((a) => a['categoria_activo'] == 'COMUNICACION')
+              .toList();
           _isLoading = false;
         });
         _applyFilters();
       }
     } catch (e) {
       if (mounted) {
-        context.showSnackBar('Error loading Comms assets: $e', isError: true);
+        context.showSnackBar('Error loading Communication assets: $e', isError: true);
         setState(() => _isLoading = false);
       }
     }
   }
 
   bool _assetMatches(Map<String, dynamic> asset, {String? ignoreField}) {
-    final info = asset['info_equipo_comunicacion'] != null && (asset['info_equipo_comunicacion'] as List).isNotEmpty ? (asset['info_equipo_comunicacion'] as List)[0] : null;
+    final info =
+        asset['info_equipo_comunicacion'] != null &&
+            (asset['info_equipo_comunicacion'] as List).isNotEmpty
+        ? (asset['info_equipo_comunicacion'] as List)[0]
+        : null;
 
-    bool matchesNombre = ignoreField == 'nombre' || _selectedNombres.isEmpty || _selectedNombres.contains((asset['nombre'] ?? '').toString());
-    bool matchesCodigo = ignoreField == 'codigo' || _selectedCodigos.isEmpty || _selectedCodigos.contains((asset['codigo'] ?? '').toString());
-    bool matchesSerie = ignoreField == 'numero_serie' || _selectedSeries.isEmpty || _selectedSeries.contains((asset['numero_serie'] ?? '').toString());
-    bool matchesModelo = ignoreField == 'modelo' || _selectedModelos.isEmpty || _selectedModelos.contains((info?['modelo'] ?? '').toString());
-    bool matchesPuertos = ignoreField == 'num_puertos' || _selectedPuertos.isEmpty || _selectedPuertos.contains((info?['num_puertos'] ?? '').toString());
+    bool matchesNombre =
+        ignoreField == 'nombre' ||
+        _selectedNombres.isEmpty ||
+        _selectedNombres.contains((asset['nombre'] ?? '').toString());
+    bool matchesCodigo =
+        ignoreField == 'codigo' ||
+        _selectedCodigos.isEmpty ||
+        _selectedCodigos.contains((asset['codigo'] ?? '').toString());
+    bool matchesSerie =
+        ignoreField == 'numero_serie' ||
+        _selectedSeries.isEmpty ||
+        _selectedSeries.contains((asset['numero_serie'] ?? '').toString());
+    bool matchesModelo =
+        ignoreField == 'modelo' ||
+        _selectedModelos.isEmpty ||
+        _selectedModelos.contains((info?['modelo'] ?? '').toString());
+    bool matchesPuertos =
+        ignoreField == 'num_puertos' ||
+        _selectedPuertos.isEmpty ||
+        _selectedPuertos.contains((info?['num_puertos'] ?? '').toString());
 
-    bool matchesTipo = ignoreField == 'id_tipo_activo' || _selectedTiposActivo.isEmpty || _selectedTiposActivo.contains(asset['id_tipo_activo']);
-    bool matchesCondicion = ignoreField == 'id_condicion_activo' || _selectedCondiciones.isEmpty || _selectedCondiciones.contains(asset['id_condicion_activo']);
-    bool matchesSede = ignoreField == 'id_sede_activo' || _selectedSedes.isEmpty || _selectedSedes.contains(asset['id_sede_activo']);
-    bool matchesArea = ignoreField == 'id_area_activo' || _selectedAreas.isEmpty || _selectedAreas.contains(asset['id_area_activo']);
-    bool matchesCiudad = ignoreField == 'id_ciudad_activo' || _selectedCiudades.isEmpty || _selectedCiudades.contains(asset['id_ciudad_activo']);
-    bool matchesCustodio = ignoreField == 'id_custodio' || _selectedCustodios.isEmpty || _selectedCustodios.contains(asset['id_custodio']);
-    bool matchesProveedor = ignoreField == 'id_provedor' || _selectedProveedores.isEmpty || _selectedProveedores.contains(asset['id_provedor']);
-    bool matchesMarca = ignoreField == 'id_marca' || _selectedMarcas.isEmpty || _selectedMarcas.contains(info?['id_marca']);
+    bool matchesTipo =
+        ignoreField == 'id_tipo_activo' ||
+        _selectedTiposActivo.isEmpty ||
+        _selectedTiposActivo.contains(asset['id_tipo_activo']);
+    bool matchesCondicion =
+        ignoreField == 'id_condicion_activo' ||
+        _selectedCondiciones.isEmpty ||
+        _selectedCondiciones.contains(asset['id_condicion_activo']);
+    bool matchesSede =
+        ignoreField == 'id_sede_activo' ||
+        _selectedSedes.isEmpty ||
+        _selectedSedes.contains(asset['id_sede_activo']);
+    bool matchesArea =
+        ignoreField == 'id_area_activo' ||
+        _selectedAreas.isEmpty ||
+        _selectedAreas.contains(asset['id_area_activo']);
+    bool matchesCiudad =
+        ignoreField == 'id_ciudad_activo' ||
+        _selectedCiudades.isEmpty ||
+        _selectedCiudades.contains(asset['id_ciudad_activo']);
+    bool matchesCustodio =
+        ignoreField == 'id_custodio' ||
+        _selectedCustodios.isEmpty ||
+        _selectedCustodios.contains(asset['id_custodio']);
+    bool matchesProveedor =
+        ignoreField == 'id_provedor' ||
+        _selectedProveedores.isEmpty ||
+        _selectedProveedores.contains(asset['id_provedor']);
+    bool matchesMarca =
+        ignoreField == 'id_marca' ||
+        _selectedMarcas.isEmpty ||
+        _selectedMarcas.contains(info?['id_marca']);
 
     bool matchesAdquisicion = true;
-    if (ignoreField != 'fecha_adquisicion' && _rangoAdquisicion != null && asset['fecha_adquisicion'] != null) {
+    if (ignoreField != 'fecha_adquisicion' &&
+        _rangoAdquisicion != null &&
+        asset['fecha_adquisicion'] != null) {
       try {
         final dt = DateTime.parse(asset['fecha_adquisicion'].toString());
-        if (dt.isBefore(_rangoAdquisicion!.start) || dt.isAfter(_rangoAdquisicion!.end)) matchesAdquisicion = false;
+        if (dt.isBefore(_rangoAdquisicion!.start) ||
+            dt.isAfter(_rangoAdquisicion!.end))
+          matchesAdquisicion = false;
       } catch (_) {}
     }
 
     bool matchesEntrega = true;
-    if (ignoreField != 'fecha_entrega' && _rangoEntrega != null && asset['fecha_entrega'] != null) {
+    if (ignoreField != 'fecha_entrega' &&
+        _rangoEntrega != null &&
+        asset['fecha_entrega'] != null) {
       try {
         final dt = DateTime.parse(asset['fecha_entrega'].toString());
-        if (dt.isBefore(_rangoEntrega!.start) || dt.isAfter(_rangoEntrega!.end)) matchesEntrega = false;
+        if (dt.isBefore(_rangoEntrega!.start) || dt.isAfter(_rangoEntrega!.end))
+          matchesEntrega = false;
       } catch (_) {}
     }
 
-    return matchesNombre && matchesCodigo && matchesSerie && matchesModelo && matchesPuertos &&
-           matchesTipo && matchesCondicion && matchesSede &&
-           matchesArea && matchesCiudad && matchesCustodio &&
-           matchesProveedor && matchesMarca &&
-           matchesAdquisicion && matchesEntrega;
+    return matchesNombre &&
+        matchesCodigo &&
+        matchesSerie &&
+        matchesModelo &&
+        matchesPuertos &&
+        matchesTipo &&
+        matchesCondicion &&
+        matchesSede &&
+        matchesArea &&
+        matchesCiudad &&
+        matchesCustodio &&
+        matchesProveedor &&
+        matchesMarca &&
+        matchesAdquisicion &&
+        matchesEntrega;
   }
 
   void _applyFilters() {
-    setState(() {
-      _filteredAssets = _allAssets.where((a) => _assetMatches(a)).toList();
-    });
+    if (mounted) {
+      setState(() {
+        _filteredAssets = _allAssets.where((a) => _assetMatches(a)).toList();
+      });
+    }
   }
 
   void _clearFilters() {
-    setState(() {
-      _selectedTiposActivo.clear();
-      _selectedCondiciones.clear();
-      _selectedSedes.clear();
-      _selectedAreas.clear();
-      _selectedCiudades.clear();
-      _selectedCustodios.clear();
-      _selectedProveedores.clear();
-      _selectedMarcas.clear();
-      _selectedNombres.clear();
-      _selectedCodigos.clear();
-      _selectedSeries.clear();
-      _selectedModelos.clear();
-      _selectedPuertos.clear();
-      _rangoAdquisicion = null;
-      _rangoEntrega = null;
-    });
-    _applyFilters();
+    if (mounted) {
+      setState(() {
+        _selectedTiposActivo.clear();
+        _selectedCondiciones.clear();
+        _selectedSedes.clear();
+        _selectedAreas.clear();
+        _selectedCiudades.clear();
+        _selectedCustodios.clear();
+        _selectedProveedores.clear();
+        _selectedMarcas.clear();
+        _selectedNombres.clear();
+        _selectedCodigos.clear();
+        _selectedSeries.clear();
+        _selectedModelos.clear();
+        _selectedPuertos.clear();
+        _rangoAdquisicion = null;
+        _rangoEntrega = null;
+      });
+      _applyFilters();
+    }
   }
 
   Future<void> _deleteAsset(String id) async {
@@ -323,9 +397,13 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
     if (confirmar != true) return;
 
     try {
-      await LocalDbService.instance.enqueueOperation('eliminar_activo', {'p_id_activo': id});
-      if (SyncQueueService.instance.isOnline) SyncQueueService.instance.syncPendingOperations();
-      if (mounted) context.showSnackBar('Activo eliminado localmente (Cola activada).');
+      await LocalDbService.instance.enqueueOperation('eliminar_activo', {
+        'p_id_activo': id,
+      });
+      if (SyncQueueService.instance.isOnline)
+        SyncQueueService.instance.syncPendingOperations();
+      if (mounted)
+        context.showSnackBar('Activo eliminado localmente (Cola activada).');
       _loadAssets();
     } catch (e) {
       if (mounted) context.showSnackBar('Error al eliminar: $e', isError: true);
@@ -396,7 +474,7 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
                           String? fechaEntrega,
                           String? coordenada,
                           String? nombre,
-                          int? codigo,
+                          String? codigo,
                           String? ip,
                           int? marcaId,
                           String? modelo,
@@ -439,20 +517,30 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
 
                             if (isUpdate) {
                               params['p_id_activo'] = existingAsset['id'];
-                              await LocalDbService.instance.enqueueOperation('actualizar_activo_equipo_comunicacion', params);
+                              await LocalDbService.instance.enqueueOperation(
+                                'actualizar_activo_equipo_comunicacion',
+                                params,
+                              );
                               if (!mounted) return;
-                              context.showSnackBar('Activo Comunicación actualizado localmente.');
+                              context.showSnackBar(
+                                'Activo Comunicación actualizado localmente.',
+                              );
                             } else {
                               params['p_id_activo'] = const Uuid().v4();
-                              await LocalDbService.instance.enqueueOperation('crear_activo_equipo_comunicacion', params);
+                              await LocalDbService.instance.enqueueOperation(
+                                'crear_activo_equipo_comunicacion',
+                                params,
+                              );
                               if (!mounted) return;
-                              context.showSnackBar('Activo Comunicación creado localmente.');
+                              context.showSnackBar(
+                                'Activo Comunicación creado localmente.',
+                              );
                             }
-                            
+
                             if (SyncQueueService.instance.isOnline) {
                               SyncQueueService.instance.syncPendingOperations();
                             }
-                            
+
                             Navigator.pop(dialogContext);
                             _loadAssets();
                           } catch (error) {
@@ -506,16 +594,21 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
     );
   }
 
-  List<Map<String, dynamic>> _getUniquePredictiveList(String key, {String? subKey}) {
+  List<Map<String, dynamic>> _getUniquePredictiveList(
+    String key, {
+    String? subKey,
+  }) {
     if (_allAssets.isEmpty) return [];
-    final possibleAssets = _allAssets.where((a) => _assetMatches(a, ignoreField: key));
+    final possibleAssets = _allAssets.where(
+      (a) => _assetMatches(a, ignoreField: key),
+    );
     final items = possibleAssets
         .map((a) {
           if (subKey != null) {
             final info = _info(a, subKey);
             return info?[key]?.toString();
           }
-           return a[key]?.toString();
+          return a[key]?.toString();
         })
         .where((val) => val != null && val.trim().isNotEmpty)
         .toSet()
@@ -524,22 +617,26 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
     return items.map((val) => {'id': val, 'valor': val}).toList();
   }
 
-  List<Map<String, dynamic>> _getFilteredMasterList(List<Map<String, dynamic>> masterList, String ignoreField) {
+  List<Map<String, dynamic>> _getFilteredMasterList(
+    List<Map<String, dynamic>> masterList,
+    String ignoreField,
+  ) {
     if (_allAssets.isEmpty || masterList.isEmpty) return [];
     final validKeys = <int>{};
-    for (var a in _allAssets.where((asset) => _assetMatches(asset, ignoreField: ignoreField))) {
+    for (var a in _allAssets.where(
+      (asset) => _assetMatches(asset, ignoreField: ignoreField),
+    )) {
       if (ignoreField == 'id_marca') {
-         final info = _info(a, 'info_equipo_comunicacion');
-         if (info != null && info['id_marca'] != null) validKeys.add(info['id_marca']);
+        final info = _info(a, 'info_equipo_comunicacion');
+        if (info != null && info['id_marca'] != null)
+          validKeys.add(info['id_marca']);
       } else {
-         final val = a[ignoreField];
-         if (val is int) validKeys.add(val);
+        final val = a[ignoreField];
+        if (val is int) validKeys.add(val);
       }
     }
     return masterList.where((m) => validKeys.contains(m['id'])).toList();
   }
-
-
 
   Widget _buildDrawerDateFilter(
     String label,
@@ -581,15 +678,18 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Equipos Comunicación'),
+        title: const Text(
+          'Equipos Comunicación',
+          textScaler: TextScaler.linear(1),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh), 
+            icon: const Icon(Icons.refresh),
             tooltip: 'Sincronizar Datos',
             onPressed: () async {
               await SyncQueueService.instance.forceSyncAndRefresh();
               await _loadAssets();
-            }
+            },
           ),
           Builder(
             builder: (context) => IconButton(
@@ -606,184 +706,223 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
           bottom: true,
           child: Column(
             children: [
-            Container(
-              padding: const EdgeInsets.only(
-                top: 48,
-                bottom: 16,
-                left: 16,
-                right: 16,
-              ),
-              color: Colors.blue.shade50,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Filtros Comms',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  TextButton(
-                    onPressed: _clearFilters,
-                    child: const Text('Limpiar Todos'),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'Identificadores Predictivos',
+              Container(
+                padding: const EdgeInsets.only(
+                  top: 48,
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                ),
+                color: Colors.blue.shade50,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Filtros Comms',
                       style: TextStyle(
-                        color: Colors.blue,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                  _buildDrawerFilterButton<String>('Nombres', _selectedNombres, _getUniquePredictiveList('nombre'), 'valor'),
-                  _buildDrawerFilterButton<String>('Códigos', _selectedCodigos, _getUniquePredictiveList('codigo'), 'valor'),
-                  _buildDrawerFilterButton<String>('Números de Serie', _selectedSeries, _getUniquePredictiveList('numero_serie'), 'valor'),
-                  _buildDrawerFilterButton<String>('Modelos', _selectedModelos, _getUniquePredictiveList('modelo', subKey: 'info_equipo_comunicacion'), 'valor'),
-                  _buildDrawerFilterButton<String>('Num Puertos', _selectedPuertos, _getUniquePredictiveList('num_puertos', subKey: 'info_equipo_comunicacion'), 'valor'),
+                    TextButton(
+                      onPressed: _clearFilters,
+                      child: const Text('Limpiar Todos'),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Identificadores Predictivos',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    _buildDrawerFilterButton<String>(
+                      'Nombres',
+                      _selectedNombres,
+                      _getUniquePredictiveList('nombre'),
+                      'valor',
+                    ),
+                    _buildDrawerFilterButton<String>(
+                      'Códigos',
+                      _selectedCodigos,
+                      _getUniquePredictiveList('codigo'),
+                      'valor',
+                    ),
+                    _buildDrawerFilterButton<String>(
+                      'Números de Serie',
+                      _selectedSeries,
+                      _getUniquePredictiveList('numero_serie'),
+                      'valor',
+                    ),
+                    _buildDrawerFilterButton<String>(
+                      'Modelos',
+                      _selectedModelos,
+                      _getUniquePredictiveList(
+                        'modelo',
+                        subKey: 'info_equipo_comunicacion',
+                      ),
+                      'valor',
+                    ),
+                    _buildDrawerFilterButton<String>(
+                      'Num Puertos',
+                      _selectedPuertos,
+                      _getUniquePredictiveList(
+                        'num_puertos',
+                        subKey: 'info_equipo_comunicacion',
+                      ),
+                      'valor',
+                    ),
 
-                  const Divider(),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'Listas Maestras',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
+                    const Divider(),
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Listas Maestras',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  _buildDrawerFilterButton(
-                    'Tipo Activo',
-                    _selectedTiposActivo,
-                    _getFilteredMasterList(_tiposActivo, 'id_tipo_activo'),
-                    'tipo',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Condición',
-                    _selectedCondiciones,
-                    _getFilteredMasterList(_condiciones, 'id_condicion_activo'),
-                    'condicion',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Custodio',
-                    _selectedCustodios,
-                    _getFilteredMasterList(_custodios, 'id_custodio'),
-                    'nombre_completo',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Sede',
-                    _selectedSedes,
-                    _getFilteredMasterList(_sedes, 'id_sede_activo'),
-                    'sede',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Área',
-                    _selectedAreas,
-                    _getFilteredMasterList(_areas, 'id_area_activo'),
-                    'area',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Ciudad',
-                    _selectedCiudades,
-                    _getFilteredMasterList(_ciudades, 'id_ciudad_activo'),
-                    'ciudad',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Proveedor',
-                    _selectedProveedores,
-                    _getFilteredMasterList(_proveedores, 'id_provedor'),
-                    'nombre',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Marca',
-                    _selectedMarcas,
-                    _getFilteredMasterList(_marcas, 'id_marca'),
-                    'marca_proveedor',
-                  ),
+                    _buildDrawerFilterButton(
+                      'Tipo Activo',
+                      _selectedTiposActivo,
+                      _getFilteredMasterList(_tiposActivo, 'id_tipo_activo'),
+                      'tipo',
+                    ),
+                    _buildDrawerFilterButton(
+                      'Condición',
+                      _selectedCondiciones,
+                      _getFilteredMasterList(
+                        _condiciones,
+                        'id_condicion_activo',
+                      ),
+                      'condicion',
+                    ),
+                    _buildDrawerFilterButton(
+                      'Custodio',
+                      _selectedCustodios,
+                      _getFilteredMasterList(_custodios, 'id_custodio'),
+                      'nombre_completo',
+                    ),
+                    _buildDrawerFilterButton(
+                      'Sede',
+                      _selectedSedes,
+                      _getFilteredMasterList(_sedes, 'id_sede_activo'),
+                      'sede',
+                    ),
+                    _buildDrawerFilterButton(
+                      'Área',
+                      _selectedAreas,
+                      _getFilteredMasterList(_areas, 'id_area_activo'),
+                      'area',
+                    ),
+                    _buildDrawerFilterButton(
+                      'Ciudad',
+                      _selectedCiudades,
+                      _getFilteredMasterList(_ciudades, 'id_ciudad_activo'),
+                      'ciudad',
+                    ),
+                    _buildDrawerFilterButton(
+                      'Proveedor',
+                      _selectedProveedores,
+                      _getFilteredMasterList(_proveedores, 'id_provedor'),
+                      'nombre',
+                    ),
+                    _buildDrawerFilterButton(
+                      'Marca',
+                      _selectedMarcas,
+                      _getFilteredMasterList(_marcas, 'id_marca'),
+                      'marca_proveedor',
+                    ),
 
-                  const Divider(),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'Rango de Fechas',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
+                    const Divider(),
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Rango de Fechas',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  _buildDrawerDateFilter(
-                    'Fecha de Adquisición',
-                    _rangoAdquisicion,
-                    (r) => setState(() => _rangoAdquisicion = r),
-                  ),
-                  _buildDrawerDateFilter(
-                    'Fecha de Entrega',
-                    _rangoEntrega,
-                    (r) => setState(() => _rangoEntrega = r),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                    _buildDrawerDateFilter(
+                      'Fecha de Adquisición',
+                      _rangoAdquisicion,
+                      (r) => setState(() => _rangoAdquisicion = r),
+                    ),
+                    _buildDrawerDateFilter(
+                      'Fecha de Entrega',
+                      _rangoEntrega,
+                      (r) => setState(() => _rangoEntrega = r),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
       body: SafeArea(
         bottom: true,
         child: Padding(
           padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment<bool>(
-                      value: false,
-                      icon: Icon(Icons.view_list),
-                      label: Text('Lista'),
-                    ),
-                    ButtonSegment<bool>(
-                      value: true,
-                      icon: Icon(Icons.table_chart),
-                      label: Text('Tabla'),
-                    ),
-                  ],
-                  selected: {_isTableView},
-                  onSelectionChanged: (Set<bool> newSelection) {
-                    setState(() {
-                      _isTableView = newSelection.first;
-                    });
-                  },
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => _showAssetDialog(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Agregar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment<bool>(
+                        value: false,
+                        icon: Icon(Icons.view_list),
+                        label: Text('Lista'),
+                      ),
+                      ButtonSegment<bool>(
+                        value: true,
+                        icon: Icon(Icons.table_chart),
+                        label: Text('Tabla'),
+                      ),
+                    ],
+                    selected: {_isTableView},
+                    onSelectionChanged: (Set<bool> newSelection) {
+                      setState(() {
+                        _isTableView = newSelection.first;
+                      });
+                    },
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: _isTableView ? _buildTableSection() : _buildListSection(),
-            ),
-          ],
+                  ElevatedButton.icon(
+                    onPressed: () => _showAssetDialog(),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Agregar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: _isTableView
+                    ? _buildTableSection()
+                    : _buildListSection(),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
       floatingActionButton: Builder(
         builder: (context) => FloatingActionButton.extended(
@@ -810,16 +949,25 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(height: 16),
-                    Text('Sincronizando inventario por primera vez...', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                    Text(
+                      'Sincronizando inventario por primera vez...',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
                   ],
                 ),
               );
             }
-            return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
+            return const Center(
+              child: Text(
+                'No hay activos para mostrar. Modifique los filtros.',
+              ),
+            );
           },
         );
       } else {
-        return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
+        return const Center(
+          child: Text('No hay activos para mostrar. Modifique los filtros.'),
+        );
       }
     }
 
@@ -856,16 +1004,25 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(height: 16),
-                    Text('Sincronizando inventario por primera vez...', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                    Text(
+                      'Sincronizando inventario por primera vez...',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
                   ],
                 ),
               );
             }
-            return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
+            return const Center(
+              child: Text(
+                'No hay activos para mostrar. Modifique los filtros.',
+              ),
+            );
           },
         );
       } else {
-        return const Center(child: Text('No hay activos para mostrar. Modifique los filtros.'));
+        return const Center(
+          child: Text('No hay activos para mostrar. Modifique los filtros.'),
+        );
       }
     }
 
@@ -901,7 +1058,8 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
                   tooltip: 'Programar Mantenimiento',
                   onPressed: () => showDialog(
                     context: context,
-                    builder: (_) => MaintenanceFormDialog(initialAssetId: asset['id']),
+                    builder: (_) =>
+                        MaintenanceFormDialog(initialAssetId: asset['id']),
                   ),
                 ),
                 IconButton(

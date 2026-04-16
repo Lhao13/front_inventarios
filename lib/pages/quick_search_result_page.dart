@@ -52,7 +52,7 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
 
       final List<dynamic> response;
       if (widget.isNumericCode) {
-        response = await query.eq('codigo', int.parse(widget.searchValue));
+        response = await query.eq('codigo', widget.searchValue);
       } else {
         response = await query.eq('numero_serie', widget.searchValue);
       }
@@ -149,7 +149,7 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                       String? fechaEntrega,
                       String? coordenada,
                       String? nombre,
-                      int? codigo,
+                      String? codigo,
                       String? ip,
                       int? marcaId,
                       String? modelo,
@@ -203,7 +203,7 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                             'p_num_puertos': numPuertos,
                             'p_tipo_extension': tipoExtension,
                           });
-                          await supabase.rpc('actualizar_equipo_comunicacion', params: params);
+                          await supabase.rpc('actualizar_activo_equipo_comunicacion', params: params);
                         } else if (categoria == 'GENERICO') {
                           params.addAll({
                             'p_cargador_codigo': cargadorCodigo,
@@ -211,7 +211,7 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                             'p_var_impresora_color': varImpresoraColor,
                             'p_var_monitor_tipo_conexion': varMonitorTipoConexion,
                           });
-                          await supabase.rpc('actualizar_equipo_generico', params: params);
+                          await supabase.rpc('actualizar_activo_equipo_generico', params: params);
                         } else if (categoria == 'SOFTWARE') {
                           params.addAll({
                             'p_proveedor': proveedorSoftware,

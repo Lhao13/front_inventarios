@@ -8,7 +8,7 @@ import 'package:front_inventarios/services/sync_queue_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await Supabase.initialize(
     url: 'https://kphizkgjcawfameowpmw.supabase.co',
     anonKey: 'sb_publishable_F44aOAKPBeBbGL0VYZ-DxQ_ZgnEkUiY',
@@ -28,7 +28,6 @@ Future<void> main() async {
 
   runApp(MyApp(isLoggedIn: isLoggedIn));
 }
-        
 
 final supabase = Supabase.instance.client;
 
@@ -62,9 +61,7 @@ class MyApp extends StatelessWidget {
           elevation: 3,
         ),
         textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.blue.shade800,
-          ),
+          style: TextButton.styleFrom(foregroundColor: Colors.blue.shade800),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
@@ -123,14 +120,21 @@ extension ContextExtension on BuildContext {
             child: Material(
               color: Colors.transparent,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: isError
                       ? Theme.of(context).colorScheme.error
                       : Theme.of(context).primaryColor,
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
                   ],
                 ),
                 child: Text(
