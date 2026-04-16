@@ -9,6 +9,7 @@ import 'package:front_inventarios/pages/assets/generic_assets_page.dart';
 import 'package:front_inventarios/pages/assets/software_assets_page.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
+import 'package:front_inventarios/utils/asset_filter.dart';
 import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
 
 class AssetManagementPage extends StatefulWidget {
@@ -39,18 +40,18 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   List<Map<String, dynamic>> _marcas = [];
 
   // Currently Selected Filters
-  List<int> _selectedTiposActivo = [];
-  List<int> _selectedCondiciones = [];
-  List<int> _selectedSedes = [];
-  List<int> _selectedAreas = [];
-  List<int> _selectedCiudades = [];
-  List<int> _selectedCustodios = [];
-  List<int> _selectedProveedores = [];
-  List<int> _selectedMarcas = [];
+  Set<int> _selectedTiposActivo = {};
+  Set<int> _selectedCondiciones = {};
+  Set<int> _selectedSedes = {};
+  Set<int> _selectedAreas = {};
+  Set<int> _selectedCiudades = {};
+  Set<int> _selectedCustodios = {};
+  Set<int> _selectedProveedores = {};
+  Set<int> _selectedMarcas = {};
 
-  final List<String> _selectedNombres = [];
-  final List<String> _selectedCodigos = [];
-  final List<String> _selectedSeries = [];
+  final Set<String> _selectedNombres = {};
+  final Set<String> _selectedCodigos = {};
+  final Set<String> _selectedSeries = {};
 
   DateTimeRange? _rangoAdquisicion;
   DateTimeRange? _rangoEntrega;
@@ -105,7 +106,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
           _marcas = futures[7];
 
           _allAssets = localActivos;
-          _filteredAssets = _allAssets.where((a) => _assetMatches(a)).toList();
+          _filteredAssets = _createFilterCriteria().apply(_allAssets);
           _isLoading = false;
         });
       }
@@ -117,106 +118,27 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     }
   }
 
-  bool _assetMatches(Map<String, dynamic> asset, {String? ignoreField}) {
-    // Find dynamic sub-marca ID
-    int? assetMarcaId;
-    if (asset['info_pc'] != null && (asset['info_pc'] as List).isNotEmpty) {
-      assetMarcaId = (asset['info_pc'] as List)[0]['id_marca'];
-    } else if (asset['info_equipo_comunicacion'] != null &&
-        (asset['info_equipo_comunicacion'] as List).isNotEmpty) {
-      assetMarcaId = (asset['info_equipo_comunicacion'] as List)[0]['id_marca'];
-    } else if (asset['info_equipo_generico'] != null &&
-        (asset['info_equipo_generico'] as List).isNotEmpty) {
-      assetMarcaId = (asset['info_equipo_generico'] as List)[0]['id_marca'];
-    }
-
-    bool matchesTipo =
-        ignoreField == 'id_tipo_activo' ||
-        _selectedTiposActivo.isEmpty ||
-        _selectedTiposActivo.contains(asset['id_tipo_activo']);
-    bool matchesCondicion =
-        ignoreField == 'id_condicion_activo' ||
-        _selectedCondiciones.isEmpty ||
-        _selectedCondiciones.contains(asset['id_condicion_activo']);
-    bool matchesSede =
-        ignoreField == 'id_sede_activo' ||
-        _selectedSedes.isEmpty ||
-        _selectedSedes.contains(asset['id_sede_activo']);
-    bool matchesArea =
-        ignoreField == 'id_area_activo' ||
-        _selectedAreas.isEmpty ||
-        _selectedAreas.contains(asset['id_area_activo']);
-    bool matchesCiudad =
-        ignoreField == 'id_ciudad_activo' ||
-        _selectedCiudades.isEmpty ||
-        _selectedCiudades.contains(asset['id_ciudad_activo']);
-    bool matchesCustodio =
-        ignoreField == 'id_custodio' ||
-        _selectedCustodios.isEmpty ||
-        _selectedCustodios.contains(asset['id_custodio']);
-    bool matchesProveedor =
-        ignoreField == 'id_provedor' ||
-        _selectedProveedores.isEmpty ||
-        _selectedProveedores.contains(asset['id_provedor']);
-    bool matchesMarca =
-        ignoreField == 'id_marca' ||
-        _selectedMarcas.isEmpty ||
-        _selectedMarcas.contains(assetMarcaId);
-
-    bool matchesNombre =
-        ignoreField == 'nombre' ||
-        _selectedNombres.isEmpty ||
-        _selectedNombres.contains((asset['nombre'] ?? '').toString());
-    bool matchesCodigo =
-        ignoreField == 'codigo' ||
-        _selectedCodigos.isEmpty ||
-        _selectedCodigos.contains((asset['codigo'] ?? '').toString());
-    bool matchesSerie =
-        ignoreField == 'numero_serie' ||
-        _selectedSeries.isEmpty ||
-        _selectedSeries.contains((asset['numero_serie'] ?? '').toString());
-
-    bool matchesAdquisicion = true;
-    if (ignoreField != 'fecha_adquisicion' &&
-        _rangoAdquisicion != null &&
-        asset['fecha_adquisicion'] != null) {
-      try {
-        final dt = DateTime.parse(asset['fecha_adquisicion'].toString());
-        if (dt.isBefore(_rangoAdquisicion!.start) ||
-            dt.isAfter(_rangoAdquisicion!.end))
-          matchesAdquisicion = false;
-      } catch (_) {}
-    }
-
-    bool matchesEntrega = true;
-    if (ignoreField != 'fecha_entrega' &&
-        _rangoEntrega != null &&
-        asset['fecha_entrega'] != null) {
-      try {
-        final dt = DateTime.parse(asset['fecha_entrega'].toString());
-        if (dt.isBefore(_rangoEntrega!.start) || dt.isAfter(_rangoEntrega!.end))
-          matchesEntrega = false;
-      } catch (_) {}
-    }
-
-    return matchesTipo &&
-        matchesCondicion &&
-        matchesSede &&
-        matchesArea &&
-        matchesCiudad &&
-        matchesCustodio &&
-        matchesProveedor &&
-        matchesMarca &&
-        matchesNombre &&
-        matchesCodigo &&
-        matchesSerie &&
-        matchesAdquisicion &&
-        matchesEntrega;
+  AssetFilterCriteria _createFilterCriteria() {
+    return AssetFilterCriteria(
+      selectedTiposActivo: _selectedTiposActivo,
+      selectedCondiciones: _selectedCondiciones,
+      selectedSedes: _selectedSedes,
+      selectedAreas: _selectedAreas,
+      selectedCiudades: _selectedCiudades,
+      selectedCustodios: _selectedCustodios,
+      selectedProveedores: _selectedProveedores,
+      selectedMarcas: _selectedMarcas,
+      selectedNombres: _selectedNombres,
+      selectedCodigos: _selectedCodigos,
+      selectedSeries: _selectedSeries,
+      rangoAdquisicion: _rangoAdquisicion,
+      rangoEntrega: _rangoEntrega,
+    );
   }
 
   void _applyFilters() {
     setState(() {
-      _filteredAssets = _allAssets.where((a) => _assetMatches(a)).toList();
+      _filteredAssets = _createFilterCriteria().apply(_allAssets);
     });
   }
 
@@ -277,7 +199,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
 
   Widget _buildDrawerFilterButton<T>(
     String label,
-    List<T> selectedIds,
+    Set<T> selectedIds,
     List<Map<String, dynamic>> items,
     String displayKey,
   ) {
@@ -293,7 +215,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
           builder: (_) => MultiSelectDialog<T>(
             title: label,
             items: items,
-            initialSelectedIds: selectedIds,
+            initialSelectedIds: selectedIds.toList(),
             displayKey: displayKey,
           ),
         );
@@ -311,8 +233,9 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
 
   List<Map<String, dynamic>> _getUniquePredictiveList(String key) {
     if (_allAssets.isEmpty) return [];
+    final criteria = _createFilterCriteria();
     final possibleAssets = _allAssets.where(
-      (a) => _assetMatches(a, ignoreField: key),
+      (a) => criteria.matches(a, ignoreField: key),
     );
     final items = possibleAssets
         .map((a) => a[key]?.toString())
@@ -328,9 +251,10 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     String ignoreField,
   ) {
     if (_allAssets.isEmpty || masterList.isEmpty) return [];
+    final criteria = _createFilterCriteria();
     final validKeys = <int>{};
     for (var a in _allAssets.where(
-      (asset) => _assetMatches(asset, ignoreField: ignoreField),
+      (asset) => criteria.matches(asset, ignoreField: ignoreField),
     )) {
       if (ignoreField == 'id_marca') {
         int? assetMarcaId;

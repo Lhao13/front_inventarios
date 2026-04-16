@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:front_inventarios/pages/login_page.dart';
 import 'package:front_inventarios/pages/lock_screen_page.dart';
 import 'package:front_inventarios/auth/role_service.dart';
-
+import 'package:front_inventarios/theme.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await dotenv.load(fileName: ".env");
+
   await Supabase.initialize(
-    url: 'https://kphizkgjcawfameowpmw.supabase.co',
-    anonKey: 'sb_publishable_F44aOAKPBeBbGL0VYZ-DxQ_ZgnEkUiY',
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
   // Iniciar el demonio de sincronización online/offline
@@ -31,74 +34,44 @@ Future<void> main() async {
 
 final supabase = Supabase.instance.client;
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final bool isLoggedIn;
 
   const MyApp({super.key, required this.isLoggedIn});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      SyncQueueService.instance.pausePolling();
+    } else if (state == AppLifecycleState.resumed) {
+      SyncQueueService.instance.resumePolling();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Sistema de Inventarios',
-      theme: ThemeData(
-        brightness: Brightness.light,
-        primaryColor: Colors.blue.shade800,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue.shade800,
-          primary: Colors.blue.shade800,
-          secondary: Colors.lightBlue.shade600,
-          surface: Colors.white,
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.blue.shade800,
-          foregroundColor: Colors.white,
-          elevation: 2,
-        ),
-        cardTheme: const CardThemeData(
-          color: Colors.white,
-          surfaceTintColor: Colors.white,
-          elevation: 3,
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(foregroundColor: Colors.blue.shade800),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            foregroundColor: Colors.white,
-            backgroundColor: Colors.blue.shade800,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.blue.shade800,
-            side: BorderSide(color: Colors.blue.shade800),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.blue.shade200),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.blue.shade200),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.blue.shade800, width: 2),
-          ),
-        ),
-      ),
-      home: isLoggedIn ? const LockScreenPage() : const LoginPage(),
+      theme: AppTheme.lightTheme,
+      home: widget.isLoggedIn ? const LockScreenPage() : const LoginPage(),
     );
   }
 }

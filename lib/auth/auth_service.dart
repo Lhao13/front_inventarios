@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
+import 'package:front_inventarios/exceptions/app_exceptions.dart';
+
 /// Servicio de autenticación para manejar validaciones de sesión de usuario.
 /// 
 /// Este servicio proporciona métodos para:
@@ -8,7 +10,7 @@ import 'package:front_inventarios/auth/role_service.dart';
 /// - Verificar si el usuario mantiene una sesión activa
 /// - Obtener información del usuario autenticado
 /// - Cerrar sesión del usuario
-
+/// - Lanzar excepciones tipadas para manejar errores con más precisión
 
 class AuthService {
   /// Instancia estática del cliente de Supabase
@@ -26,17 +28,17 @@ class AuthService {
     try {
       // Validar que los campos no estén vacíos
       if (email.isEmpty || password.isEmpty) {
-        throw Exception('Email y contraseña son requeridos');
+        throw const ValidationException('Email y contraseña son requeridos');
       }
 
       // Validar formato básico del email
       if (!_isValidEmail(email)) {
-        throw Exception('El formato del email no es válido');
+        throw const ValidationException('El formato del email no es válido');
       }
 
       // Validar que la contraseña tenga al menos 6 caracteres
       if (password.length < 6) {
-        throw Exception('La contraseña debe tener al menos 6 caracteres');
+        throw const ValidationException('La contraseña debe tener al menos 6 caracteres');
       }
 
       // Intentar autenticación con Supabase
@@ -47,19 +49,27 @@ class AuthService {
 
       // Verificar que la sesión se creó correctamente
       if (response.session == null) {
-        throw Exception('No se pudo establecer la sesión');
+        throw const AuthenticationException('No se pudo establecer la sesión');
       }
 
       // Fetch user role
       await RoleService.fetchAndSetUserRole(response.session!.user.id);
 
       return true;
-    } on AuthException catch (error) {
+    } on AuthException catch (error, stackTrace) {
       // Manejar errores específicos de autenticación
-      throw Exception('Error de autenticación: ${error.message}');
-    } catch (error) {
+      throw AuthenticationException(
+        'Error de autenticación: ${error.message}',
+        originalException: error,
+        stackTrace: stackTrace,
+      );
+    } catch (error, stackTrace) {
       // Manejar cualquier otro error
-      throw Exception('Error inesperado: $error');
+      throw AppException(
+        'Error inesperado durante el inicio de sesión',
+        originalException: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -129,14 +139,22 @@ class AuthService {
 
       // Verificar que la sesión se cerró correctamente
       if (_supabase.auth.currentSession != null) {
-        throw Exception('No se pudo cerrar la sesión correctamente');
+        throw const AuthenticationException('No se pudo cerrar la sesión correctamente');
       }
 
       return true;
-    } on AuthException catch (error) {
-      throw Exception('Error al cerrar sesión: ${error.message}');
-    } catch (error) {
-      throw Exception('Error inesperado: $error');
+    } on AuthException catch (error, stackTrace) {
+      throw AuthenticationException(
+        'Error al cerrar sesión: ${error.message}',
+        originalException: error,
+        stackTrace: stackTrace,
+      );
+    } catch (error, stackTrace) {
+      throw AppException(
+        'Error inesperado al cerrar sesión',
+        originalException: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 

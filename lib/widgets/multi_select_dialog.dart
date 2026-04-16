@@ -55,7 +55,8 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
         _filteredItems = List.from(_sortedItems);
       } else {
         _filteredItems = _sortedItems.where((item) {
-          final display = item[widget.displayKey]?.toString().toLowerCase() ?? '';
+          final display =
+              item[widget.displayKey]?.toString().toLowerCase() ?? '';
           return display.contains(query.toLowerCase());
         }).toList();
       }
@@ -82,19 +83,31 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
               onChanged: _filterItems,
             ),
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              spacing: 8,
+              runSpacing: 4,
               children: [
-                TextButton(
-                  onPressed: () => setState(() => _selectedIds.clear()),
-                  child: const Text('Limpiar Todo'),
+                SizedBox(
+                  width: 100,
+                  child: TextButton(
+                    onPressed: () => setState(() => _selectedIds.clear()),
+                    child: const Text('Limpiar Todo'),
+                  ),
                 ),
-                TextButton(
-                  onPressed: () => setState(() {
-                    final filteredIds = _filteredItems.map((e) => e[widget.valueKey] as T).toList();
-                    _selectedIds.addAll(filteredIds.where((id) => !_selectedIds.contains(id)));
-                  }),
-                  child: const Text('Seleccionar Visibles'),
+                SizedBox(
+                  width: 100,
+                  child: TextButton(
+                    onPressed: () => setState(() {
+                      final filteredIds = _filteredItems
+                          .map((e) => e[widget.valueKey] as T)
+                          .toList();
+                      _selectedIds.addAll(
+                        filteredIds.where((id) => !_selectedIds.contains(id)),
+                      );
+                    }),
+                    child: const Text('Seleccionar Visibles'),
+                  ),
                 ),
               ],
             ),
@@ -124,7 +137,10 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
                       dense: true,
                       visualDensity: VisualDensity.compact,
                       controlAffinity: ListTileControlAffinity.leading,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 0,
+                      ),
                     );
                   },
                 ),

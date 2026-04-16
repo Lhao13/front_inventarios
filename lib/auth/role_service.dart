@@ -58,20 +58,25 @@ class RoleService {
     }
   }
 
-  static void _assignRole(String? roleName) {
-    switch (roleName) {
-      case 'ADMIN':
-        _currentRole = UserRole.admin;
-        break;
-      case 'TI':
-        _currentRole = UserRole.ti;
-        break;
-      case 'PRESTAMO':
-        _currentRole = UserRole.ayudante;
-        break;
-      default:
-        _currentRole = UserRole.unknown;
+  static UserRole roleFromName(String? roleName) {
+    if (roleName == null) {
+      return UserRole.unknown;
     }
+
+    switch (roleName.toUpperCase()) {
+      case 'ADMIN':
+        return UserRole.admin;
+      case 'TI':
+        return UserRole.ti;
+      case 'PRESTAMO':
+        return UserRole.ayudante;
+      default:
+        return UserRole.unknown;
+    }
+  }
+
+  static void _assignRole(String? roleName) {
+    _currentRole = roleFromName(roleName);
   }
 
   /// Limpiar rol en el logout

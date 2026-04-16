@@ -9,13 +9,34 @@ import 'package:path/path.dart';
 class LocalDbService {
   static final LocalDbService instance = LocalDbService._init();
   static Database? _database;
+  static String _databaseFileName = 'inventarios_offline.db';
 
   LocalDbService._init();
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('inventarios_offline.db');
+    _database = await _initDB(_databaseFileName);
     return _database!;
+  }
+
+  static const int _databaseVersion = 2;
+
+  @visibleForTesting
+  static void setDatabaseFileNameForTesting(String fileName) {
+    _databaseFileName = fileName;
+  }
+
+  @visibleForTesting
+  static Future<void> resetDatabaseForTesting() async {
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, _databaseFileName);
+    try {
+      await deleteDatabase(path);
+    } catch (_) {}
   }
 
   Future<Database> _initDB(String filePath) async {
@@ -24,14 +45,38 @@ class LocalDbService {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: _databaseVersion,
       onCreate: _createDB,
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          await db.execute('ALTER TABLE sync_queue ADD COLUMN error_msg TEXT');
-        }
+        await _migrateDatabase(db, oldVersion, newVersion);
       },
     );
+  }
+
+  Future<void> _migrateDatabase(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion >= newVersion) return;
+
+    await db.transaction((txn) async {
+      var version = oldVersion;
+      while (version < newVersion) {
+        final nextVersion = version + 1;
+        switch (nextVersion) {
+          case 2:
+            await _migrateToVersion2(txn);
+            break;
+          // case 3:
+          //   await _migrateToVersion3(txn);
+          //   break;
+          default:
+            throw Exception('Migración desconocida de la versión $version a $nextVersion');
+        }
+        version = nextVersion;
+      }
+    });
+  }
+
+  Future<void> _migrateToVersion2(DatabaseExecutor db) async {
+    await db.execute('ALTER TABLE sync_queue ADD COLUMN error_msg TEXT');
   }
 
   Future<void> _createDB(Database db, int version) async {

@@ -4,6 +4,7 @@ import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/pages/sign_up.dart';
 import 'package:front_inventarios/pages/main_page.dart';
 import 'package:front_inventarios/auth/auth_service.dart';
+import 'package:front_inventarios/exceptions/app_exceptions.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
 import 'package:sqflite/sqflite.dart';
@@ -68,11 +69,11 @@ class _LoginPageState extends State<LoginPage> {
         // listener de conectividad (que no se dispara si ya había internet).
         SyncQueueService.instance.forceSyncAndRefresh();
       }
-    } on AuthException catch (error) {
+    } on AppException catch (error) {
       if (mounted) context.showSnackBar(error.message, isError: true);
     } catch (error) {
       if (mounted) {
-        context.showSnackBar(error.toString(), isError: true);
+        context.showSnackBar('$error', isError: true);
       }
     } finally {
       if (mounted) {

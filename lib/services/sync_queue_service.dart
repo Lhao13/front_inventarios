@@ -53,19 +53,39 @@ class SyncQueueService {
     });
 
     // Arrancar el Polling Automático (Cada 30 segundos si hay internet)
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
       if (isOnline && supabase.auth.currentSession != null) {
-        // debugPrint('⏲️ Polling automático ejecutándose...');
-        // Llamar syncPendingOperations empuja a la nube y luego jala caché.
-        // Como syncPendingOperations tiene candado, no sobrecargará si ya está ocupado.
         await forceSyncAndRefresh();
       }
     });
   }
 
+  void _stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+  }
+
+  void pausePolling() {
+    _stopPolling();
+    debugPrint('⏸️ SyncQueue polling pausado por AppLifecycleState.');
+  }
+
+  bool get isPollingActive => _pollingTimer?.isActive ?? false;
+
+  void resumePolling() {
+    if (_pollingTimer != null && _pollingTimer!.isActive) return;
+    _startPolling();
+    debugPrint('▶️ SyncQueue polling reanudado por AppLifecycleState.');
+  }
+
   void stopListening() {
     _connectivitySubscription?.cancel();
-    _pollingTimer?.cancel();
+    _stopPolling();
   }
 
   /// Evento lanzado cuando vuelve el internet
