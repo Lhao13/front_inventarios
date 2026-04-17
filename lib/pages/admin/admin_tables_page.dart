@@ -226,18 +226,6 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Configuración Maestras'),
-        actions: [
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.view_sidebar),
-              tooltip: 'Menú de Tablas Maestras',
-              onPressed: () => Scaffold.of(context).openEndDrawer(),
-            ),
-          ),
-        ],
-      ),
       endDrawer: Drawer(
         child: SafeArea(
           top: false,
@@ -305,8 +293,16 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh),
+                  tooltip: 'Refrescar Datos',
                   onPressed: () => _loadTableData(_selectedTable),
-                )
+                ),
+                Builder(
+                  builder: (context) => IconButton(
+                    icon: const Icon(Icons.view_sidebar),
+                    tooltip: 'Cambiar Tabla',
+                    onPressed: () => Scaffold.of(context).openEndDrawer(),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),

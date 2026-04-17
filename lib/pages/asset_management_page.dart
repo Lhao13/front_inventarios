@@ -331,29 +331,6 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Gestión de Activos (Global)',
-          textScaler: TextScaler.linear(0.9),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Sincronizar Datos',
-            onPressed: () async {
-              await SyncQueueService.instance.forceSyncAndRefresh();
-              await _loadAssets();
-            },
-          ),
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.filter_list),
-              tooltip: 'Filtros Globales',
-              onPressed: () => Scaffold.of(context).openEndDrawer(),
-            ),
-          ),
-        ],
-      ),
       endDrawer: Drawer(
         child: Column(
           children: [

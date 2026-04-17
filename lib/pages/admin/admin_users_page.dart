@@ -85,15 +85,28 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Usuarios Registrados'),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadUsers),
-        ],
-      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: _buildContent(),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Usuarios Registrados',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _loadUsers,
+                  tooltip: 'Refrescar Lista',
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(child: _buildContent()),
+          ],
+        ),
       ),
     );
   }

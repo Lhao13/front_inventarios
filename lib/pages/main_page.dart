@@ -45,11 +45,25 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Sistema de\nInventarios',
-          textScaler: TextScaler.linear(0.9),
+        title: Text(
+          _currentPageIndex == 0
+              ? 'Sistema de\nInventarios'
+              : _currentPageIndex == 1
+              ? 'Gestión de Activos'
+              : _currentPageIndex == 2
+              ? 'Mantenimientos'
+              : _currentPageIndex == 3
+              ? 'Tablas Maestras'
+              : 'Usuarios',
+          textScaler: const TextScaler.linear(0.9),
           textAlign: TextAlign.center,
         ),
+        leading: _currentPageIndex != 0
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => setState(() => _currentPageIndex = 0),
+              )
+            : null, // Muestra el ícono del drawer por defecto si es null y hay un drawer
         actions: [
           ValueListenableBuilder<bool>(
             valueListenable: SyncQueueService.instance.hasSyncErrorsNotifier,
@@ -150,7 +164,18 @@ class _MainPageState extends State<MainPage> {
       ),
 
       /// Cuerpo: muestra la página actual según el índice
-      body: SafeArea(bottom: true, child: _pages[_currentPageIndex]),
+      body: PopScope(
+        canPop: _currentPageIndex == 0,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          if (_currentPageIndex != 0) {
+            setState(() {
+              _currentPageIndex = 0;
+            });
+          }
+        },
+        child: SafeArea(bottom: true, child: _pages[_currentPageIndex]),
+      ),
     );
   }
 
@@ -360,6 +385,11 @@ class _HomePageState extends State<_HomePage> {
             'Módulos Principales',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: 8),
+          Text(
+            'Accede a las herramientas de gestión general.',
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+          ),
           const SizedBox(height: 16),
           GridView.count(
             shrinkWrap: true,
@@ -422,6 +452,11 @@ class _HomePageState extends State<_HomePage> {
           const Text(
             'Categorías de Clasificación de activos',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Accede rápidamente a las 4 categorías principales de activos.',
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
           ),
           const SizedBox(height: 16),
           _buildCategoryCard(
