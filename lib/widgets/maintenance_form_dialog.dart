@@ -35,7 +35,28 @@ class _MaintenanceFormDialogState extends State<MaintenanceFormDialog> {
   final _observacionController = TextEditingController();
 
   final List<String> _tipoOptions = ['Preventivo', 'Correctivo'];
-  final List<String> _estadoOptions = ['Pendiente', 'En Proceso', 'Cancelado'];
+
+  /// Opciones base para el estado del mantenimiento.
+  /// 'Completado' se añade dinámicamente solo cuando se está editando
+  /// un registro ya completado, para evitar entries duplicadas.
+  static const List<String> _baseEstadoOptions = [
+    'Pendiente',
+    'En Proceso',
+    'Cancelado',
+  ];
+
+  /// Retorna la lista de items del dropdown de Estado, sin duplicados.
+  List<DropdownMenuItem<String>> _buildEstadoItems() {
+    // Cuando se edita un mantenimiento Completado, se incluye esa opción.
+    // Cuando se crea uno nuevo, 'Completado' no aparece (se usa el botón de la lista).
+    final options = [..._baseEstadoOptions];
+    if (_editingId != null && !options.contains(_selectedEstado)) {
+      options.add(_selectedEstado); // agrega 'Completado' (u otro estado inesperado) sin duplicar
+    }
+    return options
+        .map((e) => DropdownMenuItem<String>(value: e, child: Text(e)))
+        .toList();
+  }
 
   @override
   void initState() {
@@ -207,13 +228,7 @@ class _MaintenanceFormDialogState extends State<MaintenanceFormDialog> {
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
-                items: () {
-                  final items = _estadoOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList();
-                  if (_selectedEstado == 'Completado') {
-                    items.add(const DropdownMenuItem(value: 'Completado', child: Text('Completado')));
-                  }
-                  return items;
-                }(),
+              items: _buildEstadoItems(),
                 onChanged: (v) {
                   if (v != null) setState(() => _selectedEstado = v);
                 },

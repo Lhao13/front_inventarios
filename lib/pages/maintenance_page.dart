@@ -8,7 +8,7 @@ import 'package:front_inventarios/widgets/asset_data_table.dart';
 import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
 
 /// Página de Mantenimientos.
-/// 
+///
 /// Esta página permite al usuario gestionar los mantenimientos de los activos.
 class MaintenancePage extends StatefulWidget {
   const MaintenancePage({super.key});
@@ -22,7 +22,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
   String? _errorMessage;
   List<Map<String, dynamic>> _maintenances = [];
   List<Map<String, dynamic>> _assets = [];
-  
+
   // Variables for view and filters
   bool _isTableView = true;
   List<Map<String, dynamic>> _filteredMaintenances = [];
@@ -36,11 +36,28 @@ class _MaintenancePageState extends State<MaintenancePage> {
 
   late final List<AssetColumnDef> _columns = [
     AssetColumnDef(label: 'Activo', getValue: (m) => _getAssetDisplayInfo(m)),
-    AssetColumnDef(label: 'Tipo', getValue: (m) => m['tipo']?.toString() ?? 'N/A'),
-    AssetColumnDef(label: 'Estado', getValue: (m) => m['estado']?.toString() ?? 'N/A'),
-    AssetColumnDef(label: 'Fecha Programada', getValue: (m) => m['fecha_programada']?.toString() ?? 'N/A'),
-    AssetColumnDef(label: 'Fecha Realizada', getValue: (m) => m['fecha_realizada']?.toString() ?? 'N/A', visibleByDefault: false),
-    AssetColumnDef(label: 'Observaciones', getValue: (m) => m['observacion']?.toString() ?? 'N/A', visibleByDefault: false),
+    AssetColumnDef(
+      label: 'Tipo',
+      getValue: (m) => m['tipo']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Estado',
+      getValue: (m) => m['estado']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Fecha Programada',
+      getValue: (m) => m['fecha_programada']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Fecha Realizada',
+      getValue: (m) => m['fecha_realizada']?.toString() ?? 'N/A',
+      visibleByDefault: false,
+    ),
+    AssetColumnDef(
+      label: 'Observaciones',
+      getValue: (m) => m['observacion']?.toString() ?? 'N/A',
+      visibleByDefault: false,
+    ),
   ];
 
   @override
@@ -78,7 +95,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
     }
     // Búsqueda en los arreglos cargados offline
     final asset = _assets.firstWhere(
-      (a) => a['id'] == m['id_activo'], 
+      (a) => a['id'] == m['id_activo'],
       orElse: () => <String, dynamic>{}, // Provide empty Map<String, dynamic>
     );
     if (asset.isNotEmpty) {
@@ -100,14 +117,16 @@ class _MaintenancePageState extends State<MaintenancePage> {
       });
     }
     try {
-      final response = await LocalDbService.instance.getCollection('mantenimiento');
+      final response = await LocalDbService.instance.getCollection(
+        'mantenimiento',
+      );
       // Sort response latest programada first locally
       response.sort((a, b) {
         final aDate = a['fecha_programada']?.toString() ?? '';
         final bDate = b['fecha_programada']?.toString() ?? '';
         return bDate.compareTo(aDate);
       });
-          
+
       if (!mounted) return;
       setState(() {
         _maintenances = response;
@@ -125,7 +144,9 @@ class _MaintenancePageState extends State<MaintenancePage> {
 
   Future<void> _loadAssets({bool showLoading = true}) async {
     try {
-      final localActivos = await LocalDbService.instance.getCollection('activo');
+      final localActivos = await LocalDbService.instance.getCollection(
+        'activo',
+      );
       final filtered = localActivos
         ..sort((a, b) {
           final sA = a['numero_serie']?.toString() ?? '';
@@ -146,33 +167,56 @@ class _MaintenancePageState extends State<MaintenancePage> {
 
   bool _maintenanceMatches(Map<String, dynamic> m, {String? ignoreField}) {
     final activoStr = _getAssetDisplayInfo(m);
-    
-    bool matchesTipo = ignoreField == 'tipo' || _selectedTipos.isEmpty || _selectedTipos.contains((m['tipo'] ?? '').toString());
-    bool matchesEstado = ignoreField == 'estado' || _selectedEstados.isEmpty || _selectedEstados.contains((m['estado'] ?? '').toString());
-    bool matchesActivo = ignoreField == 'activo' || _selectedActivosStr.isEmpty || _selectedActivosStr.contains(activoStr);
+
+    bool matchesTipo =
+        ignoreField == 'tipo' ||
+        _selectedTipos.isEmpty ||
+        _selectedTipos.contains((m['tipo'] ?? '').toString());
+    bool matchesEstado =
+        ignoreField == 'estado' ||
+        _selectedEstados.isEmpty ||
+        _selectedEstados.contains((m['estado'] ?? '').toString());
+    bool matchesActivo =
+        ignoreField == 'activo' ||
+        _selectedActivosStr.isEmpty ||
+        _selectedActivosStr.contains(activoStr);
 
     bool matchesProgramada = true;
-    if (ignoreField != 'fecha_programada' && _rangoProgramada != null && m['fecha_programada'] != null) {
+    if (ignoreField != 'fecha_programada' &&
+        _rangoProgramada != null &&
+        m['fecha_programada'] != null) {
       try {
         final dt = DateTime.parse(m['fecha_programada'].toString());
-        if (dt.isBefore(_rangoProgramada!.start) || dt.isAfter(_rangoProgramada!.end)) matchesProgramada = false;
+        if (dt.isBefore(_rangoProgramada!.start) ||
+            dt.isAfter(_rangoProgramada!.end))
+          matchesProgramada = false;
       } catch (_) {}
     }
 
     bool matchesRealizada = true;
-    if (ignoreField != 'fecha_realizada' && _rangoRealizada != null && m['fecha_realizada'] != null) {
+    if (ignoreField != 'fecha_realizada' &&
+        _rangoRealizada != null &&
+        m['fecha_realizada'] != null) {
       try {
         final dt = DateTime.parse(m['fecha_realizada'].toString());
-        if (dt.isBefore(_rangoRealizada!.start) || dt.isAfter(_rangoRealizada!.end)) matchesRealizada = false;
+        if (dt.isBefore(_rangoRealizada!.start) ||
+            dt.isAfter(_rangoRealizada!.end))
+          matchesRealizada = false;
       } catch (_) {}
     }
 
-    return matchesTipo && matchesEstado && matchesActivo && matchesProgramada && matchesRealizada;
+    return matchesTipo &&
+        matchesEstado &&
+        matchesActivo &&
+        matchesProgramada &&
+        matchesRealizada;
   }
 
   void _applyFilters() {
     setState(() {
-      _filteredMaintenances = _maintenances.where((m) => _maintenanceMatches(m)).toList();
+      _filteredMaintenances = _maintenances
+          .where((m) => _maintenanceMatches(m))
+          .toList();
     });
   }
 
@@ -189,8 +233,10 @@ class _MaintenancePageState extends State<MaintenancePage> {
 
   List<Map<String, dynamic>> _getUniquePredictiveList(String key) {
     if (_maintenances.isEmpty) return [];
-    final possibleMains = _maintenances.where((m) => _maintenanceMatches(m, ignoreField: key));
-    
+    final possibleMains = _maintenances.where(
+      (m) => _maintenanceMatches(m, ignoreField: key),
+    );
+
     final items = possibleMains
         .map((m) {
           if (key == 'activo') return _getAssetDisplayInfo(m);
@@ -203,15 +249,27 @@ class _MaintenancePageState extends State<MaintenancePage> {
     return items.map((val) => {'id': val, 'valor': val}).toList();
   }
 
-  Widget _buildDrawerFilterButton<T>(String label, List<T> selectedIds, List<Map<String, dynamic>> items, String displayKey) {
+  Widget _buildDrawerFilterButton<T>(
+    String label,
+    List<T> selectedIds,
+    List<Map<String, dynamic>> items,
+    String displayKey,
+  ) {
     return ListTile(
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados'),
+      subtitle: Text(
+        selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados',
+      ),
       trailing: const Icon(Icons.arrow_drop_down),
       onTap: () async {
         final result = await showDialog<List<T>>(
           context: context,
-          builder: (_) => MultiSelectDialog<T>(title: label, items: items, initialSelectedIds: selectedIds, displayKey: displayKey),
+          builder: (_) => MultiSelectDialog<T>(
+            title: label,
+            items: items,
+            initialSelectedIds: selectedIds,
+            displayKey: displayKey,
+          ),
         );
         if (result != null) {
           setState(() {
@@ -224,29 +282,57 @@ class _MaintenancePageState extends State<MaintenancePage> {
     );
   }
 
-  Widget _buildDrawerDateFilter(String label, DateTimeRange? currentRange, ValueChanged<DateTimeRange?> onChanged) {
+  Widget _buildDrawerDateFilter(
+    String label,
+    DateTimeRange? currentRange,
+    ValueChanged<DateTimeRange?> onChanged,
+  ) {
     return ListTile(
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(currentRange == null ? 'Cualquier fecha' : '${currentRange.start.toLocal().toString().split(' ')[0]} - ${currentRange.end.toLocal().toString().split(' ')[0]}'),
-      trailing: currentRange != null ? IconButton(icon: const Icon(Icons.clear), onPressed: () { onChanged(null); _applyFilters(); }) : const Icon(Icons.calendar_today),
+      subtitle: Text(
+        currentRange == null
+            ? 'Cualquier fecha'
+            : '${currentRange.start.toLocal().toString().split(' ')[0]} - ${currentRange.end.toLocal().toString().split(' ')[0]}',
+      ),
+      trailing: currentRange != null
+          ? IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () {
+                onChanged(null);
+                _applyFilters();
+              },
+            )
+          : const Icon(Icons.calendar_today),
       onTap: () async {
-        final range = await showDateRangePicker(context: context, firstDate: DateTime(2000), lastDate: DateTime(2100), initialDateRange: currentRange);
-        if (range != null) { onChanged(range); _applyFilters(); }
+        final range = await showDateRangePicker(
+          context: context,
+          firstDate: DateTime(2000),
+          lastDate: DateTime(2100),
+          initialDateRange: currentRange,
+        );
+        if (range != null) {
+          onChanged(range);
+          _applyFilters();
+        }
       },
     );
   }
 
   Future<void> _completeMaintenance(String id) async {
     try {
-      await LocalDbService.instance.enqueueOperation('table:mantenimiento:update', {
-        'id': id,
-        'estado': 'Completado',
-        'fecha_realizada': _formatDate(DateTime.now()),
-      });
-      if (SyncQueueService.instance.isOnline) SyncQueueService.instance.syncPendingOperations();
+      await LocalDbService.instance
+          .enqueueOperation('table:mantenimiento:update', {
+            'id': id,
+            'estado': 'Completado',
+            'fecha_realizada': _formatDate(DateTime.now()),
+          });
+      if (SyncQueueService.instance.isOnline)
+        SyncQueueService.instance.syncPendingOperations();
 
       if (!mounted) return;
-      context.showSnackBar('Mantenimiento marcado como completado (Cola Local).');
+      context.showSnackBar(
+        'Mantenimiento marcado como completado (Cola Local).',
+      );
       _loadMaintenances();
     } catch (e) {
       if (mounted) context.showSnackBar('Error: $e', isError: true);
@@ -258,9 +344,14 @@ class _MaintenancePageState extends State<MaintenancePage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar Mantenimiento'),
-        content: const Text('¿Estás seguro de que deseas eliminar este registro?'),
+        content: const Text(
+          '¿Estás seguro de que deseas eliminar este registro?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -273,8 +364,12 @@ class _MaintenancePageState extends State<MaintenancePage> {
     if (confirm != true) return;
 
     try {
-      await LocalDbService.instance.enqueueOperation('table:mantenimiento:delete', {'id': id});
-      if (SyncQueueService.instance.isOnline) SyncQueueService.instance.syncPendingOperations();
+      await LocalDbService.instance.enqueueOperation(
+        'table:mantenimiento:delete',
+        {'id': id},
+      );
+      if (SyncQueueService.instance.isOnline)
+        SyncQueueService.instance.syncPendingOperations();
 
       if (!mounted) return;
       context.showSnackBar('Mantenimiento eliminado de forma local.');
@@ -303,13 +398,24 @@ class _MaintenancePageState extends State<MaintenancePage> {
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.only(top: 48, bottom: 16, left: 16, right: 16),
+              padding: const EdgeInsets.only(
+                top: 48,
+                bottom: 16,
+                left: 16,
+                right: 16,
+              ),
               color: Colors.blue.shade50,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                   const Text('Filtros Mantenimiento', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                   TextButton(onPressed: _clearFilters, child: const Text('Limpiar'))
+                  const Text(
+                    'Filtros Mantenimiento',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  TextButton(
+                    onPressed: _clearFilters,
+                    child: const Text('Limpiar'),
+                  ),
                 ],
               ),
             ),
@@ -319,25 +425,66 @@ class _MaintenancePageState extends State<MaintenancePage> {
                 children: [
                   const Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Text('Buscar por ID de Activo', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      'Buscar por ID de Activo',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  _buildDrawerFilterButton<String>('Por Serial / Nombre', _selectedActivosStr, _getUniquePredictiveList('activo'), 'valor'),
-                  
-                  const Divider(),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text('Filtros de Estado', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                  _buildDrawerFilterButton<String>(
+                    'Por Serial / Nombre',
+                    _selectedActivosStr,
+                    _getUniquePredictiveList('activo'),
+                    'valor',
                   ),
-                  _buildDrawerFilterButton('Tipo', _selectedTipos, _getUniquePredictiveList('tipo'), 'valor'),
-                  _buildDrawerFilterButton('Estado', _selectedEstados, _getUniquePredictiveList('estado'), 'valor'),
 
                   const Divider(),
                   const Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Text('Rango de Fechas', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      'Filtros de Estado',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  _buildDrawerDateFilter('Fecha Programada', _rangoProgramada, (r) => setState(() => _rangoProgramada = r)),
-                  _buildDrawerDateFilter('Fecha Realizada', _rangoRealizada, (r) => setState(() => _rangoRealizada = r)),
+                  _buildDrawerFilterButton(
+                    'Tipo',
+                    _selectedTipos,
+                    _getUniquePredictiveList('tipo'),
+                    'valor',
+                  ),
+                  _buildDrawerFilterButton(
+                    'Estado',
+                    _selectedEstados,
+                    _getUniquePredictiveList('estado'),
+                    'valor',
+                  ),
+
+                  const Divider(),
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      'Rango de Fechas',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  _buildDrawerDateFilter(
+                    'Fecha Programada',
+                    _rangoProgramada,
+                    (r) => setState(() => _rangoProgramada = r),
+                  ),
+                  _buildDrawerDateFilter(
+                    'Fecha Realizada',
+                    _rangoRealizada,
+                    (r) => setState(() => _rangoRealizada = r),
+                  ),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -352,7 +499,10 @@ class _MaintenancePageState extends State<MaintenancePage> {
             Row(
               children: [
                 const Expanded(
-                  child: Text('Mantenimientos', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    'Mantenimientos',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh),
@@ -378,12 +528,22 @@ class _MaintenancePageState extends State<MaintenancePage> {
               children: [
                 SegmentedButton<bool>(
                   segments: const [
-                    ButtonSegment<bool>(value: false, icon: Icon(Icons.view_list), label: Text('Lista')),
-                    ButtonSegment<bool>(value: true, icon: Icon(Icons.table_chart), label: Text('Tabla')),
+                    ButtonSegment<bool>(
+                      value: false,
+                      icon: Icon(Icons.view_list),
+                      label: Text('Lista'),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      icon: Icon(Icons.table_chart),
+                      label: Text('Tabla'),
+                    ),
                   ],
                   selected: {_isTableView},
                   onSelectionChanged: (Set<bool> newSelection) {
-                    setState(() { _isTableView = newSelection.first; });
+                    setState(() {
+                      _isTableView = newSelection.first;
+                    });
                   },
                 ),
               ],
@@ -393,39 +553,59 @@ class _MaintenancePageState extends State<MaintenancePage> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _errorMessage != null
-                      ? Center(child: Text(_errorMessage!))
-                      : _filteredMaintenances.isEmpty
-                          ? (_maintenances.isEmpty
-                              ? ValueListenableBuilder<bool>(
-                                  valueListenable: SyncQueueService.instance.isSyncingNotifier,
-                                  builder: (context, isSyncing, child) {
-                                    if (isSyncing) {
-                                      return const Center(
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            CircularProgressIndicator(),
-                                            SizedBox(height: 16),
-                                            Text('Sincronizando mantenimientos por primera vez...', style: TextStyle(fontSize: 16, color: Colors.grey)),
-                                          ],
+                  ? Center(child: Text(_errorMessage!))
+                  : _filteredMaintenances.isEmpty
+                  ? (_maintenances.isEmpty
+                        ? ValueListenableBuilder<bool>(
+                            valueListenable:
+                                SyncQueueService.instance.isSyncingNotifier,
+                            builder: (context, isSyncing, child) {
+                              if (isSyncing) {
+                                return const Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      CircularProgressIndicator(),
+                                      SizedBox(height: 16),
+                                      Text(
+                                        'Sincronizando mantenimientos por primera vez...',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey,
                                         ),
-                                      );
-                                    }
-                                    return const Center(child: Text('No hay mantenimientos. Modifique los filtros.'));
-                                  },
-                                )
-                              : const Center(child: Text('No hay mantenimientos. Modifique los filtros.')))
-                          : _isTableView ? _buildTableSection() : _buildListSection(),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              return const Center(
+                                child: Text(
+                                  'No hay mantenimientos. Modifique los filtros.',
+                                ),
+                              );
+                            },
+                          )
+                        : const Center(
+                            child: Text(
+                              'No hay mantenimientos. Modifique los filtros.',
+                            ),
+                          ))
+                  : _isTableView
+                  ? _buildTableSection()
+                  : _buildListSection(),
             ),
           ],
         ),
       ),
-      floatingActionButton: Builder(
-        builder: (context) => FloatingActionButton.extended(
-          onPressed: () => Scaffold.of(context).openEndDrawer(),
-          tooltip: 'Abrir Filtros',
-          icon: const Icon(Icons.filter_list),
-          label: const Text('Filtros')
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 60),
+        child: Builder(
+          builder: (context) => FloatingActionButton.extended(
+            onPressed: () => Scaffold.of(context).openEndDrawer(),
+            tooltip: 'Abrir Filtros',
+            icon: const Icon(Icons.filter_list),
+            label: const Text('Filtros'),
+          ),
         ),
       ),
     );
@@ -435,10 +615,15 @@ class _MaintenancePageState extends State<MaintenancePage> {
     return AssetDataTable(
       assets: _filteredMaintenances,
       columns: _columns,
-      onEdit: RoleService.currentRole != UserRole.ayudante ? (m) async => _showAddMaintenanceDialog(initialData: m) : null,
-      onDelete: RoleService.currentRole != UserRole.ayudante ? (id) => _deleteMaintenance(id) : null,
+      onEdit: RoleService.currentRole != UserRole.ayudante
+          ? (m) async => _showAddMaintenanceDialog(initialData: m)
+          : null,
+      onDelete: RoleService.currentRole != UserRole.ayudante
+          ? (id) => _deleteMaintenance(id)
+          : null,
       customActionsBuilder: (m) => [
-        if (m['estado'] != 'Completado' && RoleService.currentRole != UserRole.ayudante)
+        if (m['estado'] != 'Completado' &&
+            RoleService.currentRole != UserRole.ayudante)
           IconButton(
             icon: const Icon(Icons.check_circle_outline, color: Colors.green),
             tooltip: 'Marcar como Completado',
@@ -460,8 +645,8 @@ class _MaintenancePageState extends State<MaintenancePage> {
               backgroundColor: m['estado'] == 'Pendiente'
                   ? Colors.orange
                   : m['estado'] == 'Completado'
-                      ? Colors.green
-                      : Colors.blue,
+                  ? Colors.green
+                  : Colors.blue,
               child: Icon(
                 m['estado'] == 'Completado' ? Icons.check : Icons.build,
                 color: Colors.white,
@@ -482,9 +667,13 @@ class _MaintenancePageState extends State<MaintenancePage> {
                     tooltip: 'Editar',
                     onPressed: () => _showAddMaintenanceDialog(initialData: m),
                   ),
-                if (m['estado'] != 'Completado' && RoleService.currentRole != UserRole.ayudante)
+                if (m['estado'] != 'Completado' &&
+                    RoleService.currentRole != UserRole.ayudante)
                   IconButton(
-                    icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                    icon: const Icon(
+                      Icons.check_circle_outline,
+                      color: Colors.green,
+                    ),
                     tooltip: 'Marcar como Completado',
                     onPressed: () => _completeMaintenance(m['id'] as String),
                   ),

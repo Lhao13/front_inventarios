@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
+import 'package:front_inventarios/services/local_db_service.dart';
+import 'package:front_inventarios/services/sync_queue_service.dart';
 
 class QuickSearchResultPage extends StatefulWidget {
   final String searchValue;
@@ -28,6 +30,9 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
     _fetchAsset();
   }
 
+  /// Busca el activo de forma offline-first:
+  /// 1. Busca en el caché SQLite local.
+  /// 2. Si no lo encuentra y hay conexión, consulta Supabase directamente.
   Future<void> _fetchAsset() async {
     setState(() {
       _isLoading = true;
@@ -35,6 +40,38 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
     });
 
     try {
+      // --- Paso 1: buscar en caché local ---
+      final localAssets = await LocalDbService.instance.getCollection('activo');
+      // firstWhereOrNull pattern: null si no se encuentra (final no aplica en try/catch doble)
+      Map<String, dynamic>? localMatch;
+      try {
+        localMatch = localAssets.firstWhere(
+          (a) => widget.isNumericCode
+              ? (a['codigo']?.toString() == widget.searchValue)
+              : (a['numero_serie']?.toString() == widget.searchValue),
+        );
+      } on StateError {
+        localMatch = null; // No encontrado en caché, continuar con Supabase
+      }
+
+      if (localMatch != null) {
+        setState(() {
+          _assetData = localMatch;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // --- Paso 2: fallback a Supabase (solo si hay conexión) ---
+      if (!SyncQueueService.instance.isOnline) {
+        setState(() {
+          _errorMessage =
+              'No se encontró el activo en el caché local y no hay conexión a internet.';
+          _isLoading = false;
+        });
+        return;
+      }
+
       final query = supabase.from('activo').select('''
         *,
         info_pc(*, marca(marca_proveedor)),
@@ -59,7 +96,8 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
 
       if (response.isEmpty) {
         setState(() {
-          _errorMessage = 'No se encontró ningún activo con este valor: ${widget.searchValue}';
+          _errorMessage =
+              'No se encontró ningún activo con este valor: ${widget.searchValue}';
           _isLoading = false;
         });
         return;
@@ -77,6 +115,8 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
     }
   }
 
+  /// Elimina el activo a través de la cola offline (igual que el resto de páginas).
+  /// Si hay conexión, dispara la sincronización inmediatamente.
   Future<void> _deleteAsset(String id) async {
     final confirmar = await showDialog<bool>(
       context: context,
@@ -84,7 +124,10 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
         title: const Text('Eliminar Activo'),
         content: const Text('¿Deseas eliminar este activo permanentemente?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
@@ -97,9 +140,16 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
     if (confirmar != true) return;
 
     try {
-      await supabase.rpc('eliminar_activo', params: {'p_id_activo': id});
+      await LocalDbService.instance.enqueueOperation(
+        'eliminar_activo',
+        {'p_id_activo': id},
+      );
+      // Dispara sync si hay internet (fire-and-forget, igual que otras páginas)
+      if (SyncQueueService.instance.isOnline) {
+        SyncQueueService.instance.syncPendingOperations();
+      }
       if (!mounted) return;
-      context.showSnackBar('Activo eliminado correctamente.');
+      context.showSnackBar('Activo eliminado de forma local.');
       Navigator.pop(context); // Volver atrás después de eliminar
     } catch (e) {
       if (!mounted) return;

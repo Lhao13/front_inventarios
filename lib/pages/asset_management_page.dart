@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:front_inventarios/widgets/global_asset_data_source.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
@@ -11,6 +10,7 @@ import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
 import 'package:front_inventarios/utils/asset_filter.dart';
 import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
+import 'package:front_inventarios/widgets/material_list_paginator.dart';
 
 class AssetManagementPage extends StatefulWidget {
   const AssetManagementPage({super.key});
@@ -25,7 +25,8 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   bool _isLoading = true;
   bool _isTableView = true;
 
-  int _rowsPerPage = PaginatedDataTable.defaultRowsPerPage;
+  int _tableRowsPerPage = 10;
+  int _tableCurrentPage = 0;
   int _listRowsPerPage = 10;
   int _listCurrentPage = 0;
 
@@ -656,133 +657,197 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
         );
       }
     }
+    // ── Pagination math ──────────────────────────────────────────────────
+    final totalItems = _filteredAssets.length;
+    final totalPages = (totalItems / _tableRowsPerPage).ceil().clamp(1, 999999);
+    if (_tableCurrentPage >= totalPages) _tableCurrentPage = totalPages - 1;
+    if (_tableCurrentPage < 0) _tableCurrentPage = 0;
+    final startIndex = _tableCurrentPage * _tableRowsPerPage;
+    final endIndex = (startIndex + _tableRowsPerPage).clamp(0, totalItems);
+    final pageAssets = _filteredAssets.sublist(startIndex, endIndex);
+    // ────────────────────────────────────────────────────────────────────
 
-    return SingleChildScrollView(
-      child: SizedBox(
-        width: double.infinity,
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            cardTheme: const CardThemeData(
-              elevation: 0,
-              margin: EdgeInsets.zero,
-              color: Colors.transparent,
-            ),
-          ),
-          child: PaginatedDataTable(
-            header: null,
-            columnSpacing: 24,
-            rowsPerPage: _rowsPerPage,
-            availableRowsPerPage: const [10, 20, 30, 40, 50, 100],
-            onRowsPerPageChanged: (value) {
-              setState(() {
-                _rowsPerPage = value ?? PaginatedDataTable.defaultRowsPerPage;
-              });
-            },
-            showFirstLastButtons: true,
-            columns: const [
-              DataColumn(
-                label: Text(
-                  'S/N',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  cardTheme: const CardThemeData(
+                    elevation: 0,
+                    margin: EdgeInsets.zero,
+                    color: Colors.transparent,
+                  ),
                 ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Nombre',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                child: DataTable(
+                  columnSpacing: 24,
+                  headingRowColor: WidgetStateProperty.resolveWith(
+                    (states) => Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest.withAlpha(128),
+                  ),
+                  columns: const [
+                    DataColumn(
+                      label: Text(
+                        'S/N',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Nombre',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Código',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Tipo Activo',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Condición',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Custodio',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Ciudad',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Sede',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Área',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Proveedor',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Fe. Adquisición',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'IP',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Fe. Entrega',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Coordenada',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Acciones',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                  rows: pageAssets.map(_buildGlobalTableRow).toList(),
                 ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Código',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Tipo Activo',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Condición',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Custodio',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Ciudad',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Sede',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Área',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Proveedor',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Fe. Adquisición',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'IP',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Fe. Entrega',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Coordenada',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Acciones',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-            source: GlobalAssetDataSource(
-              assets: _filteredAssets,
-              context: context,
-              onDelete: _deleteAsset,
-              onScheduleMaintenance: (a) => showDialog(
-                context: context,
-                builder: (_) => MaintenanceFormDialog(initialAssetId: a['id']),
               ),
             ),
           ),
         ),
-      ),
+        MaterialListPaginator(
+          rowsPerPage: _tableRowsPerPage,
+          currentPage: _tableCurrentPage,
+          totalItems: totalItems,
+          rowsPerPageOptions: const [10, 20, 30, 40, 50, 100],
+          onRowsPerPageChanged: (v) => setState(() {
+            _tableRowsPerPage = v;
+            _tableCurrentPage = 0;
+          }),
+          onFirst: () => setState(() => _tableCurrentPage = 0),
+          onPrevious: () => setState(() => _tableCurrentPage--),
+          onNext: () => setState(() => _tableCurrentPage++),
+          onLast: () => setState(() => _tableCurrentPage = totalPages - 1),
+        ),
+      ],
+    );
+  }
+
+  DataRow _buildGlobalTableRow(Map<String, dynamic> asset) {
+    return DataRow(
+      cells: [
+        DataCell(Text(asset['numero_serie']?.toString() ?? 'N/A')),
+        DataCell(Text(asset['nombre']?.toString() ?? 'N/A')),
+        DataCell(Text(asset['codigo']?.toString() ?? 'N/A')),
+        DataCell(Text(asset['tipo_activo']?['tipo']?.toString() ?? 'N/A')),
+        DataCell(
+          Text(asset['condicion_activo']?['condicion']?.toString() ?? 'N/A'),
+        ),
+        DataCell(
+          Text(asset['custodio']?['nombre_completo']?.toString() ?? 'N/A'),
+        ),
+        DataCell(Text(asset['ciudad_activo']?['ciudad']?.toString() ?? 'N/A')),
+        DataCell(Text(asset['sede_activo']?['sede']?.toString() ?? 'N/A')),
+        DataCell(Text(asset['area_activo']?['area']?.toString() ?? 'N/A')),
+        DataCell(Text(asset['proveedor']?['nombre']?.toString() ?? 'N/A')),
+        DataCell(Text(asset['fecha_adquisicion']?.toString() ?? 'N/A')),
+        DataCell(Text(asset['ip']?.toString() ?? 'N/A')),
+        DataCell(Text(asset['fecha_entrega']?.toString() ?? 'N/A')),
+        DataCell(Text(asset['coordenada']?.toString() ?? 'N/A')),
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.build_circle, color: Colors.blueGrey),
+                onPressed: () => showDialog(
+                  context: context,
+                  builder: (_) =>
+                      MaintenanceFormDialog(initialAssetId: asset['id']),
+                ),
+                tooltip: 'Programar Mantenimiento',
+              ),
+              if (RoleService.currentRole != UserRole.ayudante)
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _deleteAsset(asset['id']),
+                  tooltip: 'Eliminar',
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -897,56 +962,19 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
             },
           ),
         ),
-        // Paginator bar for cards matching material theme
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: Colors.grey.shade300)),
-          ),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const Text('Filas: '),
-                DropdownButton<int>(
-                  value: _listRowsPerPage,
-                  underline: const SizedBox(),
-                  items: const [
-                    DropdownMenuItem(value: 10, child: Text('10')),
-                    DropdownMenuItem(value: 20, child: Text('20')),
-                    DropdownMenuItem(value: 30, child: Text('30')),
-                    DropdownMenuItem(value: 40, child: Text('40')),
-                    DropdownMenuItem(value: 50, child: Text('50')),
-                    DropdownMenuItem(value: 100, child: Text('100')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _listRowsPerPage = val;
-                        _listCurrentPage = 0; // Reset page
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(width: 12),
-                Text('${startIndex + 1}-${endIndex} de $totalItems'),
-                const SizedBox(width: 12),
-                IconButton(
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: _listCurrentPage > 0
-                      ? () => setState(() => _listCurrentPage--)
-                      : null,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right),
-                  onPressed: _listCurrentPage < totalPages - 1
-                      ? () => setState(() => _listCurrentPage++)
-                      : null,
-                ),
-              ],
-            ),
-          ),
+        MaterialListPaginator(
+          rowsPerPage: _listRowsPerPage,
+          currentPage: _listCurrentPage,
+          totalItems: totalItems,
+          rowsPerPageOptions: const [10, 20, 30, 40, 50, 100],
+          onRowsPerPageChanged: (v) => setState(() {
+            _listRowsPerPage = v;
+            _listCurrentPage = 0;
+          }),
+          onFirst: () => setState(() => _listCurrentPage = 0),
+          onPrevious: () => setState(() => _listCurrentPage--),
+          onNext: () => setState(() => _listCurrentPage++),
+          onLast: () => setState(() => _listCurrentPage = totalPages - 1),
         ),
       ],
     );

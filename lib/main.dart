@@ -69,6 +69,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Sistema de Inventarios',
       theme: AppTheme.lightTheme,
       home: widget.isLoggedIn ? const LockScreenPage() : const LoginPage(),

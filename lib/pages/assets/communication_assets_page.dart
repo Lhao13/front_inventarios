@@ -6,6 +6,7 @@ import 'package:front_inventarios/widgets/multi_select_dialog.dart';
 import 'package:front_inventarios/widgets/asset_data_table.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
+import 'package:front_inventarios/widgets/material_list_paginator.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
 import 'package:uuid/uuid.dart';
 
@@ -21,6 +22,9 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
   List<Map<String, dynamic>> _filteredAssets = [];
   bool _isLoading = true;
   bool _isTableView = true;
+
+  int _listRowsPerPage = 10;
+  int _listCurrentPage = 0;
 
   // Column definitions for COMUNICACION category
   static final List<AssetColumnDef> _commsColumns = [
@@ -236,7 +240,10 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
       }
     } catch (e) {
       if (mounted) {
-        context.showSnackBar('Error loading Communication assets: $e', isError: true);
+        context.showSnackBar(
+          'Error loading Communication assets: $e',
+          isError: true,
+        );
         setState(() => _isLoading = false);
       }
     }
@@ -924,12 +931,17 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
           ),
         ),
       ),
-      floatingActionButton: Builder(
-        builder: (context) => FloatingActionButton.extended(
-          onPressed: () => Scaffold.of(context).openEndDrawer(),
-          tooltip: 'Abrir Filtros',
-          icon: const Icon(Icons.filter_list),
-          label: const Text('Filtros'),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(
+          bottom: 60.0,
+        ), // Elevar el botón para no tapar los controles de página
+        child: Builder(
+          builder: (context) => FloatingActionButton.extended(
+            onPressed: () => Scaffold.of(context).openEndDrawer(),
+            tooltip: 'Abrir Filtros',
+            icon: const Icon(Icons.filter_list),
+            label: const Text('Filtros'),
+          ),
         ),
       ),
     );
@@ -1026,58 +1038,100 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
       }
     }
 
-    return ListView.builder(
-      itemCount: _filteredAssets.length,
-      itemBuilder: (context, index) {
-        final asset = _filteredAssets[index];
-        final info =
-            asset['info_equipo_comunicacion'] != null &&
-                (asset['info_equipo_comunicacion'] as List).isNotEmpty
-            ? (asset['info_equipo_comunicacion'] as List)[0]
-            : null;
+    final totalItems = _filteredAssets.length;
+    final totalPages = (totalItems / _listRowsPerPage).ceil();
 
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          elevation: 2,
-          child: ListTile(
-            leading: const Icon(Icons.router, size: 40, color: Colors.teal),
-            title: Text(
-              'S/N: ${asset['numero_serie'] ?? 'N/A'}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              'Nombre: ${asset['nombre'] ?? 'S/N'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}\n'
-              'Puertos: ${info?['num_puertos'] ?? 'N/A'} | Extensión: ${info?['tipo_extension'] ?? 'N/A'}',
-            ),
-            isThreeLine: true,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.build_circle, color: Colors.blueGrey),
-                  tooltip: 'Programar Mantenimiento',
-                  onPressed: () => showDialog(
-                    context: context,
-                    builder: (_) =>
-                        MaintenanceFormDialog(initialAssetId: asset['id']),
+    if (_listCurrentPage >= totalPages && totalPages > 0) {
+      _listCurrentPage = totalPages - 1;
+    }
+
+    final startIndex = _listCurrentPage * _listRowsPerPage;
+    final endIndex = (startIndex + _listRowsPerPage) > totalItems
+        ? totalItems
+        : (startIndex + _listRowsPerPage);
+
+    final pageAssets = _filteredAssets.sublist(startIndex, endIndex);
+
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            itemCount: pageAssets.length,
+            itemBuilder: (context, index) {
+              final asset = pageAssets[index];
+              final info =
+                  asset['info_equipo_comunicacion'] != null &&
+                      (asset['info_equipo_comunicacion'] as List).isNotEmpty
+                  ? (asset['info_equipo_comunicacion'] as List)[0]
+                  : null;
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                elevation: 2,
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.router,
+                    size: 40,
+                    color: Colors.teal,
+                  ),
+                  title: Text(
+                    'S/N: ${asset['numero_serie'] ?? 'N/A'}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    'Nombre: ${asset['nombre'] ?? 'S/N'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}\n'
+                    'Puertos: ${info?['num_puertos'] ?? 'N/A'} | Extensión: ${info?['tipo_extension'] ?? 'N/A'}',
+                  ),
+                  isThreeLine: true,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.build_circle,
+                          color: Colors.blueGrey,
+                        ),
+                        tooltip: 'Programar Mantenimiento',
+                        onPressed: () => showDialog(
+                          context: context,
+                          builder: (_) => MaintenanceFormDialog(
+                            initialAssetId: asset['id'],
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () => _showAssetDialog(existingAsset: asset),
+                        tooltip: 'Editar',
+                      ),
+                      if (RoleService.currentRole != UserRole.ayudante)
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteAsset(asset['id']),
+                          tooltip: 'Eliminar',
+                        ),
+                    ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.blue),
-                  onPressed: () => _showAssetDialog(existingAsset: asset),
-                  tooltip: 'Editar',
-                ),
-                if (RoleService.currentRole != UserRole.ayudante)
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _deleteAsset(asset['id']),
-                    tooltip: 'Eliminar',
-                  ),
-              ],
-            ),
+              );
+            },
           ),
-        );
-      },
+        ),
+        MaterialListPaginator(
+          rowsPerPage: _listRowsPerPage,
+          currentPage: _listCurrentPage,
+          totalItems: totalItems,
+          rowsPerPageOptions: const [10, 20, 30, 40, 50, 100],
+          onRowsPerPageChanged: (v) => setState(() {
+            _listRowsPerPage = v;
+            _listCurrentPage = 0;
+          }),
+          onFirst: () => setState(() => _listCurrentPage = 0),
+          onPrevious: () => setState(() => _listCurrentPage--),
+          onNext: () => setState(() => _listCurrentPage++),
+          onLast: () => setState(() => _listCurrentPage = totalPages - 1),
+        ),
+      ],
     );
   }
 }

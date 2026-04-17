@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:front_inventarios/widgets/asset_data_source.dart';
+import 'package:front_inventarios/auth/role_service.dart';
+import 'package:front_inventarios/main.dart';
+import 'package:front_inventarios/widgets/map_dialog.dart';
+import 'package:front_inventarios/widgets/material_list_paginator.dart';
 
 /// Defines a single column in the [AssetDataTable].
 /// [label] is the header text. [getValue] extracts the display value from an
@@ -17,11 +20,12 @@ class AssetColumnDef {
 }
 
 /// A reusable, stateful DataTable widget for asset pages.
-/// 
+///
 /// Features:
 /// - Column visibility selector (toggle columns on/off via a dialog)
 /// - Horizontal + vertical scroll for mobile
-/// - Edit / Delete action buttons (delete gated by role)
+/// - Edit / Delete / custom action buttons (delete gated by role)
+/// - Pagination via [MaterialListPaginator] (rows-per-page + first/prev/next/last)
 /// - Loading and empty states
 class AssetDataTable extends StatefulWidget {
   final List<Map<String, dynamic>> assets;
@@ -46,9 +50,11 @@ class AssetDataTable extends StatefulWidget {
 }
 
 class _AssetDataTableState extends State<AssetDataTable> {
-  // Tracks which column labels are currently visible.
+  /// Tracks which column labels are currently visible.
   late Set<String> _visibleLabels;
-  int _rowsPerPage = PaginatedDataTable.defaultRowsPerPage;
+
+  int _rowsPerPage = 10;
+  int _currentPage = 0;
 
   @override
   void initState() {
@@ -59,13 +65,7 @@ class _AssetDataTableState extends State<AssetDataTable> {
     };
   }
 
-  @override
-  void dispose() {
-    // Limpieza de recursos si es necesario
-    super.dispose();
-  }
-
-  // When the column list changes (e.g. page navigation), re-init.
+  /// When the column list changes (e.g. page navigation), re-init.
   @override
   void didUpdateWidget(AssetDataTable oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -79,10 +79,15 @@ class _AssetDataTableState extends State<AssetDataTable> {
         });
       }
     }
+    // Reset to first page when the data changes
+    if (oldWidget.assets != widget.assets) {
+      if (mounted) {
+        setState(() => _currentPage = 0);
+      }
+    }
   }
 
   Future<void> _showColumnSelector() async {
-    // Work on a temporary copy so we can cancel.
     final tempVisible = Set<String>.from(_visibleLabels);
 
     await showDialog(
@@ -107,7 +112,6 @@ class _AssetDataTableState extends State<AssetDataTable> {
                           if (val == true) {
                             tempVisible.add(col.label);
                           } else {
-                            // Prevent hiding all columns.
                             if (tempVisible.length > 1) {
                               tempVisible.remove(col.label);
                             }
@@ -121,7 +125,6 @@ class _AssetDataTableState extends State<AssetDataTable> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    // Select all
                     setDialogState(() {
                       tempVisible.addAll(widget.columns.map((c) => c.label));
                     });
@@ -149,6 +152,94 @@ class _AssetDataTableState extends State<AssetDataTable> {
     );
   }
 
+  /// Builds a [DataRow] for one asset, replicating the logic that was in
+  /// [AssetDataSource.getRow].
+  DataRow _buildRow(Map<String, dynamic> asset, List<AssetColumnDef> visibleCols, bool hasActions) {
+    return DataRow(
+      cells: [
+        ...visibleCols.map((col) {
+          final String value = col.getValue(asset);
+
+          // Special case: coordinate column shows a tappable map link
+          if (col.label == 'Coordenada' && value != 'N/A' && value.isNotEmpty) {
+            return DataCell(
+              InkWell(
+                onTap: () {
+                  try {
+                    final parts = value.split(',');
+                    if (parts.length == 2) {
+                      final lat = double.tryParse(parts[0].trim());
+                      final lng = double.tryParse(parts[1].trim());
+                      if (lat != null && lng != null) {
+                        showDialog(
+                          context: context,
+                          builder: (_) => MapDialog(
+                            latitude: lat,
+                            longitude: lng,
+                            title: asset['nombre']?.toString() ??
+                                asset['numero_serie']?.toString() ??
+                                'Activo',
+                          ),
+                        );
+                        return;
+                      }
+                    }
+                    throw Exception('Formato inválido');
+                  } catch (_) {
+                    if (context.mounted) {
+                      context.showSnackBar('Coordenada inválida', isError: true);
+                    }
+                  }
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.location_on, size: 16, color: Colors.blue),
+                    const SizedBox(width: 4),
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        color: Colors.blue,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return DataCell(Text(value));
+        }),
+
+        if (hasActions)
+          DataCell(
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.onEdit != null)
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.blue),
+                    tooltip: 'Editar',
+                    onPressed: () => widget.onEdit!(asset),
+                  ),
+                if (widget.customActionsBuilder != null)
+                  ...widget.customActionsBuilder!(asset),
+                if (widget.onDelete != null &&
+                    asset['id'] != null &&
+                    RoleService.currentRole != UserRole.ayudante)
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    tooltip: 'Eliminar',
+                    onPressed: () => widget.onDelete!(asset['id'] as String),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.isLoading) {
@@ -167,12 +258,27 @@ class _AssetDataTableState extends State<AssetDataTable> {
         .where((c) => _visibleLabels.contains(c.label))
         .toList();
 
-    final hasActions = widget.onEdit != null || widget.onDelete != null || widget.customActionsBuilder != null;
+    final hasActions =
+        widget.onEdit != null ||
+        widget.onDelete != null ||
+        widget.customActionsBuilder != null;
+
+    // ── Pagination math ────────────────────────────────────────────────────
+    final totalItems = widget.assets.length;
+    final totalPages = (totalItems / _rowsPerPage).ceil().clamp(1, 999999);
+
+    if (_currentPage >= totalPages) _currentPage = totalPages - 1;
+    if (_currentPage < 0) _currentPage = 0;
+
+    final startIndex = _currentPage * _rowsPerPage;
+    final endIndex = (startIndex + _rowsPerPage).clamp(0, totalItems);
+    final pageAssets = widget.assets.sublist(startIndex, endIndex);
+    // ───────────────────────────────────────────────────────────────────────
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Toolbar row: count + column selector button
+        // ── Toolbar: record count + column selector ──────────────────────
         Padding(
           padding: const EdgeInsets.only(bottom: 8.0),
           child: Row(
@@ -198,26 +304,29 @@ class _AssetDataTableState extends State<AssetDataTable> {
           ),
         ),
 
-        // Data table
+        // ── Scrollable DataTable (horizontal + vertical) ─────────────────
         Expanded(
           child: SingleChildScrollView(
-            child: SizedBox(
-              width: double.infinity,
+            // vertical scroll
+            child: SingleChildScrollView(
+              // horizontal scroll for wide tables
+              scrollDirection: Axis.horizontal,
               child: Theme(
                 data: Theme.of(context).copyWith(
-                  cardTheme: const CardThemeData(elevation: 0, margin: EdgeInsets.zero, color: Colors.transparent),
+                  cardTheme: const CardThemeData(
+                    elevation: 0,
+                    margin: EdgeInsets.zero,
+                    color: Colors.transparent,
+                  ),
                 ),
-                child: PaginatedDataTable(
-                  header: null,
+                child: DataTable(
                   columnSpacing: 24,
-                  rowsPerPage: _rowsPerPage,
-                  availableRowsPerPage: const [10, 20, 30, 40, 50, 100],
-                  onRowsPerPageChanged: (value) {
-                    setState(() {
-                      _rowsPerPage = value ?? PaginatedDataTable.defaultRowsPerPage;
-                    });
-                  },
-                  showFirstLastButtons: true,
+                  headingRowColor: WidgetStateProperty.resolveWith(
+                    (states) => Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withAlpha(128),
+                  ),
                   columns: [
                     ...visibleCols.map(
                       (col) => DataColumn(
@@ -235,19 +344,29 @@ class _AssetDataTableState extends State<AssetDataTable> {
                         ),
                       ),
                   ],
-                  source: AssetDataSource(
-                    assets: widget.assets,
-                    visibleCols: visibleCols,
-                    hasActions: hasActions,
-                    context: context,
-                    onEdit: widget.onEdit,
-                    onDelete: widget.onDelete,
-                    customActionsBuilder: widget.customActionsBuilder,
-                  ),
+                  rows: pageAssets
+                      .map((asset) => _buildRow(asset, visibleCols, hasActions))
+                      .toList(),
                 ),
               ),
             ),
           ),
+        ),
+
+        // ── Pagination footer ─────────────────────────────────────────────
+        MaterialListPaginator(
+          rowsPerPage: _rowsPerPage,
+          currentPage: _currentPage,
+          totalItems: totalItems,
+          rowsPerPageOptions: const [10, 20, 30, 40, 50, 100],
+          onRowsPerPageChanged: (v) => setState(() {
+            _rowsPerPage = v;
+            _currentPage = 0;
+          }),
+          onFirst: () => setState(() => _currentPage = 0),
+          onPrevious: () => setState(() => _currentPage--),
+          onNext: () => setState(() => _currentPage++),
+          onLast: () => setState(() => _currentPage = totalPages - 1),
         ),
       ],
     );

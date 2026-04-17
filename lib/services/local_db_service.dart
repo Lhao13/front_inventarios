@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:uuid/uuid.dart';
 
 /// Servicio local para el manejo Offline-First de Caché y Cola de Operaciones.
 /// Utiliza un esquema tipo "Document Store" (collection, id, json_data) para no 
@@ -154,7 +155,7 @@ class LocalDbService {
     final db = await instance.database;
     // Si la operación falla, se queda en pendiente ("pending")
     await db.insert('sync_queue', {
-      'id': DateTime.now().millisecondsSinceEpoch.toString(), // ID simple temporal
+      'id': const Uuid().v4(), // UUID v4 garantiza unicidad sin condición de carrera
       'rpc_name': rpcName,
       'params_json': jsonEncode(params),
       'created_at': DateTime.now().toIso8601String(),
