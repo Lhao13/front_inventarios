@@ -40,7 +40,8 @@ class DynamicAssetForm extends StatefulWidget {
     String? proveedorSoftware,
     String? fechaInicio,
     String? fechaFin,
-  }) onSave;
+  })
+  onSave;
 
   const DynamicAssetForm({
     super.key,
@@ -100,8 +101,25 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
   String? _selectedRam;
   String? _selectedAlmacenamiento;
 
-  static const List<String> _ramOptions = ['4GB', '8GB', '12GB', '16GB', '32GB', '64GB', '128GB', '256GB'];
-  static const List<String> _storageOptions = ['128GB', '256GB', '512GB', '1TB', '2TB', '4TB', '10TB'];
+  static const List<String> _ramOptions = [
+    '4GB',
+    '8GB',
+    '12GB',
+    '16GB',
+    '32GB',
+    '64GB',
+    '128GB',
+    '256GB',
+  ];
+  static const List<String> _storageOptions = [
+    '128GB',
+    '256GB',
+    '512GB',
+    '1TB',
+    '2TB',
+    '4TB',
+    '10TB',
+  ];
 
   // Communication Specific
   final _tipoExtensionCtrl = TextEditingController();
@@ -164,11 +182,15 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
 
     // Category-specific fields
     List? infoList;
-    if (_categoria == 'PC') infoList = d['info_pc'] as List?;
-    else if (_categoria == 'COMUNICACION') infoList = d['info_equipo_comunicacion'] as List?;
-    else if (_categoria == 'GENERICO') infoList = d['info_equipo_generico'] as List?;
-    else if (_categoria == 'SOFTWARE') infoList = d['info_software'] as List?;
-    
+    if (_categoria == 'PC') {
+      infoList = d['info_pc'] as List?;
+    } else if (_categoria == 'COMUNICACION')
+      infoList = d['info_equipo_comunicacion'] as List?;
+    else if (_categoria == 'GENERICO')
+      infoList = d['info_equipo_generico'] as List?;
+    else if (_categoria == 'SOFTWARE')
+      infoList = d['info_software'] as List?;
+
     final info = (infoList != null && infoList.isNotEmpty)
         ? infoList[0] as Map<String, dynamic>
         : null;
@@ -186,19 +208,22 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       _procesadorCtrl.text = info['procesador']?.toString() ?? '';
       _cargadorCodigoCtrl.text = info['cargador_codigo']?.toString() ?? '';
       _numPuertosCtrl.text = info['num_puertos']?.toString() ?? '';
-      
+
       final ramVal = info['ram']?.toString();
       _selectedRam = _ramOptions.contains(ramVal) ? ramVal : null;
-      
+
       final storageVal = info['almacenamiento']?.toString();
-      _selectedAlmacenamiento = _storageOptions.contains(storageVal) ? storageVal : null;
+      _selectedAlmacenamiento = _storageOptions.contains(storageVal)
+          ? storageVal
+          : null;
 
       // Communication
       _tipoExtensionCtrl.text = info['tipo_extension']?.toString() ?? '';
 
       // Generic
       _numConexionesCtrl.text = info['num_conexiones']?.toString() ?? '';
-      _varImpresoraColorCtrl.text = info['var_impresora_color']?.toString() ?? '';
+      _varImpresoraColorCtrl.text =
+          info['var_impresora_color']?.toString() ?? '';
       _varMonitorTipoConexionCtrl.text =
           info['var_monitor_tipo_conexion']?.toString() ?? '';
 
@@ -281,7 +306,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
-        keyboardType: (isNumber || isNumericOnly) ? TextInputType.number : TextInputType.text,
+        keyboardType: (isNumber || isNumericOnly)
+            ? TextInputType.number
+            : TextInputType.text,
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
           isDense: true,
@@ -291,8 +318,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
         validator: required
             ? (value) {
                 if (value == null || value.trim().isEmpty) return 'Requerido';
-                if (isNumber && int.tryParse(value.trim()) == null)
+                if (isNumber && int.tryParse(value.trim()) == null) {
                   return 'Debe ser numérico';
+                }
                 return null;
               }
             : (value) {
@@ -317,15 +345,24 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     bool required = false,
   }) {
     final validValue = items.any((item) => item['id'] == value) ? value : null;
-    
+
     final dropdownItems = items.map((item) {
       return DropdownMenuItem<int?>(
         value: item['id'],
-        child: Text(item[displayKey]?.toString() ?? '', overflow: TextOverflow.ellipsis),
+        child: Text(
+          item[displayKey]?.toString() ?? '',
+          overflow: TextOverflow.ellipsis,
+        ),
       );
     }).toList();
-    
-    dropdownItems.insert(0, const DropdownMenuItem<int?>(value: null, child: Text('-- Ninguno --', style: TextStyle(color: Colors.grey))));
+
+    dropdownItems.insert(
+      0,
+      const DropdownMenuItem<int?>(
+        value: null,
+        child: Text('-- Ninguno --', style: TextStyle(color: Colors.grey)),
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
@@ -338,7 +375,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
         ),
         items: dropdownItems,
         onChanged: onChanged,
-        validator: required ? (val) => val == null ? 'Seleccione una opción' : null : null,
+        validator: required
+            ? (val) => val == null ? 'Seleccione una opción' : null
+            : null,
       ),
     );
   }
@@ -359,7 +398,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       value: validValue,
       onChanged: onChanged,
       required: required,
-      validator: required ? (val) => val == null ? 'Seleccione una opción' : null : null,
+      validator: required
+          ? (val) => val == null ? 'Seleccione una opción' : null
+          : null,
     );
   }
 
@@ -371,15 +412,21 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     bool required = false,
   }) {
     final validValue = items.contains(value) ? value : null;
-    
+
     final dropdownItems = items.map((item) {
       return DropdownMenuItem<String?>(
         value: item,
         child: Text(item, overflow: TextOverflow.ellipsis),
       );
     }).toList();
-    
-    dropdownItems.insert(0, const DropdownMenuItem<String?>(value: null, child: Text('-- Ninguno --', style: TextStyle(color: Colors.grey))));
+
+    dropdownItems.insert(
+      0,
+      const DropdownMenuItem<String?>(
+        value: null,
+        child: Text('-- Ninguno --', style: TextStyle(color: Colors.grey)),
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
@@ -392,7 +439,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
         ),
         items: dropdownItems,
         onChanged: onChanged,
-        validator: required ? (val) => val == null ? 'Seleccione una opción' : null : null,
+        validator: required
+            ? (val) => val == null ? 'Seleccione una opción' : null
+            : null,
       ),
     );
   }
@@ -403,7 +452,10 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (mounted) {
-          context.showSnackBar('Servicio de ubicación desactivado', isError: true);
+          context.showSnackBar(
+            'Servicio de ubicación desactivado',
+            isError: true,
+          );
         }
         setState(() => _gettingLocation = false);
         return;
@@ -414,7 +466,10 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           if (mounted) {
-            context.showSnackBar('Permiso de ubicación denegado', isError: true);
+            context.showSnackBar(
+              'Permiso de ubicación denegado',
+              isError: true,
+            );
           }
           setState(() => _gettingLocation = false);
           return;
@@ -423,13 +478,18 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
 
       if (permission == LocationPermission.deniedForever) {
         if (mounted) {
-          context.showSnackBar('Permisos de ubicación denegados permanentemente', isError: true);
+          context.showSnackBar(
+            'Permisos de ubicación denegados permanentemente',
+            isError: true,
+          );
         }
         setState(() => _gettingLocation = false);
         return;
       }
 
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
       setState(() {
         _coordenadaCtrl.text = '${position.latitude},${position.longitude}';
       });
@@ -479,7 +539,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                 : const Icon(Icons.calendar_today, size: 18),
           ),
           child: Text(
-            currentValue != null ? _fmtDate(currentValue) : 'Toca para seleccionar',
+            currentValue != null
+                ? _fmtDate(currentValue)
+                : 'Toca para seleccionar',
             style: TextStyle(
               color: currentValue != null ? null : Colors.grey,
               fontSize: 14,
@@ -511,9 +573,18 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                   value: _categoria,
                   items: const [
                     DropdownMenuItem(value: 'PC', child: Text('PC')),
-                    DropdownMenuItem(value: 'SOFTWARE', child: Text('SOFTWARE')),
-                    DropdownMenuItem(value: 'COMUNICACION', child: Text('COMUNICACIÓN')),
-                    DropdownMenuItem(value: 'GENERICO', child: Text('GENÉRICO')),
+                    DropdownMenuItem(
+                      value: 'SOFTWARE',
+                      child: Text('SOFTWARE'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'COMUNICACION',
+                      child: Text('COMUNICACIÓN'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'GENERICO',
+                      child: Text('GENÉRICO'),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null && value != _categoria) {
@@ -538,31 +609,46 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
             const Divider(),
             if (_categoria != 'SOFTWARE')
               _buildTextField(
-                _numeroSerieCtrl, 
-                'Número de Serie', 
+                _numeroSerieCtrl,
+                'Número de Serie',
                 required: true,
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.qr_code_scanner),
                   tooltip: 'Escanear Número de Serie',
                   onPressed: () async {
-                    final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()));
-                    if (result != null && result is String) setState(() => _numeroSerieCtrl.text = result);
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const BarcodeScannerScreen(),
+                      ),
+                    );
+                    if (result != null && result is String)
+                      setState(() => _numeroSerieCtrl.text = result);
                   },
                 ),
               ),
             _buildTextField(_nombreCtrl, 'Nombre'),
             _buildTextField(
-              _codigoCtrl, 
-              'Código', 
+              _codigoCtrl,
+              'Código',
               isNumericOnly: true,
-              suffixIcon: _categoria == 'SOFTWARE' ? null : IconButton(
-                icon: const Icon(Icons.qr_code_scanner),
-                tooltip: 'Escanear Código Numérico',
-                onPressed: () async {
-                  final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(isOnlyNumeric: true)));
-                  if (result != null && result is String) setState(() => _codigoCtrl.text = result);
-                },
-              ),
+              suffixIcon: _categoria == 'SOFTWARE'
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.qr_code_scanner),
+                      tooltip: 'Escanear Código Numérico',
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const BarcodeScannerScreen(isOnlyNumeric: true),
+                          ),
+                        );
+                        if (result != null && result is String)
+                          setState(() => _codigoCtrl.text = result);
+                      },
+                    ),
             ),
             _buildDropdown(
               'Tipo de Activo',
@@ -572,23 +658,58 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
               (v) => setState(() => _tipoActivoId = v),
               required: true,
             ),
-            _buildDropdown('Condición', _condicionActivoId, _condicionesActivo, 'condicion',
-                (v) => setState(() => _condicionActivoId = v)),
-            _buildSearchableDropdown('Custodio', _custodioId, _custodios, 'nombre_completo',
-                (v) => setState(() => _custodioId = v)),
-            _buildSearchableDropdown('Área', _areaActivoId, _areas, 'area',
-                (v) => setState(() => _areaActivoId = v)),
-            _buildDropdown('Proveedor General', _proveedorId, _proveedores, 'nombre',
-                (v) => setState(() => _proveedorId = v)),
+            _buildDropdown(
+              'Condición',
+              _condicionActivoId,
+              _condicionesActivo,
+              'condicion',
+              (v) => setState(() => _condicionActivoId = v),
+            ),
+            _buildSearchableDropdown(
+              'Custodio',
+              _custodioId,
+              _custodios,
+              'nombre_completo',
+              (v) => setState(() => _custodioId = v),
+            ),
+            _buildSearchableDropdown(
+              'Área',
+              _areaActivoId,
+              _areas,
+              'area',
+              (v) => setState(() => _areaActivoId = v),
+            ),
+            _buildDropdown(
+              'Proveedor General',
+              _proveedorId,
+              _proveedores,
+              'nombre',
+              (v) => setState(() => _proveedorId = v),
+            ),
 
             if (_categoria != 'SOFTWARE') ...[
-              _buildDropdown('Ciudad', _ciudadActivoId, _ciudades, 'ciudad',
-                  (v) => setState(() => _ciudadActivoId = v)),
-              _buildSearchableDropdown('Sede', _sedeActivoId, _sedes, 'sede',
-                  (v) => setState(() => _sedeActivoId = v)),
+              _buildDropdown(
+                'Ciudad',
+                _ciudadActivoId,
+                _ciudades,
+                'ciudad',
+                (v) => setState(() => _ciudadActivoId = v),
+              ),
+              _buildSearchableDropdown(
+                'Sede',
+                _sedeActivoId,
+                _sedes,
+                'sede',
+                (v) => setState(() => _sedeActivoId = v),
+              ),
               _buildTextField(_ipCtrl, 'IP (opcional)'),
-              _buildDropdown('Marca', _marcaId, _marcas, 'marca_proveedor',
-                  (v) => setState(() => _marcaId = v)),
+              _buildDropdown(
+                'Marca',
+                _marcaId,
+                _marcas,
+                'marca_proveedor',
+                (v) => setState(() => _marcaId = v),
+              ),
               _buildTextField(_modeloCtrl, 'Modelo'),
               // Date pickers — adquisicion must be ≤ today
               _buildDatePicker(
@@ -607,9 +728,13 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                 _coordenadaCtrl,
                 'Coordenada (lat,lng)',
                 suffixIcon: IconButton(
-                  icon: _gettingLocation 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) 
-                    : const Icon(Icons.my_location),
+                  icon: _gettingLocation
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location),
                   tooltip: 'Obtener mi ubicación actual',
                   onPressed: _gettingLocation ? null : _getCurrentLocation,
                 ),
@@ -625,52 +750,100 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
 
             if (_categoria == 'PC') ...[
               _buildTextField(_procesadorCtrl, 'Procesador'),
-              _buildStringDropdown('RAM', _selectedRam, _ramOptions, (v) => setState(() => _selectedRam = v)),
-              _buildStringDropdown('Almacenamiento', _selectedAlmacenamiento, _storageOptions, (v) => setState(() => _selectedAlmacenamiento = v)),
+              _buildStringDropdown(
+                'RAM',
+                _selectedRam,
+                _ramOptions,
+                (v) => setState(() => _selectedRam = v),
+              ),
+              _buildStringDropdown(
+                'Almacenamiento',
+                _selectedAlmacenamiento,
+                _storageOptions,
+                (v) => setState(() => _selectedAlmacenamiento = v),
+              ),
               _buildTextField(
-                _cargadorCodigoCtrl, 
+                _cargadorCodigoCtrl,
                 'Código Cargador',
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.qr_code_scanner),
                   tooltip: 'Escanear Código',
                   onPressed: () async {
-                    final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(isOnlyNumeric: true)));
-                    if (result != null && result is String) setState(() => _cargadorCodigoCtrl.text = result);
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            const BarcodeScannerScreen(isOnlyNumeric: true),
+                      ),
+                    );
+                    if (result != null && result is String)
+                      setState(() => _cargadorCodigoCtrl.text = result);
                   },
                 ),
               ),
-              _buildTextField(_numPuertosCtrl, 'Número de Puertos', isNumber: true),
+              _buildTextField(
+                _numPuertosCtrl,
+                'Número de Puertos',
+                isNumber: true,
+              ),
             ],
 
             if (_categoria == 'COMUNICACION') ...[
-              _buildTextField(_numPuertosCtrl, 'Número de Puertos', isNumber: true),
+              _buildTextField(
+                _numPuertosCtrl,
+                'Número de Puertos',
+                isNumber: true,
+              ),
               _buildTextField(_tipoExtensionCtrl, 'Tipo Extensión'),
             ],
 
             if (_categoria == 'GENERICO') ...[
               _buildTextField(
-                _cargadorCodigoCtrl, 
+                _cargadorCodigoCtrl,
                 'Código Cargador',
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.qr_code_scanner),
                   tooltip: 'Escanear Código',
                   onPressed: () async {
-                    final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(isOnlyNumeric: true)));
-                    if (result != null && result is String) setState(() => _cargadorCodigoCtrl.text = result);
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            const BarcodeScannerScreen(isOnlyNumeric: true),
+                      ),
+                    );
+                    if (result != null && result is String)
+                      setState(() => _cargadorCodigoCtrl.text = result);
                   },
                 ),
               ),
-              _buildTextField(_numConexionesCtrl, 'Número de Conexiones', isNumber: true),
-              _buildTextField(_varImpresoraColorCtrl, 'Impresora Color (opcional)'),
-              _buildTextField(_varMonitorTipoConexionCtrl, 'Monitor Tipo Conexión (opcional)'),
+              _buildTextField(
+                _numConexionesCtrl,
+                'Número de Conexiones',
+                isNumber: true,
+              ),
+              _buildTextField(
+                _varImpresoraColorCtrl,
+                'Impresora Color (opcional)',
+              ),
+              _buildTextField(
+                _varMonitorTipoConexionCtrl,
+                'Monitor Tipo Conexión (opcional)',
+              ),
             ],
 
             if (_categoria == 'SOFTWARE') ...[
               _buildTextField(_proveedorSoftwareCtrl, 'Proveedor de Software'),
-              _buildDatePicker('Fecha Inicio Licencia', _fechaInicio,
-                  (d) => setState(() => _fechaInicio = d)),
-              _buildDatePicker('Fecha Fin Licencia', _fechaFin,
-                  (d) => setState(() => _fechaFin = d)),
+              _buildDatePicker(
+                'Fecha Inicio Licencia',
+                _fechaInicio,
+                (d) => setState(() => _fechaInicio = d),
+              ),
+              _buildDatePicker(
+                'Fecha Fin Licencia',
+                _fechaFin,
+                (d) => setState(() => _fechaFin = d),
+              ),
             ],
 
             _buildTextField(_observacionesCtrl, 'Observaciones (opcional)'),
@@ -687,11 +860,16 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                         if (_categoria != 'SOFTWARE') {
                           final currentSerial = _numeroSerieCtrl.text.trim();
                           if (currentSerial.isNotEmpty) {
-                            final allAssets = await LocalDbService.instance.getCollection('activo');
-                            final isDuplicate = allAssets.any((a) =>
-                                a['numero_serie']?.toString().trim() == currentSerial &&
-                                a['id']?.toString() != widget.initialData?['id']?.toString());
-                            
+                            final allAssets = await LocalDbService.instance
+                                .getCollection('activo');
+                            final isDuplicate = allAssets.any(
+                              (a) =>
+                                  a['numero_serie']?.toString().trim() ==
+                                      currentSerial &&
+                                  a['id']?.toString() !=
+                                      widget.initialData?['id']?.toString(),
+                            );
+
                             if (isDuplicate) {
                               if (mounted) {
                                 context.showSnackBar(
@@ -725,11 +903,17 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                           coordenada: _coordenadaCtrl.text.isEmpty
                               ? null
                               : _coordenadaCtrl.text,
-                          nombre: _nombreCtrl.text.isEmpty ? null : _nombreCtrl.text,
-                          codigo: _codigoCtrl.text.isEmpty ? null : _codigoCtrl.text,
+                          nombre: _nombreCtrl.text.isEmpty
+                              ? null
+                              : _nombreCtrl.text,
+                          codigo: _codigoCtrl.text.isEmpty
+                              ? null
+                              : _codigoCtrl.text,
                           ip: _ipCtrl.text.isEmpty ? null : _ipCtrl.text,
                           marcaId: _marcaId,
-                          modelo: _modeloCtrl.text.isEmpty ? null : _modeloCtrl.text,
+                          modelo: _modeloCtrl.text.isEmpty
+                              ? null
+                              : _modeloCtrl.text,
                           observaciones: _observacionesCtrl.text.isEmpty
                               ? null
                               : _observacionesCtrl.text,
@@ -751,15 +935,17 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                               : _varImpresoraColorCtrl.text,
                           varMonitorTipoConexion:
                               _varMonitorTipoConexionCtrl.text.isEmpty
-                                  ? null
-                                  : _varMonitorTipoConexionCtrl.text,
+                              ? null
+                              : _varMonitorTipoConexionCtrl.text,
                           proveedorSoftware: _proveedorSoftwareCtrl.text.isEmpty
                               ? null
                               : _proveedorSoftwareCtrl.text,
                           fechaInicio: _fechaInicio != null
                               ? _fmtDate(_fechaInicio!)
                               : null,
-                          fechaFin: _fechaFin != null ? _fmtDate(_fechaFin!) : null,
+                          fechaFin: _fechaFin != null
+                              ? _fmtDate(_fechaFin!)
+                              : null,
                         );
                       } finally {
                         if (mounted) setState(() => _saving = false);

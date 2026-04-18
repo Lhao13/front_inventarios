@@ -11,6 +11,8 @@ import 'package:front_inventarios/services/sync_queue_service.dart';
 import 'package:front_inventarios/utils/asset_filter.dart';
 import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
 import 'package:front_inventarios/widgets/material_list_paginator.dart';
+import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
+import 'package:uuid/uuid.dart';
 
 class AssetManagementPage extends StatefulWidget {
   const AssetManagementPage({super.key});
@@ -41,14 +43,14 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   List<Map<String, dynamic>> _marcas = [];
 
   // Currently Selected Filters
-  Set<int> _selectedTiposActivo = {};
-  Set<int> _selectedCondiciones = {};
-  Set<int> _selectedSedes = {};
-  Set<int> _selectedAreas = {};
-  Set<int> _selectedCiudades = {};
-  Set<int> _selectedCustodios = {};
-  Set<int> _selectedProveedores = {};
-  Set<int> _selectedMarcas = {};
+  final Set<int> _selectedTiposActivo = {};
+  final Set<int> _selectedCondiciones = {};
+  final Set<int> _selectedSedes = {};
+  final Set<int> _selectedAreas = {};
+  final Set<int> _selectedCiudades = {};
+  final Set<int> _selectedCustodios = {};
+  final Set<int> _selectedProveedores = {};
+  final Set<int> _selectedMarcas = {};
 
   final Set<String> _selectedNombres = {};
   final Set<String> _selectedCodigos = {};
@@ -188,14 +190,574 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
       await LocalDbService.instance.enqueueOperation('eliminar_activo', {
         'p_id_activo': id,
       });
-      if (SyncQueueService.instance.isOnline)
+      if (SyncQueueService.instance.isOnline) {
         SyncQueueService.instance.syncPendingOperations();
-      if (mounted)
+      }
+      if (mounted) {
         context.showSnackBar('Activo eliminado localmente (Cola activada).');
+      }
       _loadAssets();
     } catch (e) {
       if (mounted) context.showSnackBar('Error al eliminar: $e', isError: true);
     }
+  }
+
+  Color _getCategoryColor(String category) {
+    switch (category.toUpperCase()) {
+      case 'PC':
+        return Colors.blue.shade100;
+      case 'SOFTWARE':
+        return Colors.green.shade100;
+      case 'COMUNICACION':
+        return Colors.orange.shade100;
+      case 'GENERICO':
+        return Colors.blueGrey.shade100;
+      default:
+        return Colors.grey.shade100;
+    }
+  }
+
+  Color _getCategoryTextColor(String category) {
+    switch (category.toUpperCase()) {
+      case 'PC':
+        return Colors.blue.shade900;
+      case 'SOFTWARE':
+        return Colors.green.shade900;
+      case 'COMUNICACION':
+        return Colors.orange.shade900;
+      case 'GENERICO':
+        return Colors.blueGrey.shade900;
+      default:
+        return Colors.grey.shade900;
+    }
+  }
+
+  Future<void> _showAssetUpdateDialog(Map<String, dynamic> asset) async {
+    final String category = (asset['categoria_activo'] ?? 'PC').toString();
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            width: 600,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Actualizar Activo - $category',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(dialogContext),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: DynamicAssetForm(
+                    initialCategory: category,
+                    initialData: asset,
+                    onSave:
+                        ({
+                          String? numeroSerie,
+                          required String categoria,
+                          required int tipoActivoId,
+                          int? condicionActivoId,
+                          int? custodioId,
+                          int? ciudadActivoId,
+                          int? sedeActivoId,
+                          int? areaActivoId,
+                          int? proveedorId,
+                          String? fechaAdquisicion,
+                          String? fechaEntrega,
+                          String? coordenada,
+                          String? nombre,
+                          String? codigo,
+                          String? ip,
+                          int? marcaId,
+                          String? modelo,
+                          String? observaciones,
+                          String? procesador,
+                          String? ram,
+                          String? almacenamiento,
+                          String? cargadorCodigo,
+                          int? numPuertos,
+                          String? tipoExtension,
+                          int? numConexiones,
+                          String? varImpresoraColor,
+                          String? varMonitorTipoConexion,
+                          String? proveedorSoftware,
+                          String? fechaInicio,
+                          String? fechaFin,
+                        }) async {
+                          try {
+                            String rpcName = '';
+                            Map<String, dynamic> params = {};
+
+                            if (category == 'PC') {
+                              rpcName = 'actualizar_activo_pc';
+                              params = {
+                                'p_id_activo': asset['id'],
+                                'p_numero_serie': numeroSerie,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_ciudad_activo': ciudadActivoId,
+                                'p_id_sede_activo': sedeActivoId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_fecha_adquisicion': fechaAdquisicion,
+                                'p_ip': ip,
+                                'p_fecha_entrega': fechaEntrega,
+                                'p_coordenada': coordenada,
+                                'p_id_marca': marcaId,
+                                'p_modelo': modelo,
+                                'p_procesador': procesador,
+                                'p_ram': ram,
+                                'p_almacenamiento': almacenamiento,
+                                'p_cargador_codigo': cargadorCodigo,
+                                'p_num_puertos': numPuertos,
+                                'p_observaciones': observaciones,
+                              };
+                            } else if (category == 'SOFTWARE') {
+                              rpcName = 'actualizar_activo_software';
+                              params = {
+                                'p_id_activo': asset['id'],
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_proveedor': proveedorSoftware,
+                                'p_fecha_inicio': fechaInicio,
+                                'p_fecha_fin': fechaFin,
+                                'p_observaciones': observaciones,
+                              };
+                            } else if (category == 'COMUNICACION') {
+                              rpcName = 'actualizar_activo_equipo_comunicacion';
+                              params = {
+                                'p_id_activo': asset['id'],
+                                'p_numero_serie': numeroSerie,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_ciudad_activo': ciudadActivoId,
+                                'p_id_sede_activo': sedeActivoId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_fecha_adquisicion': fechaAdquisicion,
+                                'p_ip': ip,
+                                'p_fecha_entrega': fechaEntrega,
+                                'p_coordenada': coordenada,
+                                'p_id_marca': marcaId,
+                                'p_modelo': modelo,
+                                'p_num_puertos': numPuertos,
+                                'p_tipo_extension': tipoExtension,
+                                'p_observaciones': observaciones,
+                              };
+                            } else if (category == 'GENERICO') {
+                              rpcName = 'actualizar_activo_equipo_generico';
+                              params = {
+                                'p_id_activo': asset['id'],
+                                'p_numero_serie': numeroSerie,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_ciudad_activo': ciudadActivoId,
+                                'p_id_sede_activo': sedeActivoId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_fecha_adquisicion': fechaAdquisicion,
+                                'p_fecha_entrega': fechaEntrega,
+                                'p_coordenada': coordenada,
+                                'p_id_marca': marcaId,
+                                'p_modelo': modelo,
+                                'p_cargador_codigo': cargadorCodigo,
+                                'p_num_conexiones': numConexiones,
+                                'p_var_impresora_color': varImpresoraColor,
+                                'p_var_monitor_tipo_conexion':
+                                    varMonitorTipoConexion,
+                                'p_observaciones': observaciones,
+                              };
+                            }
+
+                            if (rpcName.isNotEmpty) {
+                              await LocalDbService.instance.enqueueOperation(
+                                rpcName,
+                                params,
+                              );
+                              if (SyncQueueService.instance.isOnline) {
+                                SyncQueueService.instance
+                                    .syncPendingOperations();
+                              }
+
+                              // 1. Check if the page is still mounted before showing SnackBar
+                              if (!mounted) return;
+                              context.showSnackBar(
+                                'Activo actualizado localmente.',
+                              );
+
+                              // 2. Check if the dialog is still mounted before popping it
+                              if (dialogContext.mounted) {
+                                Navigator.pop(dialogContext);
+                              }
+
+                              _loadAssets();
+                            }
+                          } catch (error) {
+                            if (!mounted) return;
+                            context.showSnackBar(
+                              'Error al actualizar: $error',
+                              isError: true,
+                            );
+                          }
+                        },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showCategorySelectorDialog() async {
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Elegir Categoría de Activo'),
+          content: SizedBox(
+            width: 400,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                _buildCategoryOption(
+                  context: dialogContext,
+                  category: 'PC',
+                  icon: Icons.computer,
+                  description:
+                      'Equipos de cómputo, laptops, servidores y estaciones de trabajo.',
+                ),
+                _buildCategoryOption(
+                  context: dialogContext,
+                  category: 'COMUNICACION',
+                  title: 'Comunicaciones',
+                  icon: Icons.router,
+                  description:
+                      'Equipos de red, telefonía IP, routers y dispositivos de conectividad.',
+                ),
+                _buildCategoryOption(
+                  context: dialogContext,
+                  category: 'GENERICO',
+                  title: 'Genérico',
+                  icon: Icons.devices_other,
+                  description:
+                      'Periféricos, monitores, impresoras y otros activos complementarios.',
+                ),
+                _buildCategoryOption(
+                  context: dialogContext,
+                  category: 'SOFTWARE',
+                  icon: Icons.developer_board,
+                  description:
+                      'Licencias de programas, suscripciones y activos digitales intangibles.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCategoryOption({
+    required BuildContext context,
+    required String category,
+    String? title,
+    required IconData icon,
+    required String description,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(context);
+          _showAssetCreateDialog(category);
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(icon, size: 32, color: Colors.blue),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title ?? category,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAssetCreateDialog(String category) async {
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            width: 600,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Agregar Activo - $category',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(dialogContext),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: DynamicAssetForm(
+                    initialCategory: category,
+                    initialData: null,
+                    onSave:
+                        ({
+                          String? numeroSerie,
+                          required String categoria,
+                          required int tipoActivoId,
+                          int? condicionActivoId,
+                          int? custodioId,
+                          int? ciudadActivoId,
+                          int? sedeActivoId,
+                          int? areaActivoId,
+                          int? proveedorId,
+                          String? fechaAdquisicion,
+                          String? fechaEntrega,
+                          String? coordenada,
+                          String? nombre,
+                          String? codigo,
+                          String? ip,
+                          int? marcaId,
+                          String? modelo,
+                          String? observaciones,
+                          String? procesador,
+                          String? ram,
+                          String? almacenamiento,
+                          String? cargadorCodigo,
+                          int? numPuertos,
+                          String? tipoExtension,
+                          int? numConexiones,
+                          String? varImpresoraColor,
+                          String? varMonitorTipoConexion,
+                          String? proveedorSoftware,
+                          String? fechaInicio,
+                          String? fechaFin,
+                        }) async {
+                          try {
+                            String rpcName = '';
+                            Map<String, dynamic> params = {};
+                            final String newId = const Uuid().v4();
+
+                            if (category == 'PC') {
+                              rpcName = 'crear_activo_pc';
+                              params = {
+                                'p_id_activo': newId,
+                                'p_numero_serie': numeroSerie,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_ciudad_activo': ciudadActivoId,
+                                'p_id_sede_activo': sedeActivoId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_fecha_adquisicion': fechaAdquisicion,
+                                'p_ip': ip,
+                                'p_fecha_entrega': fechaEntrega,
+                                'p_coordenada': coordenada,
+                                'p_id_marca': marcaId,
+                                'p_modelo': modelo,
+                                'p_procesador': procesador,
+                                'p_ram': ram,
+                                'p_almacenamiento': almacenamiento,
+                                'p_cargador_codigo': cargadorCodigo,
+                                'p_num_puertos': numPuertos,
+                                'p_observaciones': observaciones,
+                              };
+                            } else if (category == 'SOFTWARE') {
+                              rpcName = 'crear_activo_software';
+                              params = {
+                                'p_id_activo': newId,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_proveedor': proveedorSoftware,
+                                'p_fecha_inicio': fechaInicio,
+                                'p_fecha_fin': fechaFin,
+                                'p_observaciones': observaciones,
+                              };
+                            } else if (category == 'COMUNICACION') {
+                              rpcName = 'crear_activo_equipo_comunicacion';
+                              params = {
+                                'p_id_activo': newId,
+                                'p_numero_serie': numeroSerie,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_ciudad_activo': ciudadActivoId,
+                                'p_id_sede_activo': sedeActivoId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_fecha_adquisicion': fechaAdquisicion,
+                                'p_ip': ip,
+                                'p_fecha_entrega': fechaEntrega,
+                                'p_coordenada': coordenada,
+                                'p_id_marca': marcaId,
+                                'p_modelo': modelo,
+                                'p_num_puertos': numPuertos,
+                                'p_tipo_extension': tipoExtension,
+                                'p_observaciones': observaciones,
+                              };
+                            } else if (category == 'GENERICO') {
+                              rpcName = 'crear_activo_equipo_generico';
+                              params = {
+                                'p_id_activo': newId,
+                                'p_numero_serie': numeroSerie,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_ciudad_activo': ciudadActivoId,
+                                'p_id_sede_activo': sedeActivoId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_fecha_adquisicion': fechaAdquisicion,
+                                'p_fecha_entrega': fechaEntrega,
+                                'p_coordenada': coordenada,
+                                'p_id_marca': marcaId,
+                                'p_modelo': modelo,
+                                'p_cargador_codigo': cargadorCodigo,
+                                'p_num_conexiones': numConexiones,
+                                'p_var_impresora_color': varImpresoraColor,
+                                'p_var_monitor_tipo_conexion':
+                                    varMonitorTipoConexion,
+                                'p_observaciones': observaciones,
+                              };
+                            }
+
+                            if (rpcName.isNotEmpty) {
+                              await LocalDbService.instance.enqueueOperation(
+                                rpcName,
+                                params,
+                              );
+                              if (SyncQueueService.instance.isOnline) {
+                                SyncQueueService.instance
+                                    .syncPendingOperations();
+                              }
+
+                              if (!mounted) return;
+                              context.showSnackBar('Activo creado localmente.');
+
+                              if (dialogContext.mounted) {
+                                Navigator.pop(dialogContext);
+                              }
+
+                              _loadAssets();
+                            }
+                          } catch (error) {
+                            if (!mounted) return;
+                            context.showSnackBar(
+                              'Error al crear: $error',
+                              isError: true,
+                            );
+                          }
+                        },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildDrawerFilterButton<T>(
@@ -486,7 +1048,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
               child: Row(
                 children: [
                   const Text(
-                    'Módulos: ',
+                    'Categorías: ',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(width: 8),
@@ -574,6 +1136,15 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                     });
                   },
                 ),
+                ElevatedButton.icon(
+                  onPressed: _showCategorySelectorDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Agregar Activo'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -584,9 +1155,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
         ),
       ),
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(
-          bottom: 60.0,
-        ), // Elevar el botón para no tapar los controles de página
+        padding: const EdgeInsets.only(bottom: 60.0),
         child: Builder(
           builder: (context) => FloatingActionButton.extended(
             onPressed: () => Scaffold.of(context).openEndDrawer(),
@@ -666,6 +1235,18 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                     ).colorScheme.surfaceContainerHighest.withAlpha(128),
                   ),
                   columns: const [
+                    DataColumn(
+                      label: Text(
+                        'Acciones',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Categoría',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                     DataColumn(
                       label: Text(
                         'S/N',
@@ -750,12 +1331,6 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
-                    DataColumn(
-                      label: Text(
-                        'Acciones',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
                   ],
                   rows: pageAssets.map(_buildGlobalTableRow).toList(),
                 ),
@@ -784,6 +1359,83 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   DataRow _buildGlobalTableRow(Map<String, dynamic> asset) {
     return DataRow(
       cells: [
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icono de Mantenimiento
+              Tooltip(
+                message: 'Programar Mantenimiento',
+                child: InkWell(
+                  onTap: () => showDialog(
+                    context: context,
+                    builder: (_) =>
+                        MaintenanceFormDialog(initialAssetId: asset['id']),
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4.0),
+                    child: Icon(
+                      Icons.build_circle,
+                      color: Colors.blueGrey,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Icono de Editar (Update)
+              Tooltip(
+                message: 'Actualizar Activo',
+                child: InkWell(
+                  onTap: () => _showAssetUpdateDialog(asset),
+                  borderRadius: BorderRadius.circular(20),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4.0),
+                    child: Icon(Icons.edit, color: Colors.blue, size: 22),
+                  ),
+                ),
+              ),
+              if (RoleService.currentRole != UserRole.ayudante) ...[
+                const SizedBox(width: 4),
+                // Icono de Eliminar
+                Tooltip(
+                  message: 'Eliminar',
+                  child: InkWell(
+                    onTap: () => _deleteAsset(asset['id']),
+                    borderRadius: BorderRadius.circular(20),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4.0),
+                      child: Icon(Icons.delete, color: Colors.red, size: 22),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        DataCell(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _getCategoryColor(
+                asset['categoria_activo']?.toString() ?? 'PC',
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              asset['categoria_activo']?.toString() ?? 'PC',
+              style: TextStyle(
+                color: _getCategoryTextColor(
+                  asset['categoria_activo']?.toString() ?? 'PC',
+                ),
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ),
+
         DataCell(Text(asset['numero_serie']?.toString() ?? 'N/A')),
         DataCell(Text(asset['nombre']?.toString() ?? 'N/A')),
         DataCell(Text(asset['codigo']?.toString() ?? 'N/A')),
@@ -802,28 +1454,6 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
         DataCell(Text(asset['ip']?.toString() ?? 'N/A')),
         DataCell(Text(asset['fecha_entrega']?.toString() ?? 'N/A')),
         DataCell(Text(asset['coordenada']?.toString() ?? 'N/A')),
-        DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.build_circle, color: Colors.blueGrey),
-                onPressed: () => showDialog(
-                  context: context,
-                  builder: (_) =>
-                      MaintenanceFormDialog(initialAssetId: asset['id']),
-                ),
-                tooltip: 'Programar Mantenimiento',
-              ),
-              if (RoleService.currentRole != UserRole.ayudante)
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _deleteAsset(asset['id']),
-                  tooltip: 'Eliminar',
-                ),
-            ],
-          ),
-        ),
       ],
     );
   }

@@ -188,8 +188,9 @@ class _MaintenancePageState extends State<MaintenancePage> {
       try {
         final dt = DateTime.parse(m['fecha_programada'].toString());
         if (dt.isBefore(_rangoProgramada!.start) ||
-            dt.isAfter(_rangoProgramada!.end))
+            dt.isAfter(_rangoProgramada!.end)) {
           matchesProgramada = false;
+        }
       } catch (_) {}
     }
 
@@ -200,8 +201,9 @@ class _MaintenancePageState extends State<MaintenancePage> {
       try {
         final dt = DateTime.parse(m['fecha_realizada'].toString());
         if (dt.isBefore(_rangoRealizada!.start) ||
-            dt.isAfter(_rangoRealizada!.end))
+            dt.isAfter(_rangoRealizada!.end)) {
           matchesRealizada = false;
+        }
       } catch (_) {}
     }
 
@@ -326,8 +328,9 @@ class _MaintenancePageState extends State<MaintenancePage> {
             'estado': 'Completado',
             'fecha_realizada': _formatDate(DateTime.now()),
           });
-      if (SyncQueueService.instance.isOnline)
+      if (SyncQueueService.instance.isOnline) {
         SyncQueueService.instance.syncPendingOperations();
+      }
 
       if (!mounted) return;
       context.showSnackBar(
@@ -368,8 +371,9 @@ class _MaintenancePageState extends State<MaintenancePage> {
         'table:mantenimiento:delete',
         {'id': id},
       );
-      if (SyncQueueService.instance.isOnline)
+      if (SyncQueueService.instance.isOnline) {
         SyncQueueService.instance.syncPendingOperations();
+      }
 
       if (!mounted) return;
       context.showSnackBar('Mantenimiento eliminado de forma local.');

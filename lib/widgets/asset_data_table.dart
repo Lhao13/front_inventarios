@@ -157,6 +157,49 @@ class _AssetDataTableState extends State<AssetDataTable> {
   DataRow _buildRow(Map<String, dynamic> asset, List<AssetColumnDef> visibleCols, bool hasActions) {
     return DataRow(
       cells: [
+        if (hasActions)
+          DataCell(
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.onEdit != null)
+                  Tooltip(
+                    message: 'Editar',
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () => widget.onEdit!(asset),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4.0),
+                        child: Icon(Icons.edit, color: Colors.blue, size: 22),
+                      ),
+                    ),
+                  ),
+                if (widget.customActionsBuilder != null) ...[
+                  if (widget.onEdit != null) const SizedBox(width: 4),
+                  ...widget.customActionsBuilder!(asset),
+                ],
+                if (widget.onDelete != null &&
+                    asset['id'] != null &&
+                    RoleService.currentRole != UserRole.ayudante) ...[
+                  if (widget.onEdit != null ||
+                      (widget.customActionsBuilder != null &&
+                          widget.customActionsBuilder!(asset).isNotEmpty))
+                    const SizedBox(width: 4),
+                  Tooltip(
+                    message: 'Eliminar',
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () => widget.onDelete!(asset['id'] as String),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4.0),
+                        child: Icon(Icons.delete, color: Colors.red, size: 22),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ...visibleCols.map((col) {
           final String value = col.getValue(asset);
 
@@ -211,31 +254,6 @@ class _AssetDataTableState extends State<AssetDataTable> {
 
           return DataCell(Text(value));
         }),
-
-        if (hasActions)
-          DataCell(
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (widget.onEdit != null)
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    tooltip: 'Editar',
-                    onPressed: () => widget.onEdit!(asset),
-                  ),
-                if (widget.customActionsBuilder != null)
-                  ...widget.customActionsBuilder!(asset),
-                if (widget.onDelete != null &&
-                    asset['id'] != null &&
-                    RoleService.currentRole != UserRole.ayudante)
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    tooltip: 'Eliminar',
-                    onPressed: () => widget.onDelete!(asset['id'] as String),
-                  ),
-              ],
-            ),
-          ),
       ],
     );
   }
@@ -328,6 +346,13 @@ class _AssetDataTableState extends State<AssetDataTable> {
                         .withAlpha(128),
                   ),
                   columns: [
+                    if (hasActions)
+                      const DataColumn(
+                        label: Text(
+                          'Acciones',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ...visibleCols.map(
                       (col) => DataColumn(
                         label: Text(
@@ -336,13 +361,6 @@ class _AssetDataTableState extends State<AssetDataTable> {
                         ),
                       ),
                     ),
-                    if (hasActions)
-                      const DataColumn(
-                        label: Text(
-                          'Acciones',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
                   ],
                   rows: pageAssets
                       .map((asset) => _buildRow(asset, visibleCols, hasActions))

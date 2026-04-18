@@ -155,8 +155,9 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
   /// Helper to safely get the first element of a sub-list relation.
   static Map<String, dynamic>? _info(Map<String, dynamic> asset, String key) {
     final list = asset[key];
-    if (list is List && list.isNotEmpty)
+    if (list is List && list.isNotEmpty) {
       return list[0] as Map<String, dynamic>?;
+    }
     return null;
   }
 
@@ -171,14 +172,14 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
   List<Map<String, dynamic>> _marcas = [];
 
   // Filter Models
-  List<int> _selectedTiposActivo = [];
-  List<int> _selectedCondiciones = [];
-  List<int> _selectedSedes = [];
-  List<int> _selectedAreas = [];
-  List<int> _selectedCiudades = [];
-  List<int> _selectedCustodios = [];
-  List<int> _selectedProveedores = [];
-  List<int> _selectedMarcas = [];
+  final List<int> _selectedTiposActivo = [];
+  final List<int> _selectedCondiciones = [];
+  final List<int> _selectedSedes = [];
+  final List<int> _selectedAreas = [];
+  final List<int> _selectedCiudades = [];
+  final List<int> _selectedCustodios = [];
+  final List<int> _selectedProveedores = [];
+  final List<int> _selectedMarcas = [];
 
   final List<String> _selectedNombres = [];
   final List<String> _selectedCodigos = [];
@@ -367,8 +368,9 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
       try {
         final dt = DateTime.parse(asset['fecha_adquisicion'].toString());
         if (dt.isBefore(_rangoAdquisicion!.start) ||
-            dt.isAfter(_rangoAdquisicion!.end))
+            dt.isAfter(_rangoAdquisicion!.end)) {
           matchesAdquisicion = false;
+        }
       } catch (_) {}
     }
 
@@ -378,8 +380,10 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
         asset['fecha_entrega'] != null) {
       try {
         final dt = DateTime.parse(asset['fecha_entrega'].toString());
-        if (dt.isBefore(_rangoEntrega!.start) || dt.isAfter(_rangoEntrega!.end))
+        if (dt.isBefore(_rangoEntrega!.start) ||
+            dt.isAfter(_rangoEntrega!.end)) {
           matchesEntrega = false;
+        }
       } catch (_) {}
     }
 
@@ -461,13 +465,15 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
       await LocalDbService.instance.enqueueOperation('eliminar_activo', {
         'p_id_activo': id,
       });
-      if (SyncQueueService.instance.isOnline)
+      if (SyncQueueService.instance.isOnline) {
         SyncQueueService.instance.syncPendingOperations();
+      }
 
-      if (mounted)
+      if (mounted) {
         context.showSnackBar(
           'Activo eliminado de manera local (Cola activada).',
         );
+      }
       _loadAssets();
     } catch (e) {
       if (mounted) context.showSnackBar('Error al eliminar: $e', isError: true);
@@ -476,10 +482,11 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
 
   Future<void> _showAssetDialog({Map<String, dynamic>? existingAsset}) async {
     final isUpdate = existingAsset != null;
-    if (isUpdate)
+    if (isUpdate) {
       context.showSnackBar(
         'Precaución: Refresque todos los campos en este formulario para el Activo ${existingAsset['nombre']} antes de guardar.',
       );
+    }
 
     await showDialog(
       context: context,
@@ -693,8 +700,9 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
     )) {
       if (ignoreField == 'id_marca') {
         final info = _info(a, 'info_pc');
-        if (info != null && info['id_marca'] != null)
+        if (info != null && info['id_marca'] != null) {
           validKeys.add(info['id_marca']);
+        }
       } else {
         final val = a[ignoreField];
         if (val is int) validKeys.add(val);
@@ -1102,12 +1110,18 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
       onEdit: (asset) => _showAssetDialog(existingAsset: asset),
       onDelete: _deleteAsset,
       customActionsBuilder: (asset) => [
-        IconButton(
-          icon: const Icon(Icons.build_circle, color: Colors.blueGrey),
-          tooltip: 'Programar Mantenimiento',
-          onPressed: () => showDialog(
-            context: context,
-            builder: (_) => MaintenanceFormDialog(initialAssetId: asset['id']),
+        Tooltip(
+          message: 'Programar Mantenimiento',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () => showDialog(
+              context: context,
+              builder: (_) => MaintenanceFormDialog(initialAssetId: asset['id']),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(4.0),
+              child: Icon(Icons.build_circle, color: Colors.blueGrey, size: 22),
+            ),
           ),
         ),
       ],

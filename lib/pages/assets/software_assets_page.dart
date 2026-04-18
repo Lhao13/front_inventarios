@@ -90,8 +90,9 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
 
   static Map<String, dynamic>? _info(Map<String, dynamic> asset, String key) {
     final list = asset[key];
-    if (list is List && list.isNotEmpty)
+    if (list is List && list.isNotEmpty) {
       return list[0] as Map<String, dynamic>?;
+    }
     return null;
   }
 
@@ -101,13 +102,12 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
   List<Map<String, dynamic>> _areas = [];
   List<Map<String, dynamic>> _custodios = [];
   List<Map<String, dynamic>> _proveedores = [];
-  List<Map<String, dynamic>> _marcas = [];
 
   // Filter Models
-  List<int> _selectedTiposActivo = [];
-  List<int> _selectedCondiciones = [];
-  List<int> _selectedAreas = [];
-  List<int> _selectedCustodios = [];
+  final List<int> _selectedTiposActivo = [];
+  final List<int> _selectedCondiciones = [];
+  final List<int> _selectedAreas = [];
+  final List<int> _selectedCustodios = [];
   final List<int> _selectedProveedores = [];
 
   final List<String> _selectedNombres = [];
@@ -133,15 +133,6 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
     _selectedNombres.clear();
     _selectedCodigos.clear();
     super.dispose();
-  }
-
-  Future<void> _loadBrands() async {
-    try {
-      final res = await LocalDbService.instance.getCollection('marca');
-      if (mounted) {
-        setState(() => _marcas = res);
-      }
-    } catch (_) {}
   }
 
   Future<void> _loadAssets({bool showLoading = true}) async {
@@ -228,8 +219,9 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
       try {
         final dt = DateTime.parse(asset['fecha_adquisicion'].toString());
         if (dt.isBefore(_rangoAdquisicion!.start) ||
-            dt.isAfter(_rangoAdquisicion!.end))
+            dt.isAfter(_rangoAdquisicion!.end)) {
           matchesAdquisicion = false;
+        }
       } catch (_) {}
     }
 
@@ -239,8 +231,10 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
         asset['fecha_entrega'] != null) {
       try {
         final dt = DateTime.parse(asset['fecha_entrega'].toString());
-        if (dt.isBefore(_rangoEntrega!.start) || dt.isAfter(_rangoEntrega!.end))
+        if (dt.isBefore(_rangoEntrega!.start) ||
+            dt.isAfter(_rangoEntrega!.end)) {
           matchesEntrega = false;
+        }
       } catch (_) {}
     }
 
@@ -302,10 +296,12 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
       await LocalDbService.instance.enqueueOperation('eliminar_activo', {
         'p_id_activo': id,
       });
-      if (SyncQueueService.instance.isOnline)
+      if (SyncQueueService.instance.isOnline) {
         SyncQueueService.instance.syncPendingOperations();
-      if (mounted)
+      }
+      if (mounted) {
         context.showSnackBar('Software eliminado localmente (Cola activada).');
+      }
       _loadAssets();
     } catch (e) {
       if (mounted) context.showSnackBar('Error al eliminar: $e', isError: true);
@@ -314,10 +310,11 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
 
   Future<void> _showAssetDialog({Map<String, dynamic>? existingAsset}) async {
     final isUpdate = existingAsset != null;
-    if (isUpdate)
+    if (isUpdate) {
       context.showSnackBar(
         'Precaución: Refresque todos los campos en este formulario antes de guardar.',
       );
+    }
 
     await showDialog(
       context: context,
@@ -820,12 +817,19 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
       onEdit: (asset) => _showAssetDialog(existingAsset: asset),
       onDelete: _deleteAsset,
       customActionsBuilder: (asset) => [
-        IconButton(
-          icon: const Icon(Icons.build_circle, color: Colors.blueGrey),
-          tooltip: 'Programar Mantenimiento',
-          onPressed: () => showDialog(
-            context: context,
-            builder: (_) => MaintenanceFormDialog(initialAssetId: asset['id']),
+        Tooltip(
+          message: 'Programar Mantenimiento',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () => showDialog(
+              context: context,
+              builder: (_) =>
+                  MaintenanceFormDialog(initialAssetId: asset['id']),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(4.0),
+              child: Icon(Icons.build_circle, color: Colors.blueGrey, size: 22),
+            ),
           ),
         ),
       ],

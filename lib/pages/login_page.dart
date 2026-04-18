@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/pages/sign_up.dart';
 import 'package:front_inventarios/pages/main_page.dart';
@@ -41,15 +40,11 @@ class _LoginPageState extends State<LoginPage> {
         final bytes = utf8.encode(password);
         final xorBytes = bytes.map((b) => b ^ 0x55).toList();
         final db = await LocalDbService.instance.database;
-        await db.insert(
-          'cache_storage',
-          {
-            'collection': 'system',
-            'id': 'user_lock_hash',
-            'json_data': base64Encode(xorBytes),
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await db.insert('cache_storage', {
+          'collection': 'system',
+          'id': 'user_lock_hash',
+          'json_data': base64Encode(xorBytes),
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       } catch (e) {
         debugPrint('Error saving local hash: $e');
       }
@@ -60,9 +55,9 @@ class _LoginPageState extends State<LoginPage> {
         _passwordController.clear();
 
         // Navegar a la página principal después del login exitoso
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MainPage()),
-        );
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const MainPage()));
 
         // Forzar descarga inmediata de caché al iniciar sesión.
         // Esto garantiza que los datos estén actualizados sin esperar al
@@ -105,12 +100,18 @@ class _LoginPageState extends State<LoginPage> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
+              boxShadow: const [
+                BoxShadow(color: Colors.black26, blurRadius: 10),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.inventory_2_outlined, size: 64, color: Theme.of(context).primaryColor),
+                Icon(
+                  Icons.inventory_2_outlined,
+                  size: 64,
+                  color: Theme.of(context).primaryColor,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Inicio de sesión',
@@ -142,8 +143,13 @@ class _LoginPageState extends State<LoginPage> {
                     prefixIcon: const Icon(Icons.lock_outline),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
                   onFieldSubmitted: (_) {
@@ -158,7 +164,10 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: _isLoading ? null : _signIn,
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Iniciar Sesión', style: TextStyle(fontSize: 16)),
+                        : const Text(
+                            'Iniciar Sesión',
+                            style: TextStyle(fontSize: 16),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -170,9 +179,7 @@ class _LoginPageState extends State<LoginPage> {
                     TextButton(
                       onPressed: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SignUpPage(),
-                          ),
+                          MaterialPageRoute(builder: (_) => const SignUpPage()),
                         );
                       },
                       child: const Text('Regístrate aquí'),
