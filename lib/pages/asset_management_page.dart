@@ -15,7 +15,8 @@ import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
 import 'package:uuid/uuid.dart';
 
 class AssetManagementPage extends StatefulWidget {
-  const AssetManagementPage({super.key});
+  final GlobalKey<ScaffoldState>? scaffoldKey;
+  const AssetManagementPage({super.key, this.scaffoldKey});
 
   @override
   State<AssetManagementPage> createState() => _AssetManagementPageState();
@@ -31,6 +32,10 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   int _tableCurrentPage = 0;
   int _listRowsPerPage = 10;
   int _listCurrentPage = 0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final ScrollController _drawerScrollController = ScrollController();
+  final ScrollController _verticalScrollController = ScrollController();
+  final ScrollController _horizontalScrollController = ScrollController();
 
   // Master Data Cache
   List<Map<String, dynamic>> _tiposActivo = [];
@@ -72,6 +77,9 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     _selectedNombres.clear();
     _selectedCodigos.clear();
     _selectedSeries.clear();
+    _drawerScrollController.dispose();
+    _verticalScrollController.dispose();
+    _horizontalScrollController.dispose();
     super.dispose();
   }
 
@@ -809,6 +817,24 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     return items.map((val) => {'id': val, 'valor': val}).toList();
   }
 
+  int _getFilterCount() {
+    int count = 0;
+    if (_selectedTiposActivo.isNotEmpty) count++;
+    if (_selectedCondiciones.isNotEmpty) count++;
+    if (_selectedSedes.isNotEmpty) count++;
+    if (_selectedAreas.isNotEmpty) count++;
+    if (_selectedCiudades.isNotEmpty) count++;
+    if (_selectedCustodios.isNotEmpty) count++;
+    if (_selectedProveedores.isNotEmpty) count++;
+    if (_selectedMarcas.isNotEmpty) count++;
+    if (_selectedNombres.isNotEmpty) count++;
+    if (_selectedCodigos.isNotEmpty) count++;
+    if (_selectedSeries.isNotEmpty) count++;
+    if (_rangoAdquisicion != null) count++;
+    if (_rangoEntrega != null) count++;
+    return count;
+  }
+
   List<Map<String, dynamic>> _getFilteredMasterList(
     List<Map<String, dynamic>> masterList,
     String ignoreField,
@@ -893,150 +919,186 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: widget.scaffoldKey ?? _scaffoldKey,
       endDrawer: Drawer(
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.only(
-                top: 48,
-                bottom: 16,
-                left: 16,
-                right: 16,
-              ),
-              color: Colors.blue.shade50,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Filtros Globales',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  TextButton(
-                    onPressed: _clearFilters,
-                    child: const Text('Limpiar Todos'),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'Identificadores Predictivos',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
-                      ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.only(
+                  top: 10,
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                ),
+                color: Colors.blue.shade50,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        Text(
+                          'Filtros Globales',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  _buildDrawerFilterButton<String>(
-                    'Nombres',
-                    _selectedNombres,
-                    _getUniquePredictiveList('nombre'),
-                    'valor',
-                  ),
-                  _buildDrawerFilterButton<String>(
-                    'Códigos',
-                    _selectedCodigos,
-                    _getUniquePredictiveList('codigo'),
-                    'valor',
-                  ),
-                  _buildDrawerFilterButton<String>(
-                    'Números de Serie',
-                    _selectedSeries,
-                    _getUniquePredictiveList('numero_serie'),
-                    'valor',
-                  ),
+                    Row(
+                      children: [
+                        Text(
+                          'Filtros activos: ${_getFilterCount()}',
+                          style: const TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          icon: const Icon(Icons.delete),
+                          label: const Text('Limpiar Filtros'),
+                          onPressed: _clearFilters,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Scrollbar(
+                  controller: _drawerScrollController,
+                  thumbVisibility: true,
+                  thickness: 8,
+                  trackVisibility: true,
+                  child: ListView(
+                    controller: _drawerScrollController,
+                    padding: EdgeInsets.zero,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text(
+                          'Identificadores Predictivos',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      _buildDrawerFilterButton<String>(
+                        'Nombres',
+                        _selectedNombres,
+                        _getUniquePredictiveList('nombre'),
+                        'valor',
+                      ),
+                      _buildDrawerFilterButton<String>(
+                        'Códigos',
+                        _selectedCodigos,
+                        _getUniquePredictiveList('codigo'),
+                        'valor',
+                      ),
+                      _buildDrawerFilterButton<String>(
+                        'Números de Serie',
+                        _selectedSeries,
+                        _getUniquePredictiveList('numero_serie'),
+                        'valor',
+                      ),
 
-                  const Divider(),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'Listas Maestras',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
+                      const Divider(),
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text(
+                          'Listas Maestras',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  _buildDrawerFilterButton(
-                    'Tipo Activo',
-                    _selectedTiposActivo,
-                    _getFilteredMasterList(_tiposActivo, 'id_tipo_activo'),
-                    'tipo',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Condición',
-                    _selectedCondiciones,
-                    _getFilteredMasterList(_condiciones, 'id_condicion_activo'),
-                    'condicion',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Custodio',
-                    _selectedCustodios,
-                    _getFilteredMasterList(_custodios, 'id_custodio'),
-                    'nombre_completo',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Sede',
-                    _selectedSedes,
-                    _getFilteredMasterList(_sedes, 'id_sede_activo'),
-                    'sede',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Área',
-                    _selectedAreas,
-                    _getFilteredMasterList(_areas, 'id_area_activo'),
-                    'area',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Ciudad',
-                    _selectedCiudades,
-                    _getFilteredMasterList(_ciudades, 'id_ciudad_activo'),
-                    'ciudad',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Proveedor',
-                    _selectedProveedores,
-                    _getFilteredMasterList(_proveedores, 'id_provedor'),
-                    'nombre',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Marca',
-                    _selectedMarcas,
-                    _getFilteredMasterList(_marcas, 'id_marca'),
-                    'marca_proveedor',
-                  ),
+                      _buildDrawerFilterButton(
+                        'Tipo Activo',
+                        _selectedTiposActivo,
+                        _getFilteredMasterList(_tiposActivo, 'id_tipo_activo'),
+                        'tipo',
+                      ),
+                      _buildDrawerFilterButton(
+                        'Condición',
+                        _selectedCondiciones,
+                        _getFilteredMasterList(
+                          _condiciones,
+                          'id_condicion_activo',
+                        ),
+                        'condicion',
+                      ),
+                      _buildDrawerFilterButton(
+                        'Custodio',
+                        _selectedCustodios,
+                        _getFilteredMasterList(_custodios, 'id_custodio'),
+                        'nombre_completo',
+                      ),
+                      _buildDrawerFilterButton(
+                        'Sede',
+                        _selectedSedes,
+                        _getFilteredMasterList(_sedes, 'id_sede_activo'),
+                        'sede',
+                      ),
+                      _buildDrawerFilterButton(
+                        'Área',
+                        _selectedAreas,
+                        _getFilteredMasterList(_areas, 'id_area_activo'),
+                        'area',
+                      ),
+                      _buildDrawerFilterButton(
+                        'Ciudad',
+                        _selectedCiudades,
+                        _getFilteredMasterList(_ciudades, 'id_ciudad_activo'),
+                        'ciudad',
+                      ),
+                      _buildDrawerFilterButton(
+                        'Proveedor',
+                        _selectedProveedores,
+                        _getFilteredMasterList(_proveedores, 'id_provedor'),
+                        'nombre',
+                      ),
+                      _buildDrawerFilterButton(
+                        'Marca',
+                        _selectedMarcas,
+                        _getFilteredMasterList(_marcas, 'id_marca'),
+                        'marca_proveedor',
+                      ),
 
-                  const Divider(),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'Rango de Fechas',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
+                      const Divider(),
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text(
+                          'Rango de Fechas',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
+                      _buildDrawerDateFilter(
+                        'Fecha de Adquisición',
+                        _rangoAdquisicion,
+                        (r) => setState(() => _rangoAdquisicion = r),
+                      ),
+                      _buildDrawerDateFilter(
+                        'Fecha de Entrega',
+                        _rangoEntrega,
+                        (r) => setState(() => _rangoEntrega = r),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                   ),
-                  _buildDrawerDateFilter(
-                    'Fecha de Adquisición',
-                    _rangoAdquisicion,
-                    (r) => setState(() => _rangoAdquisicion = r),
-                  ),
-                  _buildDrawerDateFilter(
-                    'Fecha de Entrega',
-                    _rangoEntrega,
-                    (r) => setState(() => _rangoEntrega = r),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       body: Padding(
@@ -1161,7 +1223,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
             onPressed: () => Scaffold.of(context).openEndDrawer(),
             tooltip: 'Abrir Filtros',
             icon: const Icon(Icons.filter_list),
-            label: const Text('Filtros'),
+            label: Text('Filtros (${_getFilterCount()})'),
           ),
         ),
       ),
@@ -1216,123 +1278,140 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     return Column(
       children: [
         Expanded(
-          child: SingleChildScrollView(
+          child: Scrollbar(
+            controller: _verticalScrollController,
+            thumbVisibility: true,
             child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Theme(
-                data: Theme.of(context).copyWith(
-                  cardTheme: const CardThemeData(
-                    elevation: 0,
-                    margin: EdgeInsets.zero,
-                    color: Colors.transparent,
+              controller: _verticalScrollController,
+              child: Scrollbar(
+                controller: _horizontalScrollController,
+                thumbVisibility: true,
+                notificationPredicate: (notif) => notif.depth == 1,
+                child: SingleChildScrollView(
+                  controller: _horizontalScrollController,
+                  scrollDirection: Axis.horizontal,
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      cardTheme: const CardThemeData(
+                        elevation: 0,
+                        margin: EdgeInsets.zero,
+                        color: Colors.transparent,
+                      ),
+                    ),
+                    child: DataTable(
+                      columnSpacing: 24,
+                      border: TableBorder(
+                        verticalInside: BorderSide(
+                          color: Colors.grey.withAlpha(80),
+                          width: 1,
+                        ),
+                      ),
+                      headingRowColor: WidgetStateProperty.resolveWith(
+                        (states) => Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest.withAlpha(128),
+                      ),
+                      columns: const [
+                        DataColumn(
+                          label: Text(
+                            'Acciones',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Categoría',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'S/N',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Nombre',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Código',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Tipo Activo',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Condición',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Custodio',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Ciudad',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Sede',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Área',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Proveedor',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Fe. Adquisición',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'IP',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Fe. Entrega',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Coordenada',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                      rows: pageAssets.map(_buildGlobalTableRow).toList(),
+                    ),
                   ),
-                ),
-                child: DataTable(
-                  columnSpacing: 24,
-                  headingRowColor: WidgetStateProperty.resolveWith(
-                    (states) => Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest.withAlpha(128),
-                  ),
-                  columns: const [
-                    DataColumn(
-                      label: Text(
-                        'Acciones',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Categoría',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'S/N',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Nombre',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Código',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Tipo Activo',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Condición',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Custodio',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Ciudad',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Sede',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Área',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Proveedor',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Fe. Adquisición',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'IP',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Fe. Entrega',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Coordenada',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                  rows: pageAssets.map(_buildGlobalTableRow).toList(),
                 ),
               ),
             ),

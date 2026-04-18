@@ -31,11 +31,12 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   /// Índice de la página actual
   int _currentPageIndex = 0;
+  final GlobalKey<ScaffoldState> _assetScaffoldKey = GlobalKey<ScaffoldState>();
 
   /// Lista de páginas disponibles
   late final List<Widget> _pages = [
     _HomePage(onNavigateToAssets: () => setState(() => _currentPageIndex = 1)),
-    const AssetManagementPage(),
+    AssetManagementPage(scaffoldKey: _assetScaffoldKey),
     const MaintenancePage(),
     const AdminTablesPage(),
     const AdminUsersPage(),
@@ -168,6 +169,14 @@ class _MainPageState extends State<MainPage> {
         canPop: _currentPageIndex == 0,
         onPopInvokedWithResult: (didPop, result) {
           if (didPop) return;
+
+          // SI EL FILTRO DE ACTIVOS ESTÁ ABIERTO, CERRARLO PRIMERO
+          if (_currentPageIndex == 1 &&
+              (_assetScaffoldKey.currentState?.isEndDrawerOpen ?? false)) {
+            _assetScaffoldKey.currentState?.closeEndDrawer();
+            return;
+          }
+
           if (_currentPageIndex != 0) {
             setState(() {
               _currentPageIndex = 0;

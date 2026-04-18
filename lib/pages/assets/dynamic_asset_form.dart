@@ -58,6 +58,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
   final _formKey = GlobalKey<FormState>();
 
   bool _isLoadingMasterData = true;
+  final ScrollController _scrollController = ScrollController();
 
   // Master Lists
   List<Map<String, dynamic>> _tiposActivo = [];
@@ -289,6 +290,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     _varImpresoraColorCtrl.dispose();
     _varMonitorTipoConexionCtrl.dispose();
     _proveedorSoftwareCtrl.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -560,7 +562,11 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return SingleChildScrollView(
+    return Scrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        controller: _scrollController,
       child: Form(
         key: _formKey,
         child: Column(
@@ -627,10 +633,10 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                   },
                 ),
               ),
-            _buildTextField(_nombreCtrl, 'Nombre'),
+            _buildTextField(_nombreCtrl, 'Nombre (opcional)'),
             _buildTextField(
               _codigoCtrl,
-              'Código',
+              'Código (opcional)',
               isNumericOnly: true,
               suffixIcon: _categoria == 'SOFTWARE'
                   ? null
@@ -659,28 +665,28 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
               required: true,
             ),
             _buildDropdown(
-              'Condición',
+              'Condición (opcional)',
               _condicionActivoId,
               _condicionesActivo,
               'condicion',
               (v) => setState(() => _condicionActivoId = v),
             ),
             _buildSearchableDropdown(
-              'Custodio',
+              'Custodio (opcional)',
               _custodioId,
               _custodios,
               'nombre_completo',
               (v) => setState(() => _custodioId = v),
             ),
             _buildSearchableDropdown(
-              'Área',
+              'Área (opcional)',
               _areaActivoId,
               _areas,
               'area',
               (v) => setState(() => _areaActivoId = v),
             ),
             _buildDropdown(
-              'Proveedor General',
+              'Proveedor General (opcional)',
               _proveedorId,
               _proveedores,
               'nombre',
@@ -689,14 +695,14 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
 
             if (_categoria != 'SOFTWARE') ...[
               _buildDropdown(
-                'Ciudad',
+                'Ciudad (opcional)',
                 _ciudadActivoId,
                 _ciudades,
                 'ciudad',
                 (v) => setState(() => _ciudadActivoId = v),
               ),
               _buildSearchableDropdown(
-                'Sede',
+                'Sede (opcional)',
                 _sedeActivoId,
                 _sedes,
                 'sede',
@@ -704,29 +710,29 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
               ),
               _buildTextField(_ipCtrl, 'IP (opcional)'),
               _buildDropdown(
-                'Marca',
+                'Marca (opcional)',
                 _marcaId,
                 _marcas,
                 'marca_proveedor',
                 (v) => setState(() => _marcaId = v),
               ),
-              _buildTextField(_modeloCtrl, 'Modelo'),
+              _buildTextField(_modeloCtrl, 'Modelo (opcional)'),
               // Date pickers — adquisicion must be ≤ today
               _buildDatePicker(
-                'Fecha de Adquisición',
+                'Fecha de Adquisición (opcional)',
                 _fechaAdquisicion,
                 (d) => setState(() => _fechaAdquisicion = d),
                 allowFuture: false,
               ),
               _buildDatePicker(
-                'Fecha de Entrega',
+                'Fecha de Entrega (opcional)',
                 _fechaEntrega,
                 (d) => setState(() => _fechaEntrega = d),
                 allowFuture: true,
               ),
               _buildTextField(
                 _coordenadaCtrl,
-                'Coordenada (lat,lng)',
+                'Coordenada (opcional)',
                 suffixIcon: IconButton(
                   icon: _gettingLocation
                       ? const SizedBox(
@@ -749,22 +755,22 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
             const Divider(),
 
             if (_categoria == 'PC') ...[
-              _buildTextField(_procesadorCtrl, 'Procesador'),
+              _buildTextField(_procesadorCtrl, 'Procesador (opcional)'),
               _buildStringDropdown(
-                'RAM',
+                'RAM (opcional)',
                 _selectedRam,
                 _ramOptions,
                 (v) => setState(() => _selectedRam = v),
               ),
               _buildStringDropdown(
-                'Almacenamiento',
+                'Almacenamiento (opcional)',
                 _selectedAlmacenamiento,
                 _storageOptions,
                 (v) => setState(() => _selectedAlmacenamiento = v),
               ),
               _buildTextField(
                 _cargadorCodigoCtrl,
-                'Código Cargador',
+                'Código Cargador (opcional)',
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.qr_code_scanner),
                   tooltip: 'Escanear Código',
@@ -783,7 +789,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
               ),
               _buildTextField(
                 _numPuertosCtrl,
-                'Número de Puertos',
+                'Número de Puertos (opcional)',
                 isNumber: true,
               ),
             ],
@@ -791,16 +797,16 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
             if (_categoria == 'COMUNICACION') ...[
               _buildTextField(
                 _numPuertosCtrl,
-                'Número de Puertos',
+                'Número de Puertos (opcional)',
                 isNumber: true,
               ),
-              _buildTextField(_tipoExtensionCtrl, 'Tipo Extensión'),
+              _buildTextField(_tipoExtensionCtrl, 'Tipo Extensión (opcional)'),
             ],
 
             if (_categoria == 'GENERICO') ...[
               _buildTextField(
                 _cargadorCodigoCtrl,
-                'Código Cargador',
+                'Código Cargador (opcional)',
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.qr_code_scanner),
                   tooltip: 'Escanear Código',
@@ -819,7 +825,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
               ),
               _buildTextField(
                 _numConexionesCtrl,
-                'Número de Conexiones',
+                'Número de Conexiones (opcional)',
                 isNumber: true,
               ),
               _buildTextField(
@@ -833,14 +839,17 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
             ],
 
             if (_categoria == 'SOFTWARE') ...[
-              _buildTextField(_proveedorSoftwareCtrl, 'Proveedor de Software'),
+              _buildTextField(
+                _proveedorSoftwareCtrl,
+                'Proveedor de Software (opcional)',
+              ),
               _buildDatePicker(
-                'Fecha Inicio Licencia',
+                'Fecha Inicio Licencia (opcional)',
                 _fechaInicio,
                 (d) => setState(() => _fechaInicio = d),
               ),
               _buildDatePicker(
-                'Fecha Fin Licencia',
+                'Fecha Fin Licencia (opcional)',
                 _fechaFin,
                 (d) => setState(() => _fechaFin = d),
               ),
@@ -959,6 +968,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
           ],
         ),
       ),
+    ),
     );
   }
 }

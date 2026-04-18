@@ -55,6 +55,8 @@ class _AssetDataTableState extends State<AssetDataTable> {
 
   int _rowsPerPage = 10;
   int _currentPage = 0;
+  final ScrollController _verticalScrollController = ScrollController();
+  final ScrollController _horizontalScrollController = ScrollController();
 
   @override
   void initState() {
@@ -85,6 +87,13 @@ class _AssetDataTableState extends State<AssetDataTable> {
         setState(() => _currentPage = 0);
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _verticalScrollController.dispose();
+    _horizontalScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _showColumnSelector() async {
@@ -324,47 +333,64 @@ class _AssetDataTableState extends State<AssetDataTable> {
 
         // ── Scrollable DataTable (horizontal + vertical) ─────────────────
         Expanded(
-          child: SingleChildScrollView(
-            // vertical scroll
+          child: Scrollbar(
+            controller: _verticalScrollController,
+            thumbVisibility: true,
             child: SingleChildScrollView(
-              // horizontal scroll for wide tables
-              scrollDirection: Axis.horizontal,
-              child: Theme(
-                data: Theme.of(context).copyWith(
-                  cardTheme: const CardThemeData(
-                    elevation: 0,
-                    margin: EdgeInsets.zero,
-                    color: Colors.transparent,
-                  ),
-                ),
-                child: DataTable(
-                  columnSpacing: 24,
-                  headingRowColor: WidgetStateProperty.resolveWith(
-                    (states) => Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest
-                        .withAlpha(128),
-                  ),
-                  columns: [
-                    if (hasActions)
-                      const DataColumn(
-                        label: Text(
-                          'Acciones',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ...visibleCols.map(
-                      (col) => DataColumn(
-                        label: Text(
-                          col.label,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
+              controller: _verticalScrollController,
+              // vertical scroll
+              child: Scrollbar(
+                controller: _horizontalScrollController,
+                thumbVisibility: true,
+                notificationPredicate: (notif) => notif.depth == 1,
+                child: SingleChildScrollView(
+                  controller: _horizontalScrollController,
+                  // horizontal scroll for wide tables
+                  scrollDirection: Axis.horizontal,
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      cardTheme: const CardThemeData(
+                        elevation: 0,
+                        margin: EdgeInsets.zero,
+                        color: Colors.transparent,
                       ),
                     ),
-                  ],
-                  rows: pageAssets
-                      .map((asset) => _buildRow(asset, visibleCols, hasActions))
-                      .toList(),
+                    child: DataTable(
+                      columnSpacing: 24,
+                      border: TableBorder(
+                        verticalInside: BorderSide(
+                          color: Colors.grey.withAlpha(80),
+                          width: 1,
+                        ),
+                      ),
+                      headingRowColor: WidgetStateProperty.resolveWith(
+                        (states) => Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withAlpha(128),
+                      ),
+                      columns: [
+                        if (hasActions)
+                          const DataColumn(
+                            label: Text(
+                              'Acciones',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ...visibleCols.map(
+                          (col) => DataColumn(
+                            label: Text(
+                              col.label,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                      rows: pageAssets
+                          .map((asset) => _buildRow(asset, visibleCols, hasActions))
+                          .toList(),
+                    ),
+                  ),
                 ),
               ),
             ),

@@ -102,6 +102,8 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
   List<Map<String, dynamic>> _areas = [];
   List<Map<String, dynamic>> _custodios = [];
   List<Map<String, dynamic>> _proveedores = [];
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final ScrollController _drawerScrollController = ScrollController();
 
   // Filter Models
   final List<int> _selectedTiposActivo = [];
@@ -499,6 +501,20 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
     return items.map((val) => {'id': val, 'valor': val}).toList();
   }
 
+  int _getFilterCount() {
+    int count = 0;
+    if (_selectedTiposActivo.isNotEmpty) count++;
+    if (_selectedCondiciones.isNotEmpty) count++;
+    if (_selectedAreas.isNotEmpty) count++;
+    if (_selectedCustodios.isNotEmpty) count++;
+    if (_selectedProveedores.isNotEmpty) count++;
+    if (_selectedNombres.isNotEmpty) count++;
+    if (_selectedCodigos.isNotEmpty) count++;
+    if (_rangoAdquisicion != null) count++;
+    if (_rangoEntrega != null) count++;
+    return count;
+  }
+
   List<Map<String, dynamic>> _getFilteredMasterList(
     List<Map<String, dynamic>> masterList,
     String ignoreField,
@@ -552,222 +568,262 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Licencias de Software',
-          textScaler: TextScaler.linear(0.9),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Sincronizar Datos',
-            onPressed: () async {
-              await SyncQueueService.instance.forceSyncAndRefresh();
-              await _loadAssets();
-            },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
+          Navigator.pop(context);
+        } else {
+          Navigator.pop(context);
+        }
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: AppBar(
+          title: const Text(
+            'Licencias de Software',
+            textScaler: TextScaler.linear(0.9),
           ),
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.filter_list),
-              tooltip: 'Filtros',
-              onPressed: () => Scaffold.of(context).openEndDrawer(),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Sincronizar Datos',
+              onPressed: () async {
+                await SyncQueueService.instance.forceSyncAndRefresh();
+                await _loadAssets();
+              },
             ),
-          ),
-        ],
-      ),
-      endDrawer: Drawer(
-        child: SafeArea(
-          top: false,
-          bottom: true,
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.only(
-                  top: 48,
-                  bottom: 16,
-                  left: 16,
-                  right: 16,
-                ),
-                color: Colors.blue.shade50,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Filtros Software',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: _clearFilters,
-                      child: const Text('Limpiar Todos'),
-                    ),
-                  ],
-                ),
+            Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.filter_list),
+                tooltip: 'Filtros',
+                onPressed: () => Scaffold.of(context).openEndDrawer(),
               ),
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text(
-                        'Identificadores Predictivos',
-                        style: TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    _buildDrawerFilterButton<String>(
-                      'Nombres',
-                      _selectedNombres,
-                      _getUniquePredictiveList('nombre'),
-                      'valor',
-                    ),
-                    _buildDrawerFilterButton<String>(
-                      'Códigos',
-                      _selectedCodigos,
-                      _getUniquePredictiveList('codigo'),
-                      'valor',
-                    ),
-
-                    const Divider(),
-                    const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text(
-                        'Listas Maestras',
-                        style: TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    _buildDrawerFilterButton(
-                      'Tipo Activo',
-                      _selectedTiposActivo,
-                      _getFilteredMasterList(_tiposActivo, 'id_tipo_activo'),
-                      'tipo',
-                    ),
-                    _buildDrawerFilterButton(
-                      'Condición',
-                      _selectedCondiciones,
-                      _getFilteredMasterList(
-                        _condiciones,
-                        'id_condicion_activo',
-                      ),
-                      'condicion',
-                    ),
-                    _buildDrawerFilterButton(
-                      'Custodio',
-                      _selectedCustodios,
-                      _getFilteredMasterList(_custodios, 'id_custodio'),
-                      'nombre_completo',
-                    ),
-                    _buildDrawerFilterButton(
-                      'Área',
-                      _selectedAreas,
-                      _getFilteredMasterList(_areas, 'id_area_activo'),
-                      'area',
-                    ),
-                    _buildDrawerFilterButton(
-                      'Proveedor',
-                      _selectedProveedores,
-                      _getFilteredMasterList(_proveedores, 'id_provedor'),
-                      'nombre',
-                    ),
-
-                    const Divider(),
-                    const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text(
-                        'Rango de Fechas',
-                        style: TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    _buildDrawerDateFilter(
-                      'Fecha de Adquisición',
-                      _rangoAdquisicion,
-                      (r) => setState(() => _rangoAdquisicion = r),
-                    ),
-                    _buildDrawerDateFilter(
-                      'Fecha de Entrega',
-                      _rangoEntrega,
-                      (r) => setState(() => _rangoEntrega = r),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ),
-      body: SafeArea(
-        bottom: true,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment<bool>(
-                        value: false,
-                        icon: Icon(Icons.view_list),
-                        label: Text('Lista'),
+        endDrawer: Drawer(
+          child: SafeArea(
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.only(
+                    top: 10,
+                    bottom: 16,
+                    left: 16,
+                    right: 16,
+                  ),
+                  color: Colors.blue.shade50,
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          const Text(
+                            'Filtros Software',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      ButtonSegment<bool>(
-                        value: true,
-                        icon: Icon(Icons.table_chart),
-                        label: Text('Tabla'),
+                      Row(
+                        children: [
+                          Text(
+                            'Filtros activos: ${_getFilterCount()}',
+                            style: const TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            icon: const Icon(Icons.delete),
+                            label: const Text('Limpiar Filtros'),
+                            onPressed: _clearFilters,
+                          ),
+                        ],
                       ),
                     ],
-                    selected: {_isTableView},
-                    onSelectionChanged: (Set<bool> newSelection) {
-                      setState(() {
-                        _isTableView = newSelection.first;
-                      });
-                    },
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () => _showAssetDialog(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Agregar Software'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
+                ),
+                Expanded(
+                  child: Scrollbar(
+                    controller: _drawerScrollController,
+                    thumbVisibility: true,
+                    thickness: 8,
+                    trackVisibility: true,
+                    child: ListView(
+                      controller: _drawerScrollController,
+                      padding: EdgeInsets.zero,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            'Identificadores Predictivos',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        _buildDrawerFilterButton<String>(
+                          'Nombres',
+                          _selectedNombres,
+                          _getUniquePredictiveList('nombre'),
+                          'valor',
+                        ),
+                        _buildDrawerFilterButton<String>(
+                          'Códigos',
+                          _selectedCodigos,
+                          _getUniquePredictiveList('codigo'),
+                          'valor',
+                        ),
+
+                        const Divider(),
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            'Listas Maestras',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        _buildDrawerFilterButton(
+                          'Tipo Activo',
+                          _selectedTiposActivo,
+                          _getFilteredMasterList(
+                            _tiposActivo,
+                            'id_tipo_activo',
+                          ),
+                          'tipo',
+                        ),
+                        _buildDrawerFilterButton(
+                          'Condición',
+                          _selectedCondiciones,
+                          _getFilteredMasterList(
+                            _condiciones,
+                            'id_condicion_activo',
+                          ),
+                          'condicion',
+                        ),
+                        _buildDrawerFilterButton(
+                          'Custodio',
+                          _selectedCustodios,
+                          _getFilteredMasterList(_custodios, 'id_custodio'),
+                          'nombre_completo',
+                        ),
+                        _buildDrawerFilterButton(
+                          'Área',
+                          _selectedAreas,
+                          _getFilteredMasterList(_areas, 'id_area_activo'),
+                          'area',
+                        ),
+                        _buildDrawerFilterButton(
+                          'Proveedor',
+                          _selectedProveedores,
+                          _getFilteredMasterList(_proveedores, 'id_provedor'),
+                          'nombre',
+                        ),
+
+                        const Divider(),
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            'Rango de Fechas',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        _buildDrawerDateFilter(
+                          'Fecha de Adquisición',
+                          _rangoAdquisicion,
+                          (r) => setState(() => _rangoAdquisicion = r),
+                        ),
+                        _buildDrawerDateFilter(
+                          'Fecha de Entrega',
+                          _rangoEntrega,
+                          (r) => setState(() => _rangoEntrega = r),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: _isTableView
-                    ? _buildTableSection()
-                    : _buildListSection(),
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(
-          bottom: 60.0,
-        ), // Elevar el botón para no tapar los controles de página
-        child: Builder(
-          builder: (context) => FloatingActionButton.extended(
-            onPressed: () => Scaffold.of(context).openEndDrawer(),
-            tooltip: 'Abrir Filtros',
-            icon: const Icon(Icons.filter_list),
-            label: const Text('Filtros'),
+        body: SafeArea(
+          bottom: true,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment<bool>(
+                          value: false,
+                          icon: Icon(Icons.view_list),
+                          label: Text('Lista'),
+                        ),
+                        ButtonSegment<bool>(
+                          value: true,
+                          icon: Icon(Icons.table_chart),
+                          label: Text('Tabla'),
+                        ),
+                      ],
+                      selected: {_isTableView},
+                      onSelectionChanged: (Set<bool> newSelection) {
+                        setState(() {
+                          _isTableView = newSelection.first;
+                        });
+                      },
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () => _showAssetDialog(),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Agregar Software'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: _isTableView
+                      ? _buildTableSection()
+                      : _buildListSection(),
+                ),
+              ],
+            ),
+          ),
+        ),
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.only(
+            bottom: 60.0,
+          ), // Elevar el botón para no tapar los controles de página
+          child: Builder(
+            builder: (context) => FloatingActionButton.extended(
+              onPressed: () => Scaffold.of(context).openEndDrawer(),
+              tooltip: 'Abrir Filtros',
+              icon: const Icon(Icons.filter_list),
+              label: Text('Filtros (${_getFilterCount()})'),
+            ),
           ),
         ),
       ),
