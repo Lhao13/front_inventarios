@@ -104,6 +104,7 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
   List<Map<String, dynamic>> _proveedores = [];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _drawerScrollController = ScrollController();
+  final ScrollController _listScrollController = ScrollController();
 
   // Filter Models
   final List<int> _selectedTiposActivo = [];
@@ -134,6 +135,8 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
     SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
     _selectedNombres.clear();
     _selectedCodigos.clear();
+    _drawerScrollController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -945,9 +948,13 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
     return Column(
       children: [
         Expanded(
-          child: ListView.builder(
-            itemCount: pageAssets.length,
-            itemBuilder: (context, index) {
+          child: Scrollbar(
+            controller: _listScrollController,
+            thumbVisibility: true,
+            child: ListView.builder(
+              controller: _listScrollController,
+              itemCount: pageAssets.length,
+              itemBuilder: (context, index) {
               final asset = pageAssets[index];
               final info =
                   asset['info_software'] != null &&
@@ -1007,6 +1014,7 @@ class _SoftwareAssetsPageState extends State<SoftwareAssetsPage> {
             },
           ),
         ),
+      ),
         MaterialListPaginator(
           rowsPerPage: _listRowsPerPage,
           currentPage: _listCurrentPage,

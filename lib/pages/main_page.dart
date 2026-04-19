@@ -32,12 +32,14 @@ class _MainPageState extends State<MainPage> {
   /// Índice de la página actual
   int _currentPageIndex = 0;
   final GlobalKey<ScaffoldState> _assetScaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<ScaffoldState> _maintenanceScaffoldKey =
+      GlobalKey<ScaffoldState>();
 
   /// Lista de páginas disponibles
   late final List<Widget> _pages = [
     _HomePage(onNavigateToAssets: () => setState(() => _currentPageIndex = 1)),
     AssetManagementPage(scaffoldKey: _assetScaffoldKey),
-    const MaintenancePage(),
+    MaintenancePage(scaffoldKey: _maintenanceScaffoldKey),
     const AdminTablesPage(),
     const AdminUsersPage(),
   ];
@@ -62,7 +64,24 @@ class _MainPageState extends State<MainPage> {
         leading: _currentPageIndex != 0
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _currentPageIndex = 0),
+                onPressed: () {
+                  // Si estamos en activos y el filtro está abierto, cerrarlo
+                  if (_currentPageIndex == 1 &&
+                      (_assetScaffoldKey.currentState?.isEndDrawerOpen ??
+                          false)) {
+                    _assetScaffoldKey.currentState?.closeEndDrawer();
+                    return;
+                  }
+                  // Si estamos en mantenimientos y el filtro está abierto, cerrarlo
+                  if (_currentPageIndex == 2 &&
+                      (_maintenanceScaffoldKey.currentState?.isEndDrawerOpen ??
+                          false)) {
+                    _maintenanceScaffoldKey.currentState?.closeEndDrawer();
+                    return;
+                  }
+                  // De lo contrario, volver al Home
+                  setState(() => _currentPageIndex = 0);
+                },
               )
             : null, // Muestra el ícono del drawer por defecto si es null y hay un drawer
         actions: [
@@ -174,6 +193,14 @@ class _MainPageState extends State<MainPage> {
           if (_currentPageIndex == 1 &&
               (_assetScaffoldKey.currentState?.isEndDrawerOpen ?? false)) {
             _assetScaffoldKey.currentState?.closeEndDrawer();
+            return;
+          }
+
+          // SI EL FILTRO DE MANTENIMIENTO ESTÁ ABIERTO, CERRARLO PRIMERO
+          if (_currentPageIndex == 2 &&
+              (_maintenanceScaffoldKey.currentState?.isEndDrawerOpen ??
+                  false)) {
+            _maintenanceScaffoldKey.currentState?.closeEndDrawer();
             return;
           }
 
@@ -318,11 +345,18 @@ class _HomePage extends StatefulWidget {
 class _HomePageState extends State<_HomePage> {
   int _totalAssets = 0;
   bool _isLoading = true;
+  final ScrollController _homeScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _fetchStats();
+  }
+
+  @override
+  void dispose() {
+    _homeScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchStats() async {
@@ -367,183 +401,191 @@ class _HomePageState extends State<_HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // SECCIÓN 1: STATS HEADER
-          const Text(
-            'Panel de Control',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _buildStatCard(
-                  context,
-                  title: 'Total de Activos Registrados',
-                  value: _totalAssets.toString(),
-                  icon: Icons.inventory_2_rounded,
-                  color: Colors.blue.shade800,
-                ),
-          const SizedBox(height: 32),
+    return Scrollbar(
+      controller: _homeScrollController,
+      thumbVisibility: true,
+      thickness: 8,
+      trackVisibility: true,
+      child: SingleChildScrollView(
+        controller: _homeScrollController,
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // SECCIÓN 1: STATS HEADER
+            const Text(
+              'Panel de Control',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildStatCard(
+                    context,
+                    title: 'Total de Activos Registrados',
+                    value: _totalAssets.toString(),
+                    icon: Icons.inventory_2_rounded,
+                    color: Colors.blue.shade800,
+                  ),
+            const SizedBox(height: 32),
 
-          // SECCIÓN 2: MENÚ DE NAVEGACIÓN (MÓDULOS) POR ROLES
-          const Text(
-            'Módulos Principales',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Accede a las herramientas de gestión general.',
-            style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
-          ),
-          const SizedBox(height: 16),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            children: [
-              _buildActionCard(
+            // SECCIÓN 2: MENÚ DE NAVEGACIÓN (MÓDULOS) POR ROLES
+            const Text(
+              'Módulos Principales',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Accede a las herramientas de gestión general.',
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              children: [
+                _buildActionCard(
+                  context,
+                  title: 'Gestión de Activos',
+                  icon: Icons.inventory,
+                  onTap: widget.onNavigateToAssets,
+                ),
+                if (RoleService.currentRole != UserRole.ayudante)
+                  _buildActionCard(
+                    context,
+                    title: 'Mantenimientos',
+                    icon: Icons.build_circle,
+                    onTap: () {
+                      // Navigate to maintenance. It's index 2 in main_page.dart
+                      final mainPageState = context
+                          .findAncestorStateOfType<_MainPageState>();
+                      mainPageState?.setState(() {
+                        mainPageState._currentPageIndex = 2;
+                      });
+                    },
+                  ),
+                if (RoleService.currentRole == UserRole.admin) ...[
+                  _buildActionCard(
+                    context,
+                    title: 'Tablas Maestras',
+                    icon: Icons.settings,
+                    onTap: () {
+                      final mainPageState = context
+                          .findAncestorStateOfType<_MainPageState>();
+                      mainPageState?.setState(() {
+                        mainPageState._currentPageIndex = 3;
+                      });
+                    },
+                  ),
+                  _buildActionCard(
+                    context,
+                    title: 'Usuarios',
+                    icon: Icons.group,
+                    onTap: () {
+                      final mainPageState = context
+                          .findAncestorStateOfType<_MainPageState>();
+                      mainPageState?.setState(() {
+                        mainPageState._currentPageIndex = 4;
+                      });
+                    },
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            // SECCIÓN 3: CATEGORÍAS DE ACTIVOS
+            const Text(
+              'Categorías de Clasificación de activos',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Accede rápidamente a las 4 categorías principales de activos.',
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            _buildCategoryCard(
+              context,
+              title: 'PC',
+              description:
+                  'Computadoras de escritorio, laptops y equipos de cómputo.',
+              icon: Icons.computer,
+              onTap: () => Navigator.push(
                 context,
-                title: 'Gestión de Activos',
-                icon: Icons.inventory,
-                onTap: widget.onNavigateToAssets,
+                MaterialPageRoute(builder: (_) => const PcAssetsPage()),
               ),
-              if (RoleService.currentRole != UserRole.ayudante)
-                _buildActionCard(
-                  context,
-                  title: 'Mantenimientos',
-                  icon: Icons.build_circle,
-                  onTap: () {
-                    // Navigate to maintenance. It's index 2 in main_page.dart
-                    final mainPageState = context
-                        .findAncestorStateOfType<_MainPageState>();
-                    mainPageState?.setState(() {
-                      mainPageState._currentPageIndex = 2;
-                    });
-                  },
+            ),
+            _buildCategoryCard(
+              context,
+              title: 'Software',
+              description: 'Licencias y aplicaciones de software registradas.',
+              icon: Icons.developer_board,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SoftwareAssetsPage()),
+              ),
+            ),
+            _buildCategoryCard(
+              context,
+              title: 'Comunicación',
+              description: 'Routers, switches, teléfonos y equipos de red.',
+              icon: Icons.router,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CommsAssetsPage()),
+              ),
+            ),
+            _buildCategoryCard(
+              context,
+              title: 'Genérico',
+              description:
+                  'Otros equipos, monitores, impresoras y dispositivos.',
+              icon: Icons.devices_other,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const GenericAssetsPage()),
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // SECCIÓN 4: BÚSQUEDA RÁPIDA (BARCODE / QR)
+            const Text(
+              'Búsqueda Rápida',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildQuickSearchCard(
+                    context,
+                    title: 'Por Número de Serie',
+                    subtitle: 'Escanea el SN',
+                    icon: Icons.qr_code_scanner,
+                    color: Colors.indigo,
+                    onTap: () => _handleQuickSearch(false),
+                  ),
                 ),
-              if (RoleService.currentRole == UserRole.admin) ...[
-                _buildActionCard(
-                  context,
-                  title: 'Tablas Maestras',
-                  icon: Icons.settings,
-                  onTap: () {
-                    final mainPageState = context
-                        .findAncestorStateOfType<_MainPageState>();
-                    mainPageState?.setState(() {
-                      mainPageState._currentPageIndex = 3;
-                    });
-                  },
-                ),
-                _buildActionCard(
-                  context,
-                  title: 'Usuarios',
-                  icon: Icons.group,
-                  onTap: () {
-                    final mainPageState = context
-                        .findAncestorStateOfType<_MainPageState>();
-                    mainPageState?.setState(() {
-                      mainPageState._currentPageIndex = 4;
-                    });
-                  },
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildQuickSearchCard(
+                    context,
+                    title: 'Por Código',
+                    subtitle: 'Escanea el ID',
+                    icon: Icons.document_scanner,
+                    color: Colors.indigo,
+                    onTap: () => _handleQuickSearch(true),
+                  ),
                 ),
               ],
-            ],
-          ),
-          const SizedBox(height: 32),
-
-          // SECCIÓN 3: CATEGORÍAS DE ACTIVOS
-          const Text(
-            'Categorías de Clasificación de activos',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Accede rápidamente a las 4 categorías principales de activos.',
-            style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
-          ),
-          const SizedBox(height: 16),
-          _buildCategoryCard(
-            context,
-            title: 'PC',
-            description:
-                'Computadoras de escritorio, laptops y equipos de cómputo.',
-            icon: Icons.computer,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PcAssetsPage()),
             ),
-          ),
-          _buildCategoryCard(
-            context,
-            title: 'Software',
-            description: 'Licencias y aplicaciones de software registradas.',
-            icon: Icons.developer_board,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SoftwareAssetsPage()),
-            ),
-          ),
-          _buildCategoryCard(
-            context,
-            title: 'Comunicación',
-            description: 'Routers, switches, teléfonos y equipos de red.',
-            icon: Icons.router,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CommsAssetsPage()),
-            ),
-          ),
-          _buildCategoryCard(
-            context,
-            title: 'Genérico',
-            description: 'Otros equipos, monitores, impresoras y dispositivos.',
-            icon: Icons.devices_other,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const GenericAssetsPage()),
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // SECCIÓN 4: BÚSQUEDA RÁPIDA (BARCODE / QR)
-          const Text(
-            'Búsqueda Rápida',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildQuickSearchCard(
-                  context,
-                  title: 'Por Número de Serie',
-                  subtitle: 'Escanea el SN',
-                  icon: Icons.qr_code_scanner,
-                  color: Colors.indigo,
-                  onTap: () => _handleQuickSearch(false),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildQuickSearchCard(
-                  context,
-                  title: 'Por Código',
-                  subtitle: 'Escanea el ID',
-                  icon: Icons.document_scanner,
-                  color: Colors.indigo,
-                  onTap: () => _handleQuickSearch(true),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-        ],
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }

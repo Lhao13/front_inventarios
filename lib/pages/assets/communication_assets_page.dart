@@ -148,6 +148,7 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
   List<Map<String, dynamic>> _marcas = [];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _drawerScrollController = ScrollController();
+  final ScrollController _listScrollController = ScrollController();
 
   // Filter Models
   final List<int> _selectedTiposActivo = [];
@@ -189,6 +190,8 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
     _selectedSeries.clear();
     _selectedModelos.clear();
     _selectedPuertos.clear();
+    _drawerScrollController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -1132,9 +1135,13 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
     return Column(
       children: [
         Expanded(
-          child: ListView.builder(
-            itemCount: pageAssets.length,
-            itemBuilder: (context, index) {
+          child: Scrollbar(
+            controller: _listScrollController,
+            thumbVisibility: true,
+            child: ListView.builder(
+              controller: _listScrollController,
+              itemCount: pageAssets.length,
+              itemBuilder: (context, index) {
               final asset = pageAssets[index];
               final info =
                   asset['info_equipo_comunicacion'] != null &&
@@ -1194,6 +1201,7 @@ class _CommsAssetsPageState extends State<CommsAssetsPage> {
             },
           ),
         ),
+      ),
         MaterialListPaginator(
           rowsPerPage: _listRowsPerPage,
           currentPage: _listCurrentPage,

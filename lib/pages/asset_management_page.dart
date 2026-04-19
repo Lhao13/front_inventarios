@@ -36,6 +36,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   final ScrollController _drawerScrollController = ScrollController();
   final ScrollController _verticalScrollController = ScrollController();
   final ScrollController _horizontalScrollController = ScrollController();
+  final ScrollController _listScrollController = ScrollController();
 
   // Master Data Cache
   List<Map<String, dynamic>> _tiposActivo = [];
@@ -80,6 +81,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     _drawerScrollController.dispose();
     _verticalScrollController.dispose();
     _horizontalScrollController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -1230,6 +1232,45 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     );
   }
 
+  double _getColWidth(String label) {
+    switch (label) {
+      case 'Acciones':
+        return 140;
+      case 'Categoría':
+        return 110;
+      case 'S/N':
+        return 130;
+      case 'Nombre':
+        return 160;
+      case 'Código':
+        return 110;
+      case 'Tipo Activo':
+        return 140;
+      case 'Condición':
+        return 140;
+      case 'Custodio':
+        return 160;
+      case 'Ciudad':
+        return 110;
+      case 'Sede':
+        return 140;
+      case 'Área':
+        return 140;
+      case 'Proveedor':
+        return 100;
+      case 'Fe. Adquisición':
+        return 120;
+      case 'IP':
+        return 120;
+      case 'Fe. Entrega':
+        return 120;
+      case 'Coordenada':
+        return 140;
+      default:
+        return 130;
+    }
+  }
+
   Widget _buildTableSection() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_filteredAssets.isEmpty) {
@@ -1273,146 +1314,104 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     final startIndex = _tableCurrentPage * _tableRowsPerPage;
     final endIndex = (startIndex + _tableRowsPerPage).clamp(0, totalItems);
     final pageAssets = _filteredAssets.sublist(startIndex, endIndex);
+
+    final datatableTheme = Theme.of(context).copyWith(
+      cardTheme: const CardThemeData(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        color: Colors.transparent,
+      ),
+    );
     // ────────────────────────────────────────────────────────────────────
 
     return Column(
       children: [
         Expanded(
           child: Scrollbar(
-            controller: _verticalScrollController,
+            controller: _horizontalScrollController,
             thumbVisibility: true,
             child: SingleChildScrollView(
-              controller: _verticalScrollController,
-              child: Scrollbar(
-                controller: _horizontalScrollController,
-                thumbVisibility: true,
-                notificationPredicate: (notif) => notif.depth == 1,
-                child: SingleChildScrollView(
-                  controller: _horizontalScrollController,
-                  scrollDirection: Axis.horizontal,
-                  child: Theme(
-                    data: Theme.of(context).copyWith(
-                      cardTheme: const CardThemeData(
-                        elevation: 0,
-                        margin: EdgeInsets.zero,
-                        color: Colors.transparent,
-                      ),
-                    ),
+              controller: _horizontalScrollController,
+              scrollDirection: Axis.horizontal,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // --- FIXED HEADER ---
+                  Theme(
+                    data: datatableTheme,
                     child: DataTable(
-                      columnSpacing: 24,
-                      border: TableBorder(
-                        verticalInside: BorderSide(
-                          color: Colors.grey.withAlpha(80),
-                          width: 1,
-                        ),
-                      ),
+                      columnSpacing: 8,
+                      horizontalMargin: 8,
                       headingRowColor: WidgetStateProperty.resolveWith(
                         (states) => Theme.of(
                           context,
                         ).colorScheme.surfaceContainerHighest.withAlpha(128),
                       ),
-                      columns: const [
-                        DataColumn(
-                          label: Text(
-                            'Acciones',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Categoría',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'S/N',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Nombre',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Código',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Tipo Activo',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Condición',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Custodio',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Ciudad',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Sede',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Área',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Proveedor',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Fe. Adquisición',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'IP',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Fe. Entrega',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Coordenada',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
+                      columns: [
+                        _buildStickyHeaderCol('Acciones'),
+                        _buildStickyHeaderCol('Categoría'),
+                        _buildStickyHeaderCol('S/N'),
+                        _buildStickyHeaderCol('Nombre'),
+                        _buildStickyHeaderCol('Código'),
+                        _buildStickyHeaderCol('Tipo Activo'),
+                        _buildStickyHeaderCol('Condición'),
+                        _buildStickyHeaderCol('Custodio'),
+                        _buildStickyHeaderCol('Ciudad'),
+                        _buildStickyHeaderCol('Sede'),
+                        _buildStickyHeaderCol('Área'),
+                        _buildStickyHeaderCol('Proveedor'),
+                        _buildStickyHeaderCol('Fe. Adquisición'),
+                        _buildStickyHeaderCol('IP'),
+                        _buildStickyHeaderCol('Fe. Entrega'),
+                        _buildStickyHeaderCol('Coordenada'),
                       ],
-                      rows: pageAssets.map(_buildGlobalTableRow).toList(),
+                      rows: const [],
                     ),
                   ),
-                ),
+
+                  // --- SCROLLABLE BODY ---
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: _verticalScrollController,
+                      child: Theme(
+                        data: datatableTheme,
+                        child: DataTable(
+                          headingRowHeight: 0,
+                          columnSpacing: 8,
+                          horizontalMargin: 8,
+                          border: TableBorder(
+                            verticalInside: BorderSide(
+                              color: Colors.grey.withAlpha(80),
+                              width: 1,
+                            ),
+                          ),
+                          columns: [
+                            _buildStickyHeaderCol('Acciones', empty: true),
+                            _buildStickyHeaderCol('Categoría', empty: true),
+                            _buildStickyHeaderCol('S/N', empty: true),
+                            _buildStickyHeaderCol('Nombre', empty: true),
+                            _buildStickyHeaderCol('Código', empty: true),
+                            _buildStickyHeaderCol('Tipo Activo', empty: true),
+                            _buildStickyHeaderCol('Condición', empty: true),
+                            _buildStickyHeaderCol('Custodio', empty: true),
+                            _buildStickyHeaderCol('Ciudad', empty: true),
+                            _buildStickyHeaderCol('Sede', empty: true),
+                            _buildStickyHeaderCol('Área', empty: true),
+                            _buildStickyHeaderCol('Proveedor', empty: true),
+                            _buildStickyHeaderCol(
+                              'Fe. Adquisición',
+                              empty: true,
+                            ),
+                            _buildStickyHeaderCol('IP', empty: true),
+                            _buildStickyHeaderCol('Fe. Entrega', empty: true),
+                            _buildStickyHeaderCol('Coordenada', empty: true),
+                          ],
+                          rows: pageAssets.map(_buildGlobalTableRow).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1435,105 +1434,150 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     );
   }
 
+  DataColumn _buildStickyHeaderCol(String label, {bool empty = false}) {
+    return DataColumn(
+      label: SizedBox(
+        width: _getColWidth(label),
+        child: empty
+            ? null
+            : Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
   DataRow _buildGlobalTableRow(Map<String, dynamic> asset) {
     return DataRow(
       cells: [
         DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Icono de Mantenimiento
-              Tooltip(
-                message: 'Programar Mantenimiento',
-                child: InkWell(
-                  onTap: () => showDialog(
-                    context: context,
-                    builder: (_) =>
-                        MaintenanceFormDialog(initialAssetId: asset['id']),
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4.0),
-                    child: Icon(
-                      Icons.build_circle,
-                      color: Colors.blueGrey,
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              // Icono de Editar (Update)
-              Tooltip(
-                message: 'Actualizar Activo',
-                child: InkWell(
-                  onTap: () => _showAssetUpdateDialog(asset),
-                  borderRadius: BorderRadius.circular(20),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4.0),
-                    child: Icon(Icons.edit, color: Colors.blue, size: 22),
-                  ),
-                ),
-              ),
-              if (RoleService.currentRole != UserRole.ayudante) ...[
-                const SizedBox(width: 4),
-                // Icono de Eliminar
+          SizedBox(
+            width: _getColWidth('Acciones'),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icono de Mantenimiento
                 Tooltip(
-                  message: 'Eliminar',
+                  message: 'Programar Mantenimiento',
                   child: InkWell(
-                    onTap: () => _deleteAsset(asset['id']),
+                    onTap: () => showDialog(
+                      context: context,
+                      builder: (_) =>
+                          MaintenanceFormDialog(initialAssetId: asset['id']),
+                    ),
                     borderRadius: BorderRadius.circular(20),
                     child: const Padding(
                       padding: EdgeInsets.all(4.0),
-                      child: Icon(Icons.delete, color: Colors.red, size: 22),
+                      child: Icon(
+                        Icons.build_circle,
+                        color: Colors.blueGrey,
+                        size: 22,
+                      ),
                     ),
                   ),
                 ),
+                const SizedBox(width: 4),
+                // Icono de Editar (Update)
+                Tooltip(
+                  message: 'Actualizar Activo',
+                  child: InkWell(
+                    onTap: () => _showAssetUpdateDialog(asset),
+                    borderRadius: BorderRadius.circular(20),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4.0),
+                      child: Icon(Icons.edit, color: Colors.blue, size: 22),
+                    ),
+                  ),
+                ),
+                if (RoleService.currentRole != UserRole.ayudante) ...[
+                  const SizedBox(width: 4),
+                  // Icono de Eliminar
+                  Tooltip(
+                    message: 'Eliminar',
+                    child: InkWell(
+                      onTap: () => _deleteAsset(asset['id']),
+                      borderRadius: BorderRadius.circular(20),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4.0),
+                        child: Icon(Icons.delete, color: Colors.red, size: 22),
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
         DataCell(
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: _getCategoryColor(
-                asset['categoria_activo']?.toString() ?? 'PC',
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              asset['categoria_activo']?.toString() ?? 'PC',
-              style: TextStyle(
-                color: _getCategoryTextColor(
+          SizedBox(
+            width: _getColWidth('Categoría'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _getCategoryColor(
                   asset['categoria_activo']?.toString() ?? 'PC',
                 ),
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                asset['categoria_activo']?.toString() ?? 'PC',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: _getCategoryTextColor(
+                    asset['categoria_activo']?.toString() ?? 'PC',
+                  ),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
               ),
             ),
           ),
         ),
 
-        DataCell(Text(asset['numero_serie']?.toString() ?? 'N/A')),
-        DataCell(Text(asset['nombre']?.toString() ?? 'N/A')),
-        DataCell(Text(asset['codigo']?.toString() ?? 'N/A')),
-        DataCell(Text(asset['tipo_activo']?['tipo']?.toString() ?? 'N/A')),
-        DataCell(
-          Text(asset['condicion_activo']?['condicion']?.toString() ?? 'N/A'),
+        _buildTableCell('numero_serie', 'S/N', asset),
+        _buildTableCell('nombre', 'Nombre', asset),
+        _buildTableCell('codigo', 'Código', asset),
+        _buildTableCell('tipo_activo', 'Tipo Activo', asset, subKey: 'tipo'),
+        _buildTableCell(
+          'condicion_activo',
+          'Condición',
+          asset,
+          subKey: 'condicion',
         ),
-        DataCell(
-          Text(asset['custodio']?['nombre_completo']?.toString() ?? 'N/A'),
+        _buildTableCell(
+          'custodio',
+          'Custodio',
+          asset,
+          subKey: 'nombre_completo',
         ),
-        DataCell(Text(asset['ciudad_activo']?['ciudad']?.toString() ?? 'N/A')),
-        DataCell(Text(asset['sede_activo']?['sede']?.toString() ?? 'N/A')),
-        DataCell(Text(asset['area_activo']?['area']?.toString() ?? 'N/A')),
-        DataCell(Text(asset['proveedor']?['nombre']?.toString() ?? 'N/A')),
-        DataCell(Text(asset['fecha_adquisicion']?.toString() ?? 'N/A')),
-        DataCell(Text(asset['ip']?.toString() ?? 'N/A')),
-        DataCell(Text(asset['fecha_entrega']?.toString() ?? 'N/A')),
-        DataCell(Text(asset['coordenada']?.toString() ?? 'N/A')),
+        _buildTableCell('ciudad_activo', 'Ciudad', asset, subKey: 'ciudad'),
+        _buildTableCell('sede_activo', 'Sede', asset, subKey: 'sede'),
+        _buildTableCell('area_activo', 'Área', asset, subKey: 'area'),
+        _buildTableCell('proveedor', 'Proveedor', asset, subKey: 'nombre'),
+        _buildTableCell('fecha_adquisicion', 'Fe. Adquisición', asset),
+        _buildTableCell('ip', 'IP', asset),
+        _buildTableCell('fecha_entrega', 'Fe. Entrega', asset),
+        _buildTableCell('coordenada', 'Coordenada', asset),
       ],
+    );
+  }
+
+  DataCell _buildTableCell(
+    String key,
+    String colLabel,
+    Map<String, dynamic> asset, {
+    String? subKey,
+  }) {
+    String value = '';
+    if (subKey != null) {
+      value = asset[key]?[subKey]?.toString() ?? 'N/A';
+    } else {
+      value = asset[key]?.toString() ?? 'N/A';
+    }
+
+    return DataCell(
+      SizedBox(
+        width: _getColWidth(colLabel),
+        child: Text(value, overflow: TextOverflow.ellipsis),
+      ),
     );
   }
 
@@ -1591,61 +1635,69 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     return Column(
       children: [
         Expanded(
-          child: ListView.builder(
-            itemCount: pageAssets.length,
-            itemBuilder: (context, index) {
-              final asset = pageAssets[index];
-              final icon = _getIconForCategory(asset['categoria_activo']);
+          child: Scrollbar(
+            controller: _listScrollController,
+            thumbVisibility: true,
+            child: ListView.builder(
+              controller: _listScrollController,
+              itemCount: pageAssets.length,
+              itemBuilder: (context, index) {
+                final asset = pageAssets[index];
+                final icon = _getIconForCategory(asset['categoria_activo']);
 
-              final isSoftware = asset['categoria_activo'] == 'SOFTWARE';
-              final displayTitle = isSoftware
-                  ? (asset['nombre'] ?? 'Software ${asset['id']}')
-                  : 'S/N: ${asset['numero_serie'] ?? 'N/A'}';
+                final isSoftware = asset['categoria_activo'] == 'SOFTWARE';
+                final displayTitle = isSoftware
+                    ? (asset['nombre'] ?? 'Software ${asset['id']}')
+                    : 'S/N: ${asset['numero_serie'] ?? 'N/A'}';
 
-              final displaySubtitle = isSoftware
-                  ? 'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'}\n'
-                        'Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}'
-                  : 'Nombre: ${asset['nombre'] ?? 'Sin Nombre'} | Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'}\n'
-                        'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}';
+                final displaySubtitle = isSoftware
+                    ? 'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'}\n'
+                          'Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}'
+                    : 'Nombre: ${asset['nombre'] ?? 'Sin Nombre'} | Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'}\n'
+                          'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}';
 
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                elevation: 2,
-                child: ListTile(
-                  leading: Icon(icon, size: 40, color: Colors.blueGrey),
-                  title: Text(
-                    displayTitle,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                return Card(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 8,
                   ),
-                  subtitle: Text(displaySubtitle),
-                  isThreeLine: true,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.build_circle,
-                          color: Colors.blueGrey,
-                        ),
-                        tooltip: 'Programar Mantenimiento',
-                        onPressed: () => showDialog(
-                          context: context,
-                          builder: (_) => MaintenanceFormDialog(
-                            initialAssetId: asset['id'],
+                  elevation: 2,
+                  child: ListTile(
+                    leading: Icon(icon, size: 40, color: Colors.blueGrey),
+                    title: Text(
+                      displayTitle,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(displaySubtitle),
+                    isThreeLine: true,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.build_circle,
+                            color: Colors.blueGrey,
+                          ),
+                          tooltip: 'Programar Mantenimiento',
+                          onPressed: () => showDialog(
+                            context: context,
+                            builder: (_) => MaintenanceFormDialog(
+                              initialAssetId: asset['id'],
+                            ),
                           ),
                         ),
-                      ),
-                      if (RoleService.currentRole != UserRole.ayudante)
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteAsset(asset['id']),
-                          tooltip: 'Eliminar',
-                        ),
-                    ],
+                        if (RoleService.currentRole != UserRole.ayudante)
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteAsset(asset['id']),
+                            tooltip: 'Eliminar',
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
         MaterialListPaginator(

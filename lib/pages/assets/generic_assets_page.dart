@@ -148,6 +148,7 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
   List<Map<String, dynamic>> _marcas = [];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _drawerScrollController = ScrollController();
+  final ScrollController _listScrollController = ScrollController();
 
   // Filter Models
   final List<int> _selectedTiposActivo = [];
@@ -186,6 +187,8 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
     _selectedCodigos.clear();
     _selectedSeries.clear();
     _selectedModelos.clear();
+    _drawerScrollController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -1108,9 +1111,13 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
     return Column(
       children: [
         Expanded(
-          child: ListView.builder(
-            itemCount: pageAssets.length,
-            itemBuilder: (context, index) {
+          child: Scrollbar(
+            controller: _listScrollController,
+            thumbVisibility: true,
+            child: ListView.builder(
+              controller: _listScrollController,
+              itemCount: pageAssets.length,
+              itemBuilder: (context, index) {
               final asset = pageAssets[index];
               final info =
                   asset['info_equipo_generico'] != null &&
@@ -1170,6 +1177,7 @@ class _GenericAssetsPageState extends State<GenericAssetsPage> {
             },
           ),
         ),
+      ),
         MaterialListPaginator(
           rowsPerPage: _listRowsPerPage,
           currentPage: _listCurrentPage,

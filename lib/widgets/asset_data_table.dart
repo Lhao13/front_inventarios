@@ -161,107 +161,161 @@ class _AssetDataTableState extends State<AssetDataTable> {
     );
   }
 
+  double _getColWidth(String label) {
+    switch (label) {
+      case 'Acciones':
+        return 120;
+      case 'S/N':
+        return 130;
+      case 'Nombre':
+        return 160;
+      case 'Código':
+        return 110;
+      case 'Tipo Activo':
+        return 140;
+      case 'Condición':
+        return 140;
+      case 'Custodio':
+        return 150;
+      case 'Ciudad':
+        return 110;
+      case 'Sede':
+        return 110;
+      case 'Área':
+        return 140;
+      case 'Proveedor':
+        return 150;
+      case 'Fe. Adquisición':
+        return 120;
+      case 'IP':
+        return 120;
+      case 'Fe. Entrega':
+        return 120;
+      case 'Coordenada':
+        return 140;
+      default:
+        return 140;
+    }
+  }
+
   /// Builds a [DataRow] for one asset, replicating the logic that was in
   /// [AssetDataSource.getRow].
-  DataRow _buildRow(Map<String, dynamic> asset, List<AssetColumnDef> visibleCols, bool hasActions) {
+  DataRow _buildRow(
+    Map<String, dynamic> asset,
+    List<AssetColumnDef> visibleCols,
+    bool hasActions,
+  ) {
     return DataRow(
       cells: [
         if (hasActions)
           DataCell(
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (widget.onEdit != null)
-                  Tooltip(
-                    message: 'Editar',
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: () => widget.onEdit!(asset),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4.0),
-                        child: Icon(Icons.edit, color: Colors.blue, size: 22),
+            SizedBox(
+              width: _getColWidth('Acciones'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.onEdit != null)
+                    Tooltip(
+                      message: 'Editar',
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => widget.onEdit!(asset),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4.0),
+                          child: Icon(Icons.edit, color: Colors.blue, size: 22),
+                        ),
                       ),
                     ),
-                  ),
-                if (widget.customActionsBuilder != null) ...[
-                  if (widget.onEdit != null) const SizedBox(width: 4),
-                  ...widget.customActionsBuilder!(asset),
-                ],
-                if (widget.onDelete != null &&
-                    asset['id'] != null &&
-                    RoleService.currentRole != UserRole.ayudante) ...[
-                  if (widget.onEdit != null ||
-                      (widget.customActionsBuilder != null &&
-                          widget.customActionsBuilder!(asset).isNotEmpty))
-                    const SizedBox(width: 4),
-                  Tooltip(
-                    message: 'Eliminar',
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: () => widget.onDelete!(asset['id'] as String),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4.0),
-                        child: Icon(Icons.delete, color: Colors.red, size: 22),
+                  if (widget.customActionsBuilder != null) ...[
+                    if (widget.onEdit != null) const SizedBox(width: 4),
+                    ...widget.customActionsBuilder!(asset),
+                  ],
+                  if (widget.onDelete != null &&
+                      asset['id'] != null &&
+                      RoleService.currentRole != UserRole.ayudante) ...[
+                    if (widget.onEdit != null ||
+                        (widget.customActionsBuilder != null &&
+                            widget.customActionsBuilder!(asset).isNotEmpty))
+                      const SizedBox(width: 4),
+                    Tooltip(
+                      message: 'Eliminar',
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => widget.onDelete!(asset['id'] as String),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4.0),
+                          child: Icon(
+                            Icons.delete,
+                            color: Colors.red,
+                            size: 22,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ...visibleCols.map((col) {
           final String value = col.getValue(asset);
+          final double width = _getColWidth(col.label);
 
+          Widget cellContent;
           // Special case: coordinate column shows a tappable map link
           if (col.label == 'Coordenada' && value != 'N/A' && value.isNotEmpty) {
-            return DataCell(
-              InkWell(
-                onTap: () {
-                  try {
-                    final parts = value.split(',');
-                    if (parts.length == 2) {
-                      final lat = double.tryParse(parts[0].trim());
-                      final lng = double.tryParse(parts[1].trim());
-                      if (lat != null && lng != null) {
-                        showDialog(
-                          context: context,
-                          builder: (_) => MapDialog(
-                            latitude: lat,
-                            longitude: lng,
-                            title: asset['nombre']?.toString() ??
-                                asset['numero_serie']?.toString() ??
-                                'Activo',
-                          ),
-                        );
-                        return;
-                      }
-                    }
-                    throw Exception('Formato inválido');
-                  } catch (_) {
-                    if (context.mounted) {
-                      context.showSnackBar('Coordenada inválida', isError: true);
+            cellContent = InkWell(
+              onTap: () {
+                try {
+                  final parts = value.split(',');
+                  if (parts.length == 2) {
+                    final lat = double.tryParse(parts[0].trim());
+                    final lng = double.tryParse(parts[1].trim());
+                    if (lat != null && lng != null) {
+                      showDialog(
+                        context: context,
+                        builder: (_) => MapDialog(
+                          latitude: lat,
+                          longitude: lng,
+                          title:
+                              asset['nombre']?.toString() ??
+                              asset['numero_serie']?.toString() ??
+                              'Activo',
+                        ),
+                      );
+                      return;
                     }
                   }
-                },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.location_on, size: 16, color: Colors.blue),
-                    const SizedBox(width: 4),
-                    Text(
+                  throw Exception('Formato inválido');
+                } catch (_) {
+                  if (context.mounted) {
+                    context.showSnackBar('Coordenada inválida', isError: true);
+                  }
+                }
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.location_on, size: 16, color: Colors.blue),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
                       value,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.blue,
                         decoration: TextDecoration.underline,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
+          } else {
+            cellContent = Text(value, overflow: TextOverflow.ellipsis);
           }
 
-          return DataCell(Text(value));
+          return DataCell(SizedBox(width: width, child: cellContent));
         }),
       ],
     );
@@ -300,6 +354,15 @@ class _AssetDataTableState extends State<AssetDataTable> {
     final startIndex = _currentPage * _rowsPerPage;
     final endIndex = (startIndex + _rowsPerPage).clamp(0, totalItems);
     final pageAssets = widget.assets.sublist(startIndex, endIndex);
+
+    final datatableTheme = Theme.of(context).copyWith(
+      cardTheme: const CardThemeData(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        color: Colors.transparent,
+      ),
+    );
+
     // ───────────────────────────────────────────────────────────────────────
 
     return Column(
@@ -323,7 +386,10 @@ class _AssetDataTableState extends State<AssetDataTable> {
                   style: const TextStyle(fontSize: 12),
                 ),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
@@ -331,67 +397,97 @@ class _AssetDataTableState extends State<AssetDataTable> {
           ),
         ),
 
-        // ── Scrollable DataTable (horizontal + vertical) ─────────────────
+        // ── Sticky Header + Scrollable Body (horizontal unified scroll) ──
         Expanded(
           child: Scrollbar(
-            controller: _verticalScrollController,
+            controller: _horizontalScrollController,
             thumbVisibility: true,
             child: SingleChildScrollView(
-              controller: _verticalScrollController,
-              // vertical scroll
-              child: Scrollbar(
-                controller: _horizontalScrollController,
-                thumbVisibility: true,
-                notificationPredicate: (notif) => notif.depth == 1,
-                child: SingleChildScrollView(
-                  controller: _horizontalScrollController,
-                  // horizontal scroll for wide tables
-                  scrollDirection: Axis.horizontal,
-                  child: Theme(
-                    data: Theme.of(context).copyWith(
-                      cardTheme: const CardThemeData(
-                        elevation: 0,
-                        margin: EdgeInsets.zero,
-                        color: Colors.transparent,
-                      ),
-                    ),
+              controller: _horizontalScrollController,
+              scrollDirection: Axis.horizontal,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // --- FIXED HEADER ---
+                  Theme(
+                    data: datatableTheme,
                     child: DataTable(
-                      columnSpacing: 24,
-                      border: TableBorder(
-                        verticalInside: BorderSide(
-                          color: Colors.grey.withAlpha(80),
-                          width: 1,
-                        ),
-                      ),
+                      columnSpacing: 8,
+                      horizontalMargin: 8,
                       headingRowColor: WidgetStateProperty.resolveWith(
-                        (states) => Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withAlpha(128),
+                        (states) => Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest.withAlpha(128),
                       ),
                       columns: [
                         if (hasActions)
-                          const DataColumn(
-                            label: Text(
-                              'Acciones',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                          DataColumn(
+                            label: SizedBox(
+                              width: _getColWidth('Acciones'),
+                              child: const Text(
+                                'Acciones',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ),
                         ...visibleCols.map(
                           (col) => DataColumn(
-                            label: Text(
-                              col.label,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            label: SizedBox(
+                              width: _getColWidth(col.label),
+                              child: Text(
+                                col.label,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ],
-                      rows: pageAssets
-                          .map((asset) => _buildRow(asset, visibleCols, hasActions))
-                          .toList(),
+                      rows: const [], // No data rows in header component
                     ),
                   ),
-                ),
+
+                  // --- SCROLLABLE BODY ---
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: _verticalScrollController,
+                      child: Theme(
+                        data: datatableTheme,
+                        child: DataTable(
+                          headingRowHeight: 0, // Hide the header in body
+                          columnSpacing: 8,
+                          horizontalMargin: 8,
+                          border: TableBorder(
+                            verticalInside: BorderSide(
+                              color: Colors.grey.withAlpha(80),
+                              width: 1,
+                            ),
+                          ),
+                          columns: [
+                            if (hasActions)
+                              DataColumn(
+                                label: SizedBox(
+                                  width: _getColWidth('Acciones'),
+                                ),
+                              ),
+                            ...visibleCols.map(
+                              (col) => DataColumn(
+                                label: SizedBox(width: _getColWidth(col.label)),
+                              ),
+                            ),
+                          ],
+                          rows: pageAssets
+                              .map(
+                                (asset) =>
+                                    _buildRow(asset, visibleCols, hasActions),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

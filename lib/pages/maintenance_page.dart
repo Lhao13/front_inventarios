@@ -11,7 +11,8 @@ import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
 ///
 /// Esta página permite al usuario gestionar los mantenimientos de los activos.
 class MaintenancePage extends StatefulWidget {
-  const MaintenancePage({super.key});
+  final GlobalKey<ScaffoldState>? scaffoldKey;
+  const MaintenancePage({super.key, this.scaffoldKey});
 
   @override
   State<MaintenancePage> createState() => _MaintenancePageState();
@@ -33,6 +34,8 @@ class _MaintenancePageState extends State<MaintenancePage> {
   final List<String> _selectedActivosStr = [];
   DateTimeRange? _rangoProgramada;
   DateTimeRange? _rangoRealizada;
+
+  final ScrollController _listScrollController = ScrollController();
 
   late final List<AssetColumnDef> _columns = [
     AssetColumnDef(label: 'Activo', getValue: (m) => _getAssetDisplayInfo(m)),
@@ -78,6 +81,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
   @override
   void dispose() {
     SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -231,6 +235,16 @@ class _MaintenancePageState extends State<MaintenancePage> {
       _rangoRealizada = null;
     });
     _applyFilters();
+  }
+
+  int _getFilterCount() {
+    int count = 0;
+    if (_selectedTipos.isNotEmpty) count++;
+    if (_selectedEstados.isNotEmpty) count++;
+    if (_selectedActivosStr.isNotEmpty) count++;
+    if (_rangoProgramada != null) count++;
+    if (_rangoRealizada != null) count++;
+    return count;
   }
 
   List<Map<String, dynamic>> _getUniquePredictiveList(String key) {
@@ -398,31 +412,62 @@ class _MaintenancePageState extends State<MaintenancePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: widget.scaffoldKey,
+      appBar: AppBar(
+        toolbarHeight: 0,
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       endDrawer: Drawer(
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.only(
-                top: 48,
-                bottom: 16,
-                left: 16,
-                right: 16,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.only(
+                  top: 10,
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                ),
+                color: Colors.blue.shade50,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const Text(
+                          'Filtros Mantenimiento',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'Filtros activos: ${_getFilterCount()}',
+                          style: const TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          icon: const Icon(Icons.delete),
+                          label: const Text('Limpiar Filtros'),
+                          onPressed: _clearFilters,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              color: Colors.blue.shade50,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Filtros Mantenimiento',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  TextButton(
-                    onPressed: _clearFilters,
-                    child: const Text('Limpiar'),
-                  ),
-                ],
-              ),
-            ),
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
@@ -496,7 +541,8 @@ class _MaintenancePageState extends State<MaintenancePage> {
           ],
         ),
       ),
-      body: Padding(
+    ),
+    body: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
@@ -608,7 +654,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
             onPressed: () => Scaffold.of(context).openEndDrawer(),
             tooltip: 'Abrir Filtros',
             icon: const Icon(Icons.filter_list),
-            label: const Text('Filtros'),
+            label: Text('Filtros (${_getFilterCount()})'),
           ),
         ),
       ),
@@ -638,61 +684,68 @@ class _MaintenancePageState extends State<MaintenancePage> {
   }
 
   Widget _buildListSection() {
-    return ListView.builder(
-      itemCount: _filteredMaintenances.length,
-      itemBuilder: (context, index) {
-        final m = _filteredMaintenances[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: m['estado'] == 'Pendiente'
-                  ? Colors.orange
-                  : m['estado'] == 'Completado'
-                  ? Colors.green
-                  : Colors.blue,
-              child: Icon(
-                m['estado'] == 'Completado' ? Icons.check : Icons.build,
-                color: Colors.white,
-                size: 20,
+    return Scrollbar(
+      controller: _listScrollController,
+      thumbVisibility: true,
+      trackVisibility: true,
+      thickness: 8,
+      child: ListView.builder(
+        controller: _listScrollController,
+        itemCount: _filteredMaintenances.length,
+        itemBuilder: (context, index) {
+          final m = _filteredMaintenances[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: m['estado'] == 'Pendiente'
+                    ? Colors.orange
+                    : m['estado'] == 'Completado'
+                    ? Colors.green
+                    : Colors.blue,
+                child: Icon(
+                  m['estado'] == 'Completado' ? Icons.check : Icons.build,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
-            ),
-            title: Text('${_getAssetDisplayInfo(m)} - ${m['tipo']}'),
-            subtitle: Text(
-              'Programado: ${m['fecha_programada']} | Estado: ${m['estado']}'
-              '${m['fecha_realizada'] != null ? '\nRealizado: ${m['fecha_realizada']}' : ''}',
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (RoleService.currentRole != UserRole.ayudante)
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, color: Colors.blue),
-                    tooltip: 'Editar',
-                    onPressed: () => _showAddMaintenanceDialog(initialData: m),
-                  ),
-                if (m['estado'] != 'Completado' &&
-                    RoleService.currentRole != UserRole.ayudante)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.check_circle_outline,
-                      color: Colors.green,
+              title: Text('${_getAssetDisplayInfo(m)} - ${m['tipo']}'),
+              subtitle: Text(
+                'Programado: ${m['fecha_programada']} | Estado: ${m['estado']}'
+                '${m['fecha_realizada'] != null ? '\nRealizado: ${m['fecha_realizada']}' : ''}',
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (RoleService.currentRole != UserRole.ayudante)
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                      tooltip: 'Editar',
+                      onPressed: () => _showAddMaintenanceDialog(initialData: m),
                     ),
-                    tooltip: 'Marcar como Completado',
-                    onPressed: () => _completeMaintenance(m['id'] as String),
-                  ),
-                if (RoleService.currentRole != UserRole.ayudante)
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    tooltip: 'Eliminar',
-                    onPressed: () => _deleteMaintenance(m['id'] as String),
-                  ),
-              ],
+                  if (m['estado'] != 'Completado' &&
+                      RoleService.currentRole != UserRole.ayudante)
+                    IconButton(
+                      icon: const Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.green,
+                      ),
+                      tooltip: 'Marcar como Completado',
+                      onPressed: () => _completeMaintenance(m['id'] as String),
+                    ),
+                  if (RoleService.currentRole != UserRole.ayudante)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      tooltip: 'Eliminar',
+                      onPressed: () => _deleteMaintenance(m['id'] as String),
+                    ),
+                ],
+              ),
+              isThreeLine: true,
             ),
-            isThreeLine: true,
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

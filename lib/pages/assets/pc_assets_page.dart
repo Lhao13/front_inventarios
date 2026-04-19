@@ -172,6 +172,7 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
   List<Map<String, dynamic>> _marcas = [];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _drawerScrollController = ScrollController();
+  final ScrollController _listScrollController = ScrollController();
 
   // Filter Models
   final List<int> _selectedTiposActivo = [];
@@ -235,6 +236,8 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
     _selectedSeries.clear();
     _selectedModelos.clear();
     _selectedCpu.clear();
+    _drawerScrollController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -1249,9 +1252,13 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
     return Column(
       children: [
         Expanded(
-          child: ListView.builder(
-            itemCount: pageAssets.length,
-            itemBuilder: (context, index) {
+          child: Scrollbar(
+            controller: _listScrollController,
+            thumbVisibility: true,
+            child: ListView.builder(
+              controller: _listScrollController,
+              itemCount: pageAssets.length,
+              itemBuilder: (context, index) {
               final asset = pageAssets[index];
               final info =
                   asset['info_pc'] != null &&
@@ -1311,6 +1318,7 @@ class _PcAssetsPageState extends State<PcAssetsPage> {
             },
           ),
         ),
+      ),
         MaterialListPaginator(
           rowsPerPage: _listRowsPerPage,
           currentPage: _listCurrentPage,
