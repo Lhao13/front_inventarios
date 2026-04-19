@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
 
@@ -42,7 +43,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       // However, we can join usuario_rol, custadio, or use a custom RPC if necessary.
       // Let's first try to get from usuario_rol joined with rol
       // Consultamos una vista SQL personalizada para poder extraer el nombre desde auth.users
-      final response = await supabase.from('vista_usuarios_admin').select();
+      final response = await Supabase.instance.client.from('vista_usuarios_admin').select();
 
       if (!mounted) return;
       setState(() {
@@ -75,7 +76,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      await supabase
+      await Supabase.instance.client
           .from('usuario_rol')
           .update({'rol_id': newRoleId})
           .eq('user_id', userId);
@@ -202,7 +203,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       return const Center(child: Text('No se encontraron usuarios coincidentes.'));
     }
 
-    final currentUserId = supabase.auth.currentUser?.id;
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
     return Card(
       child: Scrollbar(

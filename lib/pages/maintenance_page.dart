@@ -6,6 +6,7 @@ import 'package:front_inventarios/services/sync_queue_service.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
 import 'package:front_inventarios/widgets/asset_data_table.dart';
 import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
+import 'package:front_inventarios/utils/date_utils.dart';
 
 /// Página de Mantenimientos.
 ///
@@ -85,8 +86,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
     super.dispose();
   }
 
-  String _formatDate(DateTime dt) =>
-      '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+
 
   String _getAssetDisplayInfo(Map<String, dynamic> m) {
     if (m['activo'] != null) {
@@ -340,7 +340,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
           .enqueueOperation('table:mantenimiento:update', {
             'id': id,
             'estado': 'Completado',
-            'fecha_realizada': _formatDate(DateTime.now()),
+            'fecha_realizada': AppDateUtils.formatYYYYMMDD(DateTime.now()),
           });
       if (SyncQueueService.instance.isOnline) {
         SyncQueueService.instance.syncPendingOperations();

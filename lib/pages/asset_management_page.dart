@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:front_inventarios/utils/asset_utils.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
@@ -68,8 +69,33 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   @override
   void initState() {
     super.initState();
+    _loadFiltersFromCache();
     _loadAssets();
     SyncQueueService.instance.onCacheUpdated.addListener(_onCacheUpdated);
+  }
+
+  void _loadFiltersFromCache() {
+    const cacheKey = 'Global Assets';
+    if (FilterMemoryCache.globalCache.containsKey(cacheKey)) {
+      final cached = FilterMemoryCache.globalCache[cacheKey]!;
+      _selectedTiposActivo.addAll(cached.selectedTiposActivo);
+      _selectedCondiciones.addAll(cached.selectedCondiciones);
+      _selectedSedes.addAll(cached.selectedSedes);
+      _selectedAreas.addAll(cached.selectedAreas);
+      _selectedCiudades.addAll(cached.selectedCiudades);
+      _selectedCustodios.addAll(cached.selectedCustodios);
+      _selectedProveedores.addAll(cached.selectedProveedores);
+      _selectedMarcas.addAll(cached.selectedMarcas);
+      _selectedNombres.addAll(cached.selectedNombres);
+      _selectedCodigos.addAll(cached.selectedCodigos);
+      _selectedSeries.addAll(cached.selectedSeries);
+      _rangoAdquisicion = cached.rangoAdquisicion;
+      _rangoEntrega = cached.rangoEntrega;
+    }
+  }
+
+  void _saveFiltersToCache() {
+    FilterMemoryCache.globalCache['Global Assets'] = _createFilterCriteria();
   }
 
   @override
@@ -150,6 +176,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   }
 
   void _applyFilters() {
+    _saveFiltersToCache();
     setState(() {
       _filteredAssets = _createFilterCriteria().apply(_allAssets);
     });
@@ -171,6 +198,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
       _rangoAdquisicion = null;
       _rangoEntrega = null;
     });
+    FilterMemoryCache.globalCache.remove('Global Assets');
     _applyFilters();
   }
 
@@ -903,20 +931,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     );
   }
 
-  IconData _getIconForCategory(String? category) {
-    switch (category) {
-      case 'PC':
-        return Icons.computer;
-      case 'SOFTWARE':
-        return Icons.developer_board;
-      case 'COMUNICACION':
-        return Icons.router;
-      case 'GENERICO':
-        return Icons.devices_other;
-      default:
-        return Icons.inventory;
-    }
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -1643,7 +1658,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
               itemCount: pageAssets.length,
               itemBuilder: (context, index) {
                 final asset = pageAssets[index];
-                final icon = _getIconForCategory(asset['categoria_activo']);
+                final icon = AssetUtils.getIconForCategory(asset['categoria_activo']);
 
                 final isSoftware = asset['categoria_activo'] == 'SOFTWARE';
                 final displayTitle = isSoftware

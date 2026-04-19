@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
 
@@ -49,7 +50,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
     });
 
     try {
-      final response = await supabase.from(tableName).select().order('id');
+      final response = await Supabase.instance.client.from(tableName).select().order('id');
       if (!mounted) return;
       setState(() {
         _tableData = List<Map<String, dynamic>>.from(response);
@@ -57,7 +58,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
     } catch (e) {
       if (!mounted) return;
       try {
-        final response = await supabase.from(tableName).select();
+        final response = await Supabase.instance.client.from(tableName).select();
         if (!mounted) return;
         setState(() {
           _tableData = List<Map<String, dynamic>>.from(response);
@@ -101,7 +102,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
     if (confirmar != true) return;
 
     try {
-      await supabase.from(_selectedTable).delete().eq('id', id);
+      await Supabase.instance.client.from(_selectedTable).delete().eq('id', id);
       if (mounted) context.showSnackBar('Registro eliminado');
       _loadTableData(_selectedTable);
     } catch (e) {
@@ -228,14 +229,14 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
 
                           try {
                             if (isUpdate) {
-                              await supabase
+                              await Supabase.instance.client
                                   .from(_selectedTable)
                                   .update(payload)
                                   .eq('id', existingRow['id']);
                               if (!mounted) return;
                               context.showSnackBar('Registro actualizado');
                             } else {
-                              await supabase
+                              await Supabase.instance.client
                                   .from(_selectedTable)
                                   .insert(payload);
                               if (!mounted) return;

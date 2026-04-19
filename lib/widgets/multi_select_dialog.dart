@@ -23,7 +23,6 @@ class MultiSelectDialog<T> extends StatefulWidget {
 class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
   late List<T> _selectedIds;
   late List<Map<String, dynamic>> _filteredItems;
-  String _searchQuery = '';
 
   late List<Map<String, dynamic>> _sortedItems;
 
@@ -38,8 +37,8 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
 
   void _sortItems() {
     _sortedItems.sort((a, b) {
-      final aSelected = _selectedIds.contains(a[widget.valueKey ?? 'id']);
-      final bSelected = _selectedIds.contains(b[widget.valueKey ?? 'id']);
+      final aSelected = _selectedIds.contains(a[widget.valueKey]);
+      final bSelected = _selectedIds.contains(b[widget.valueKey]);
       if (aSelected && !bSelected) return -1;
       if (!aSelected && bSelected) return 1;
       final valA = a[widget.displayKey]?.toString().toLowerCase() ?? '';
@@ -50,7 +49,6 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
 
   void _filterItems(String query) {
     setState(() {
-      _searchQuery = query;
       if (query.isEmpty) {
         _filteredItems = List.from(_sortedItems);
       } else {

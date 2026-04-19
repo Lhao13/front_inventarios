@@ -1,10 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/exceptions/app_exceptions.dart';
 
 /// Servicio de autenticación para manejar validaciones de sesión de usuario.
-/// 
+///
 /// Este servicio proporciona métodos para:
 /// - Validar credenciales al iniciar sesión
 /// - Verificar si el usuario mantiene una sesión activa
@@ -14,17 +13,14 @@ import 'package:front_inventarios/exceptions/app_exceptions.dart';
 
 class AuthService {
   /// Instancia estática del cliente de Supabase
-  static final _supabase = supabase;
+  static final _supabase = Supabase.instance.client;
 
   /// Valida las credenciales del usuario e inicia sesión.
   ///   - [email]: Correo electrónico del usuario
   ///   - [password]: Contraseña del usuario
   ///   - [AuthException] si hay errores específicos de Supabase
   ///   - [Exception] para otros errores inesperados
-  static Future<bool> validateAndSignIn(
-    String email,
-    String password,
-  ) async {
+  static Future<bool> validateAndSignIn(String email, String password) async {
     try {
       // Validar que los campos no estén vacíos
       if (email.isEmpty || password.isEmpty) {
@@ -38,7 +34,9 @@ class AuthService {
 
       // Validar que la contraseña tenga al menos 6 caracteres
       if (password.length < 6) {
-        throw const ValidationException('La contraseña debe tener al menos 6 caracteres');
+        throw const ValidationException(
+          'La contraseña debe tener al menos 6 caracteres',
+        );
       }
 
       // Intentar autenticación con Supabase
@@ -120,11 +118,11 @@ class AuthService {
   }
 
   /// Cierra la sesión del usuario.
-  /// 
+  ///
   /// Retorna:
   ///   - `true` si se cerró la sesión correctamente
   ///   - `false` si hubo un error
-  /// 
+  ///
   /// Lanza:
   ///   - [Exception] si hay algún error al cerrar sesión
   static Future<bool> signOut() async {
@@ -139,7 +137,9 @@ class AuthService {
 
       // Verificar que la sesión se cerró correctamente
       if (_supabase.auth.currentSession != null) {
-        throw const AuthenticationException('No se pudo cerrar la sesión correctamente');
+        throw const AuthenticationException(
+          'No se pudo cerrar la sesión correctamente',
+        );
       }
 
       return true;

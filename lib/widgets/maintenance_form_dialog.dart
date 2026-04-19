@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:front_inventarios/utils/date_utils.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
 import 'package:front_inventarios/widgets/single_select_search_dialog.dart';
@@ -111,8 +112,7 @@ class _MaintenanceFormDialogState extends State<MaintenanceFormDialog> {
     }
   }
 
-  String _formatDate(DateTime dt) =>
-      '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+
 
   Future<void> _saveMaintenance() async {
     if (!_formKey.currentState!.validate()) return;
@@ -123,7 +123,7 @@ class _MaintenanceFormDialogState extends State<MaintenanceFormDialog> {
 
     final data = {
       'id_activo': _selectedActivoId,
-      'fecha_programada': _formatDate(_selectedDate!),
+      'fecha_programada': AppDateUtils.formatYYYYMMDD(_selectedDate!),
       'tipo': _selectedTipo,
       'estado': _selectedEstado,
       'observacion': _observacionController.text.trim(),
@@ -200,7 +200,7 @@ class _MaintenanceFormDialogState extends State<MaintenanceFormDialog> {
                       isDense: true,
                     ),
                     child: Text(
-                      _selectedDate == null ? 'Seleccionar fecha' : _formatDate(_selectedDate!),
+                      _selectedDate == null ? 'Seleccionar fecha' : AppDateUtils.formatYYYYMMDD(_selectedDate!),
                     ),
                   ),
                 ),

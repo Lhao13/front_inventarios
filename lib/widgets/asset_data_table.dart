@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/widgets/map_dialog.dart';
@@ -71,7 +72,7 @@ class _AssetDataTableState extends State<AssetDataTable> {
   @override
   void didUpdateWidget(AssetDataTable oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.columns != widget.columns) {
+    if (!listEquals(oldWidget.columns, widget.columns)) {
       if (mounted) {
         setState(() {
           _visibleLabels = {
@@ -82,7 +83,7 @@ class _AssetDataTableState extends State<AssetDataTable> {
       }
     }
     // Reset to first page when the data changes
-    if (oldWidget.assets != widget.assets) {
+    if (!listEquals(oldWidget.assets, widget.assets)) {
       if (mounted) {
         setState(() => _currentPage = 0);
       }
@@ -346,12 +347,11 @@ class _AssetDataTableState extends State<AssetDataTable> {
 
     // ── Pagination math ────────────────────────────────────────────────────
     final totalItems = widget.assets.length;
-    final totalPages = (totalItems / _rowsPerPage).ceil().clamp(1, 999999);
+    final totalPages = totalItems == 0 ? 1 : (totalItems / _rowsPerPage).ceil();
 
-    if (_currentPage >= totalPages) _currentPage = totalPages - 1;
-    if (_currentPage < 0) _currentPage = 0;
+    final effectivePage = _currentPage.clamp(0, totalPages > 0 ? totalPages - 1 : 0);
 
-    final startIndex = _currentPage * _rowsPerPage;
+    final startIndex = effectivePage * _rowsPerPage;
     final endIndex = (startIndex + _rowsPerPage).clamp(0, totalItems);
     final pageAssets = widget.assets.sublist(startIndex, endIndex);
 
@@ -496,7 +496,7 @@ class _AssetDataTableState extends State<AssetDataTable> {
         // ── Pagination footer ─────────────────────────────────────────────
         MaterialListPaginator(
           rowsPerPage: _rowsPerPage,
-          currentPage: _currentPage,
+          currentPage: effectivePage,
           totalItems: totalItems,
           rowsPerPageOptions: const [10, 20, 30, 40, 50, 100],
           onRowsPerPageChanged: (v) => setState(() {
@@ -504,8 +504,8 @@ class _AssetDataTableState extends State<AssetDataTable> {
             _currentPage = 0;
           }),
           onFirst: () => setState(() => _currentPage = 0),
-          onPrevious: () => setState(() => _currentPage--),
-          onNext: () => setState(() => _currentPage++),
+          onPrevious: () => setState(() => _currentPage = effectivePage - 1),
+          onNext: () => setState(() => _currentPage = effectivePage + 1),
           onLast: () => setState(() => _currentPage = totalPages - 1),
         ),
       ],

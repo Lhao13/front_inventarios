@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:front_inventarios/utils/asset_utils.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
@@ -72,7 +74,7 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
         return;
       }
 
-      final query = supabase.from('activo').select('''
+      final query = Supabase.instance.client.from('activo').select('''
         *,
         info_pc(*, marca(marca_proveedor)),
         info_equipo_comunicacion(*, marca(marca_proveedor)),
@@ -247,13 +249,13 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                             'p_cargador_codigo': cargadorCodigo,
                             'p_num_puertos': numPuertos,
                           });
-                          await supabase.rpc('actualizar_activo_pc', params: params);
+                          await Supabase.instance.client.rpc('actualizar_activo_pc', params: params);
                         } else if (categoria == 'COMUNICACION') {
                           params.addAll({
                             'p_num_puertos': numPuertos,
                             'p_tipo_extension': tipoExtension,
                           });
-                          await supabase.rpc('actualizar_activo_equipo_comunicacion', params: params);
+                          await Supabase.instance.client.rpc('actualizar_activo_equipo_comunicacion', params: params);
                         } else if (categoria == 'GENERICO') {
                           params.addAll({
                             'p_cargador_codigo': cargadorCodigo,
@@ -261,14 +263,14 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                             'p_var_impresora_color': varImpresoraColor,
                             'p_var_monitor_tipo_conexion': varMonitorTipoConexion,
                           });
-                          await supabase.rpc('actualizar_activo_equipo_generico', params: params);
+                          await Supabase.instance.client.rpc('actualizar_activo_equipo_generico', params: params);
                         } else if (categoria == 'SOFTWARE') {
                           params.addAll({
                             'p_proveedor': proveedorSoftware,
                             'p_fecha_inicio': fechaInicio,
                             'p_fecha_fin': fechaFin,
                           });
-                          await supabase.rpc('actualizar_activo_software', params: params);
+                          await Supabase.instance.client.rpc('actualizar_activo_software', params: params);
                         }
 
                         if (!mounted) return;
@@ -290,16 +292,6 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
         );
       },
     );
-  }
-
-  IconData _getCategoryIcon(String? category) {
-    switch (category) {
-      case 'PC': return Icons.computer;
-      case 'SOFTWARE': return Icons.developer_board;
-      case 'COMUNICACION': return Icons.router;
-      case 'GENERICO': return Icons.devices_other;
-      default: return Icons.inventory;
-    }
   }
 
   Map<String, dynamic>? _getSpecificInfo(Map<String, dynamic> asset, String category) {
@@ -386,7 +378,7 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
               color: Colors.blue.shade50,
               shape: BoxShape.circle,
             ),
-            child: Icon(_getCategoryIcon(cat), size: 64, color: Colors.blue.shade800),
+            child: Icon(AssetUtils.getIconForCategory(cat), size: 64, color: Colors.blue.shade800),
           ),
           const SizedBox(height: 16),
           Text(a['nombre']?.toString() ?? 'Sin Nombre', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold), textAlign: TextAlign.center),

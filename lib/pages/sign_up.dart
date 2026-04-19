@@ -32,7 +32,7 @@ class _SignUpPageState extends State<SignUpPage> {
 			setState(() {
 				_isLoading = true;
 			});
-			await supabase.auth.signUp(
+			await Supabase.instance.client.auth.signUp(
 				email: _emailController.text.trim(),
 				password: _passwordController.text.trim(),
 				data: {'name': _nameController.text.trim()},

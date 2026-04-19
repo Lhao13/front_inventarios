@@ -32,7 +32,7 @@ Future<void> main() async {
   runApp(MyApp(isLoggedIn: isLoggedIn));
 }
 
-final supabase = Supabase.instance.client;
+
 
 class MyApp extends StatefulWidget {
   final bool isLoggedIn;

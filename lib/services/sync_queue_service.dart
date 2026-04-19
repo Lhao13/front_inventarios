@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'package:front_inventarios/main.dart'; // import supabase
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
+
+
 
 /// Servicio encargado de vigilar la conectividad a internet 
 /// y ejecutar de forma automática la Sincronización (Lecturas y Escrituras).
@@ -58,8 +60,8 @@ class SyncQueueService {
 
   void _startPolling() {
     _pollingTimer?.cancel();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
-      if (isOnline && supabase.auth.currentSession != null) {
+    _pollingTimer = Timer.periodic(const Duration(minutes: 5), (timer) async {
+      if (isOnline && Supabase.instance.client.auth.currentSession != null) {
         await forceSyncAndRefresh();
       }
     });
@@ -90,7 +92,7 @@ class SyncQueueService {
 
   /// Evento lanzado cuando vuelve el internet
   Future<void> _handleInternetRecovered() async {
-    if (supabase.auth.currentSession == null) {
+    if (Supabase.instance.client.auth.currentSession == null) {
       debugPrint('📡 Internet Recuperado pero no hay sesión activa. Posponiendo Sincronización.');
       return;
     }
@@ -108,7 +110,7 @@ class SyncQueueService {
   /// Forzado manual desde la UI para empujar cambios pendientes y traer caché fresca
   Future<void> forceSyncAndRefresh() async {
     if (!isOnlineNotifier.value) return;
-    if (supabase.auth.currentSession == null) return;
+    if (Supabase.instance.client.auth.currentSession == null) return;
     
     debugPrint('🔄 Sincronización Manual Solicitada...');
     // 1. Intentamos subir (esto ignorará si ya hay otra subida en curso)
@@ -154,15 +156,15 @@ class SyncQueueService {
             final action = parts[2];
 
             if (action == 'insert') {
-              await supabase.from(table).insert(params);
+              await Supabase.instance.client.from(table).insert(params);
             } else if (action == 'update') {
-              await supabase.from(table).update(params).eq('id', params['id']);
+              await Supabase.instance.client.from(table).update(params).eq('id', params['id']);
             } else if (action == 'delete') {
-              await supabase.from(table).delete().eq('id', params['id']);
+              await Supabase.instance.client.from(table).delete().eq('id', params['id']);
             }
           } else {
             // Ejecutamos el RPC guardado enviándolo a Supabase
-            await supabase.rpc(rpcName, params: params);
+            await Supabase.instance.client.rpc(rpcName, params: params);
           }
           
           // Si fue un éxito o un 200, eliminamos de la cola local
@@ -209,7 +211,7 @@ class SyncQueueService {
 
   /// Descarga absolutamente todas las tablas necesarias y las clona en SQLite
   Future<void> refreshCache() async {
-    if (supabase.auth.currentSession == null) return;
+    if (Supabase.instance.client.auth.currentSession == null) return;
     if (_internalIsRefreshing) return;
     
     _internalIsRefreshing = true;
@@ -222,14 +224,14 @@ class SyncQueueService {
       
       // -- 1. Tabla de Activos Principal (Full Query Vía RPC)
       try {
-        final activosResponse = await supabase.rpc('get_activos_completos');
+        final activosResponse = await Supabase.instance.client.rpc('get_activos_completos');
         // Salvamos en la colección 'activo' (cuyo ID primario es 'id' tipo UUID)
         await LocalDbService.instance.saveCollection('activo', List<Map<String, dynamic>>.from(activosResponse), 'id');
       } catch (e) { debugPrint('Error cacheando Activos: $e'); }
 
       // -- 2. Tabla Mantenimientos
       try {
-        final mttoResponse = await supabase
+        final mttoResponse = await Supabase.instance.client
             .from('mantenimiento')
             .select('*, activo(numero_serie, tipo_activo(tipo))');
         await LocalDbService.instance.saveCollection('mantenimiento', List<Map<String, dynamic>>.from(mttoResponse), 'id');
@@ -259,7 +261,7 @@ class SyncQueueService {
 
   Future<void> _cacheSimpleTable(String tableName) async {
     try {
-      final resp = await supabase.from(tableName).select();
+      final resp = await Supabase.instance.client.from(tableName).select();
       await LocalDbService.instance.saveCollection(tableName, List<Map<String, dynamic>>.from(resp), 'id');
     } catch (e) {
       debugPrint('Error en caching de tabla maestra $tableName: $e');

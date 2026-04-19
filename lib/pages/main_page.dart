@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
 import 'package:front_inventarios/components/side_menu.dart';
 import 'package:front_inventarios/pages/asset_management_page.dart';
@@ -210,7 +211,45 @@ class _MainPageState extends State<MainPage> {
             });
           }
         },
-        child: SafeArea(bottom: true, child: _pages[_currentPageIndex]),
+        child: SafeArea(
+          bottom: true,
+          child: Column(
+            children: [
+              ValueListenableBuilder<bool>(
+                valueListenable: SyncQueueService.instance.hasSyncErrorsNotifier,
+                builder: (context, hasErrors, _) {
+                  if (!hasErrors) return const SizedBox.shrink();
+                  return Material(
+                    color: Colors.red.shade100,
+                    child: InkWell(
+                      onTap: _showSyncErrorsDialog,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning, color: Colors.red),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Errores de sincronización detectados. Toca para resolver.',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: Colors.red),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              Expanded(child: _pages[_currentPageIndex]),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -361,7 +400,7 @@ class _HomePageState extends State<_HomePage> {
 
   Future<void> _fetchStats() async {
     try {
-      final response = await supabase.from('activo').select('id');
+      final response = await Supabase.instance.client.from('activo').select('id');
       if (mounted) {
         setState(() {
           _totalAssets = (response as List).length;

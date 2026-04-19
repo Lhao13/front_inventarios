@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/pages/login_page.dart';
 import 'package:front_inventarios/pages/main_page.dart';
@@ -111,7 +112,7 @@ class _LockScreenPageState extends State<LockScreenPage> {
           }
         }
       } else {
-        await supabase.auth.signOut();
+        await Supabase.instance.client.auth.signOut();
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -129,7 +130,7 @@ class _LockScreenPageState extends State<LockScreenPage> {
   }
 
   Future<void> _forceLogout() async {
-    await supabase.auth.signOut();
+    await Supabase.instance.client.auth.signOut();
     if (mounted) {
       Navigator.pushReplacement(
         context,

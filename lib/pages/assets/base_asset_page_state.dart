@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:front_inventarios/utils/asset_utils.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
@@ -92,8 +93,33 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
   @override
   void initState() {
     super.initState();
+    _loadFiltersFromCache();
     _loadAssets();
     SyncQueueService.instance.onCacheUpdated.addListener(_onCacheUpdated);
+  }
+
+  void _loadFiltersFromCache() {
+    final cacheKey = pageTitle;
+    if (FilterMemoryCache.globalCache.containsKey(cacheKey)) {
+      final cached = FilterMemoryCache.globalCache[cacheKey]!;
+      _selectedTiposActivo.addAll(cached.selectedTiposActivo);
+      _selectedCondiciones.addAll(cached.selectedCondiciones);
+      _selectedSedes.addAll(cached.selectedSedes);
+      _selectedAreas.addAll(cached.selectedAreas);
+      _selectedCiudades.addAll(cached.selectedCiudades);
+      _selectedCustodios.addAll(cached.selectedCustodios);
+      _selectedProveedores.addAll(cached.selectedProveedores);
+      _selectedMarcas.addAll(cached.selectedMarcas);
+      _selectedNombres.addAll(cached.selectedNombres);
+      _selectedCodigos.addAll(cached.selectedCodigos);
+      _selectedSeries.addAll(cached.selectedSeries);
+      _rangoAdquisicion = cached.rangoAdquisicion;
+      _rangoEntrega = cached.rangoEntrega;
+    }
+  }
+
+  void _saveFiltersToCache() {
+    FilterMemoryCache.globalCache[pageTitle] = _createFilterCriteria();
   }
 
   @override
@@ -180,6 +206,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
   }
 
   void applyFilters() {
+    _saveFiltersToCache();
     if(!mounted) return;
     setState(() {
       _filteredAssets = _createFilterCriteria()
@@ -206,6 +233,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
       _rangoEntrega = null;
       _listCurrentPage = 0;
     });
+    FilterMemoryCache.globalCache.remove(pageTitle);
     clearCustomFilters();
     applyFilters();
   }
@@ -633,15 +661,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
     }
   }
 
-  IconData _getIconForCategory(String? category) {
-    switch (category) {
-      case 'PC': return Icons.computer;
-      case 'SOFTWARE': return Icons.developer_board;
-      case 'COMUNICACION': return Icons.router;
-      case 'GENERICO': return Icons.devices_other;
-      default: return Icons.inventory;
-    }
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -741,9 +761,13 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                     style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Sincronizar Datos',
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Actualizar\nDatos', style: TextStyle(fontSize: 10), textAlign: TextAlign.center),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   onPressed: () async {
                     setState(() => _isLoading = true);
                     await SyncQueueService.instance.forceSyncAndRefresh();
@@ -853,11 +877,9 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
     final totalItems = _filteredAssets.length;
     final totalPages = totalItems == 0 ? 1 : (totalItems / _listRowsPerPage).ceil();
 
-    if (_listCurrentPage >= totalPages && totalPages > 0) {
-      _listCurrentPage = totalPages - 1;
-    }
+    final effectivePage = _listCurrentPage.clamp(0, totalPages > 0 ? totalPages - 1 : 0);
 
-    final startIndex = _listCurrentPage * _listRowsPerPage;
+    final startIndex = effectivePage * _listRowsPerPage;
     final endIndex = (startIndex + _listRowsPerPage) > totalItems
         ? totalItems
         : (startIndex + _listRowsPerPage);
@@ -881,7 +903,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                      leading: CircleAvatar(
                        backgroundColor: categoryName != null ? Colors.blue.shade100 : _getCategoryColor(a['categoria_activo']?.toString() ?? ''),
                        child: Icon(
-                         _getIconForCategory(a['categoria_activo']?.toString() ?? ''),
+                         AssetUtils.getIconForCategory(a['categoria_activo']?.toString() ?? ''),
                          color: categoryName != null ? Colors.blue.shade900 : _getCategoryTextColor(a['categoria_activo']?.toString() ?? ''),
                        ),
                      ),
@@ -917,7 +939,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
         ),
         MaterialListPaginator(
           rowsPerPage: _listRowsPerPage,
-          currentPage: _listCurrentPage,
+          currentPage: effectivePage,
           totalItems: totalItems,
           rowsPerPageOptions: const [10, 20, 30, 40, 50, 100],
           onRowsPerPageChanged: (v) => setState(() {
@@ -925,8 +947,8 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
             _listCurrentPage = 0;
           }),
           onFirst: () => setState(() => _listCurrentPage = 0),
-          onPrevious: () => setState(() => _listCurrentPage--),
-          onNext: () => setState(() => _listCurrentPage++),
+          onPrevious: () => setState(() => _listCurrentPage = effectivePage - 1),
+          onNext: () => setState(() => _listCurrentPage = effectivePage + 1),
           onLast: () => setState(() => _listCurrentPage = totalPages - 1),
         ),
       ],

@@ -1,19 +1,23 @@
-import 'package:front_inventarios/main.dart';
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:sqflite/sqflite.dart';
 
 enum UserRole { admin, ti, ayudante, unknown }
 
 class RoleService {
-  static UserRole? _currentRole;
+  static final ValueNotifier<UserRole?> _currentRoleNotifier = ValueNotifier<UserRole?>(null);
 
-  static UserRole get currentRole => _currentRole ?? UserRole.unknown;
+  /// Reactivo. Los componentes pueden hacer ValueListenableBuilder<UserRole?>(valueListenable: RoleService.notifier, ...)
+  static ValueNotifier<UserRole?> get notifier => _currentRoleNotifier;
+
+  static UserRole get currentRole => _currentRoleNotifier.value ?? UserRole.unknown;
 
   /// Define el rol del usuario después del login o en el inicio de la app
   static Future<void> fetchAndSetUserRole(String userId) async {
     try {
       // Intentar leer de Supabase (Online)
-      final response = await supabase
+      final response = await Supabase.instance.client
           .from('usuario_rol')
           .select('rol(nombre)')
           .eq('user_id', userId)
@@ -35,7 +39,7 @@ class RoleService {
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       } else {
-        _currentRole = UserRole.unknown;
+        _currentRoleNotifier.value = UserRole.unknown;
       }
     } catch (e) {
       // Modo Offline: Si falla Supabase, recuperamos de Sqflite
@@ -50,10 +54,10 @@ class RoleService {
           final roleName = res.first['json_data'] as String?;
           _assignRole(roleName);
         } else {
-          _currentRole = UserRole.unknown;
+          _currentRoleNotifier.value = UserRole.unknown;
         }
       } catch (_) {
-        _currentRole = UserRole.unknown;
+        _currentRoleNotifier.value = UserRole.unknown;
       }
     }
   }
@@ -76,12 +80,12 @@ class RoleService {
   }
 
   static void _assignRole(String? roleName) {
-    _currentRole = roleFromName(roleName);
+    _currentRoleNotifier.value = roleFromName(roleName);
   }
 
   /// Limpiar rol en el logout
   static Future<void> clearRole() async {
-    _currentRole = null;
+    _currentRoleNotifier.value = null;
     try {
       final db = await LocalDbService.instance.database;
       await db.delete(

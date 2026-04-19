@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+class FilterMemoryCache {
+  static final Map<String, AssetFilterCriteria> globalCache = {};
+}
+
 class AssetFilterCriteria {
   final Set<int> selectedTiposActivo;
   final Set<int> selectedCondiciones;

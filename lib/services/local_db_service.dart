@@ -113,15 +113,14 @@ class LocalDbService {
     final db = await instance.database;
     final batch = db.batch();
 
-    // Limpiamos los anteriores para tener siempre los datos frescos
-    batch.delete('cache_storage', where: 'collection = ?', whereArgs: [collection]);
-
+    // Eliminamos el batch.delete para prevenir listados vacíos concurrentes.
+    // Usamos ConflictAlgorithm.replace para hacer el upsert de los datos.
     for (final item in items) {
       batch.insert('cache_storage', {
         'collection': collection,
         'id': item[idKey].toString(),
         'json_data': jsonEncode(item),
-      });
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
 
     await batch.commit(noResult: true);
@@ -260,6 +259,25 @@ class LocalDbService {
           oldData['numero_serie'] = params['p_numero_serie'] ?? oldData['numero_serie'];
           oldData['nombre'] = params['p_nombre'] ?? oldData['nombre'];
           oldData['codigo'] = params['p_codigo'] ?? oldData['codigo'];
+
+          // Función local para inyectar anidados por llave foránea
+          Future<void> injectNested(String paramKey, String table, String fieldKey) async {
+            final fId = params[paramKey];
+            if (fId != null) {
+              final nested = await db.query('cache_storage', where: 'collection = ? AND id = ?', whereArgs: [table, fId.toString()]);
+              if (nested.isNotEmpty) oldData[fieldKey] = jsonDecode(nested.first['json_data'] as String);
+            }
+          }
+ 
+          // Resolver foráneas para mostrar instantáneamente la UI
+          await injectNested('p_id_tipo_activo', 'tipo_activo', 'tipo_activo');
+          await injectNested('p_id_area_activo', 'area_activo', 'area_activo');
+          await injectNested('p_id_sede_activo', 'sede_activo', 'sede_activo');
+          await injectNested('p_id_ciudad_activo', 'ciudad_activo', 'ciudad_activo');
+          await injectNested('p_id_condicion_activo', 'condicion_activo', 'condicion_activo');
+          await injectNested('p_id_custodio', 'custodio', 'custodio');
+          await injectNested('p_id_proveedor', 'proveedor', 'proveedor');
+          
           // Simple optimistic update for top fields only
           await db.update('cache_storage', {
             'json_data': jsonEncode(oldData),
