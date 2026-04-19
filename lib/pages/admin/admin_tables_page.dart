@@ -26,10 +26,20 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  final ScrollController _verticalScrollController = ScrollController();
+  final ScrollController _horizontalScrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     _loadTableData(_selectedTable);
+  }
+
+  @override
+  void dispose() {
+    _verticalScrollController.dispose();
+    _horizontalScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTableData(String tableName) async {
@@ -53,7 +63,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
           _tableData = List<Map<String, dynamic>>.from(response);
         });
       } catch (innerE) {
-         setState(() {
+        setState(() {
           _errorMessage = 'Error loading table $tableName: $innerE';
         });
       }
@@ -71,9 +81,14 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar registro'),
-        content: const Text('¿Estás seguro de que deseas eliminar este registro?'),
+        content: const Text(
+          '¿Estás seguro de que deseas eliminar este registro?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
@@ -97,11 +112,20 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
   Future<void> _showFormDialog({Map<String, dynamic>? existingRow}) async {
     // Determine columns dynamically. Default to just 'nombre' if empty.
     List<String> columns = ['nombre', 'descripcion'];
-    final excludedCols = ['timestamp_created_at', 'timestamp_updated_at', 'user_on_update', 'user_on_creation'];
+    final excludedCols = [
+      'timestamp_created_at',
+      'timestamp_updated_at',
+      'user_on_update',
+      'user_on_creation',
+    ];
     if (_tableData.isNotEmpty) {
-      columns = _tableData.first.keys.where((k) => k != 'id' && !excludedCols.contains(k)).toList();
+      columns = _tableData.first.keys
+          .where((k) => k != 'id' && !excludedCols.contains(k))
+          .toList();
     } else if (existingRow != null) {
-      columns = existingRow.keys.where((k) => k != 'id' && !excludedCols.contains(k)).toList();
+      columns = existingRow.keys
+          .where((k) => k != 'id' && !excludedCols.contains(k))
+          .toList();
     }
 
     final Map<String, String> fieldValues = {
@@ -124,17 +148,29 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                   children: columns.map((col) {
                     if (_selectedTable == 'tipo_activo' && col == 'categoria') {
                       final currentVal = fieldValues[col] ?? '';
-                      final validOptions = ['PC', 'COMUNICACION', 'SOFTWARE', 'GENERICO'];
+                      final validOptions = [
+                        'PC',
+                        'COMUNICACION',
+                        'SOFTWARE',
+                        'GENERICO',
+                      ];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
                         child: DropdownButtonFormField<String>(
-                          value: validOptions.contains(currentVal) ? currentVal : (validOptions.isNotEmpty ? validOptions.first : null),
+                          value: validOptions.contains(currentVal)
+                              ? currentVal
+                              : (validOptions.isNotEmpty
+                                    ? validOptions.first
+                                    : null),
                           decoration: InputDecoration(
                             labelText: col.toUpperCase(),
                             border: const OutlineInputBorder(),
                           ),
                           items: validOptions.map((opt) {
-                            return DropdownMenuItem(value: opt, child: Text(opt));
+                            return DropdownMenuItem(
+                              value: opt,
+                              child: Text(opt),
+                            );
                           }).toList(),
                           onChanged: (val) {
                             if (val != null) fieldValues[col] = val;
@@ -159,14 +195,18 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
               ),
               actions: [
                 TextButton(
-                  onPressed: saving ? null : () async {
-                    // Cerrar el teclado antes de cerrar para evitar conflictos con la animación de salida
-                    FocusManager.instance.primaryFocus?.unfocus();
-                    await Future.delayed(const Duration(milliseconds: 100));
-                    if (Navigator.canPop(dialogContext)) {
-                      Navigator.pop(dialogContext);
-                    }
-                  },
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          // Cerrar el teclado antes de cerrar para evitar conflictos con la animación de salida
+                          FocusManager.instance.primaryFocus?.unfocus();
+                          await Future.delayed(
+                            const Duration(milliseconds: 100),
+                          );
+                          if (Navigator.canPop(dialogContext)) {
+                            Navigator.pop(dialogContext);
+                          }
+                        },
                   child: const Text('Cancelar'),
                 ),
                 ElevatedButton(
@@ -175,7 +215,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                       : () async {
                           // Cerrar el teclado para evitar ANRs/cuelgues de ImeBackAnimationController en Android
                           FocusManager.instance.primaryFocus?.unfocus();
-                          
+
                           setDialogState(() => saving = true);
                           final Map<String, dynamic> payload = {};
                           for (var col in columns) {
@@ -188,25 +228,35 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
 
                           try {
                             if (isUpdate) {
-                              await supabase.from(_selectedTable).update(payload).eq('id', existingRow['id']);
+                              await supabase
+                                  .from(_selectedTable)
+                                  .update(payload)
+                                  .eq('id', existingRow['id']);
                               if (!mounted) return;
                               context.showSnackBar('Registro actualizado');
                             } else {
-                              await supabase.from(_selectedTable).insert(payload);
+                              await supabase
+                                  .from(_selectedTable)
+                                  .insert(payload);
                               if (!mounted) return;
                               context.showSnackBar('Registro insertado');
                             }
-                            
+
                             // Esperar un instante para que el teclado se cierre correctamente antes de hacer pop
-                            await Future.delayed(const Duration(milliseconds: 100));
+                            await Future.delayed(
+                              const Duration(milliseconds: 100),
+                            );
                             if (mounted && Navigator.canPop(dialogContext)) {
                               Navigator.pop(dialogContext);
                             }
-                            
+
                             _loadTableData(_selectedTable);
                           } catch (e) {
                             if (!mounted) return;
-                            context.showSnackBar('Error al guardar: $e', isError: true);
+                            context.showSnackBar(
+                              'Error al guardar: $e',
+                              isError: true,
+                            );
                             // Solo actualizar estado si el diálogo sigue abierto
                             if (sbContext.mounted) {
                               setDialogState(() => saving = false);
@@ -231,63 +281,90 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
           top: false,
           bottom: true,
           child: Container(
-           color: Colors.blueGrey.shade50,
-           child: Column(
-             children: [
-               Container(
-                 padding: const EdgeInsets.only(top: 48, bottom: 16, left: 16, right: 16),
-                 child: const Row(
-                   children: [
-                     Icon(Icons.inventory, color: Colors.blueGrey),
-                     SizedBox(width: 10),
-                     Text('Tablas Maestras', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-                   ],
-                 ),
-               ),
-               Expanded(
-                 child: ListView.builder(
-                   padding: EdgeInsets.zero,
-                   itemCount: _tablas.length,
-                   itemBuilder: (context, index) {
-                     final table = _tablas[index];
-                     return ListTile(
-                       leading: const Icon(Icons.table_rows, color: Colors.blueGrey),
-                       title: Text(table, style: const TextStyle(fontWeight: FontWeight.w600)),
-                       selected: _selectedTable == table,
-                       selectedTileColor: Colors.blue.withValues(alpha: 0.1),
-                       onTap: () {
-                         setState(() {
-                           _selectedTable = table;
-                         });
-                         Navigator.pop(context); // Cierra el drawer
-                         _loadTableData(table);
-                       },
-                     );
-                   },
-                 ),
-               ),
-             ],
-           ),
-        ),
+            color: Colors.blueGrey.shade50,
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.only(
+                    top: 48,
+                    bottom: 16,
+                    left: 16,
+                    right: 16,
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.inventory, color: Colors.blueGrey),
+                      SizedBox(width: 10),
+                      Text(
+                        'Tablas Maestras',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    itemCount: _tablas.length,
+                    itemBuilder: (context, index) {
+                      final table = _tablas[index];
+                      return ListTile(
+                        leading: const Icon(
+                          Icons.table_rows,
+                          color: Colors.blueGrey,
+                        ),
+                        title: Text(
+                          table,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        selected: _selectedTable == table,
+                        selectedTileColor: Colors.blue.withValues(alpha: 0.1),
+                        onTap: () {
+                          setState(() {
+                            _selectedTable = table;
+                          });
+                          Navigator.pop(context); // Cierra el drawer
+                          _loadTableData(table);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showFormDialog(),
         tooltip: 'Agregar Nuevo',
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Agrega Nueva entrada'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(
+          16.0,
+          16.0,
+          16.0,
+          80.0,
+        ), // 80px al fondo para evitar el FAB
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-             Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Text(
                     'Tabla: ${_selectedTable.toUpperCase()}',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -297,22 +374,36 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                   onPressed: () => _loadTableData(_selectedTable),
                 ),
                 Builder(
-                  builder: (context) => IconButton(
-                    icon: const Icon(Icons.view_sidebar),
-                    tooltip: 'Cambiar Tabla',
+                  builder: (context) => ElevatedButton.icon(
                     onPressed: () => Scaffold.of(context).openEndDrawer(),
+                    icon: const Icon(Icons.table_chart, color: Colors.white),
+                    label: const Text(
+                      'Ver Tablas',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade600,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            Expanded(
-              child: _buildDataTable(),
-            ),
+            Expanded(child: _buildDataTable()),
           ],
         ),
       ),
     );
+  }
+
+  double _getColWidth(String col) {
+    if (col == 'ACCIONES') return 100;
+    if (col.toLowerCase() == 'id') return 20; // Columna ID más pequeña
+    return 110;
   }
 
   Widget _buildDataTable() {
@@ -323,54 +414,153 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
           children: const [
             Icon(Icons.wifi_off, size: 64, color: Colors.grey),
             SizedBox(height: 16),
-            Text('Requiere conexión a internet para ver las tablas en vivo', style: TextStyle(fontSize: 16)),
+            Text(
+              'Requiere conexión a internet para ver las tablas en vivo',
+              style: TextStyle(fontSize: 16),
+            ),
           ],
         ),
       );
     }
 
     if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_errorMessage != null) return Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)));
-    if (_tableData.isEmpty) return const Center(child: Text('La tabla está vacía o sin datos.'));
+    if (_errorMessage != null)
+      return Center(
+        child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+      );
+    if (_tableData.isEmpty)
+      return const Center(child: Text('La tabla está vacía o sin datos.'));
 
     final columns = _tableData.first.keys.toList();
 
-    final excludedCols = ['timestamp_created_at', 'timestamp_updated_at', 'user_on_update', 'user_on_creation'];
+    final excludedCols = [
+      'timestamp_created_at',
+      'timestamp_updated_at',
+      'user_on_update',
+      'user_on_creation',
+    ];
+
+    final filteredCols = columns
+        .where((col) => !excludedCols.contains(col))
+        .toList();
 
     return Card(
       elevation: 2,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+      child: Scrollbar(
+        controller: _horizontalScrollController,
+        thumbVisibility: true,
+        trackVisibility: true,
+        thickness: 8,
         child: SingleChildScrollView(
-          child: DataTable(
-            columnSpacing: 24,
-            columns: [
-              ...columns.where((col) => !excludedCols.contains(col)).map((col) => DataColumn(label: Text(col.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)))),
-              const DataColumn(label: Text('ACCIONES', style: TextStyle(fontWeight: FontWeight.bold))),
-            ],
-            rows: _tableData.map((row) {
-              return DataRow(
-                cells: [
-                  ...columns.where((col) => !excludedCols.contains(col)).map((col) => DataCell(Text(row[col]?.toString() ?? ''))),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _showFormDialog(existingRow: row),
-                        ),
-                        if (row['id'] != null)
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteRow(int.parse(row['id'].toString())),
-                          ),
-                      ],
+          controller: _horizontalScrollController,
+          scrollDirection: Axis.horizontal,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- FIXED HEADER ---
+              DataTable(
+                columnSpacing: 24,
+                headingRowColor: WidgetStateProperty.resolveWith(
+                  (states) =>
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                ),
+                columns: [
+                  DataColumn(
+                    label: SizedBox(
+                      width: _getColWidth('ACCIONES'),
+                      child: const Text(
+                        'ACCIONES',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
-                  )
+                  ),
+                  ...filteredCols.map(
+                    (col) => DataColumn(
+                      label: SizedBox(
+                        width: _getColWidth(col),
+                        child: Text(
+                          col.toUpperCase(),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
-              );
-            }).toList(),
+                rows: const [], // Solo encabezado
+              ),
+              // --- SCROLLABLE BODY ---
+              Expanded(
+                child: Scrollbar(
+                  controller: _verticalScrollController,
+                  thumbVisibility: true,
+                  trackVisibility: true,
+                  thickness: 8,
+                  child: SingleChildScrollView(
+                    controller: _verticalScrollController,
+                    scrollDirection: Axis.vertical,
+                    child: DataTable(
+                      headingRowHeight: 0, // Ocultar encabezado del cuerpo
+                      columnSpacing: 24,
+                      columns: [
+                        DataColumn(
+                          label: SizedBox(width: _getColWidth('ACCIONES')),
+                        ),
+                        ...filteredCols.map(
+                          (col) => DataColumn(
+                            label: SizedBox(width: _getColWidth(col)),
+                          ),
+                        ),
+                      ],
+                      rows: _tableData.map((row) {
+                        return DataRow(
+                          cells: [
+                            DataCell(
+                              SizedBox(
+                                width: _getColWidth('ACCIONES'),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                      ),
+                                      onPressed: () =>
+                                          _showFormDialog(existingRow: row),
+                                    ),
+                                    if (row['id'] != null)
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                        ),
+                                        onPressed: () => _deleteRow(
+                                          int.parse(row['id'].toString()),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            ...filteredCols.map(
+                              (col) => DataCell(
+                                SizedBox(
+                                  width: _getColWidth(col),
+                                  child: Text(
+                                    row[col]?.toString() ?? '',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

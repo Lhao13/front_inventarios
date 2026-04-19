@@ -14,10 +14,21 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  final ScrollController _usersScrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
     _loadUsers();
+  }
+
+  @override
+  void dispose() {
+    _usersScrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUsers() async {
@@ -104,6 +115,35 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               ],
             ),
             const SizedBox(height: 16),
+            TextField(
+              controller: _searchController,
+              onChanged: (val) {
+                setState(() {
+                  _searchQuery = val.trim().toLowerCase();
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Buscar por nombre o email...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade100,
+              ),
+            ),
+            const SizedBox(height: 16),
             Expanded(child: _buildContent()),
           ],
         ),
@@ -152,91 +192,110 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       return const Center(child: Text('No hay usuarios registrados.'));
     }
 
+    final filteredUsers = _users.where((user) {
+      final name = (user['nombre_usuario'] ?? '').toString().toLowerCase();
+      final email = (user['email'] ?? '').toString().toLowerCase();
+      return name.contains(_searchQuery) || email.contains(_searchQuery);
+    }).toList();
+
+    if (filteredUsers.isEmpty) {
+      return const Center(child: Text('No se encontraron usuarios coincidentes.'));
+    }
+
     final currentUserId = supabase.auth.currentUser?.id;
 
     return Card(
-      child: ListView.separated(
-        itemCount: _users.length,
-        separatorBuilder: (context, index) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final user = _users[index];
-          final userId = user['user_id']?.toString() ?? 'ID Desconocido';
-          final rolStr = user['rol']?.toString().toUpperCase() ?? 'DESCONOCIDO';
-          final email = user['email']?.toString() ?? 'Sin Email';
-          final nombre = user['nombre_usuario']?.toString() ?? 'Sin Nombre';
+      child: Scrollbar(
+        controller: _usersScrollController,
+        thumbVisibility: true,
+        trackVisibility: true,
+        thickness: 8,
+        child: ListView.separated(
+          controller: _usersScrollController,
+          itemCount: filteredUsers.length,
+          separatorBuilder: (context, index) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final user = filteredUsers[index];
+            final userId = user['user_id']?.toString() ?? 'ID Desconocido';
+            final rolStr =
+                user['rol']?.toString().toUpperCase() ?? 'DESCONOCIDO';
+            final email = user['email']?.toString() ?? 'Sin Email';
+            final nombre = user['nombre_usuario']?.toString() ?? 'Sin Nombre';
 
-          int currentRoleId = 3; // Default PRESTAMO
-          if (rolStr == 'ADMIN') currentRoleId = 1;
-          if (rolStr == 'TI') currentRoleId = 2;
+            int currentRoleId = 3; // Default PRESTAMO
+            if (rolStr == 'ADMIN') currentRoleId = 1;
+            if (rolStr == 'TI') currentRoleId = 2;
 
-          final isCurrentUser = userId == currentUserId;
+            final isCurrentUser = userId == currentUserId;
 
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: _getRoleColor(rolStr),
-              child: const Icon(Icons.person, color: Colors.white),
-            ),
-            title: Text('$nombre '),
-            subtitle: Text(
-              isCurrentUser
-                  ? 'Este es tu usuario'
-                  : 'Email: $email\nRol: $rolStr\nID: $userId',
-            ),
-            isThreeLine: true,
-            trailing: isCurrentUser
-                ? Chip(
-                    label: Text(
-                      rolStr,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundColor: _getRoleColor(rolStr),
+                child: const Icon(Icons.person, color: Colors.white),
+              ),
+              title: Text('$nombre '),
+              subtitle: Text(
+                isCurrentUser
+                    ? 'Este es tu usuario'
+                    : 'Email: $email\nRol: $rolStr\nID: $userId',
+              ),
+              isThreeLine: true,
+              trailing: isCurrentUser
+                  ? Chip(
+                      label: Text(
+                        rolStr,
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                      backgroundColor: _getRoleColor(rolStr),
+                    )
+                  : DropdownButton<int>(
+                      value: currentRoleId,
+                      underline: Container(),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 1,
+                          child: Text(
+                            'ADMIN',
+                            style: TextStyle(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 2,
+                          child: Text(
+                            'TI',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 3,
+                          child: Text(
+                            'PRESTAMO',
+                            style: TextStyle(
+                              color: Colors.purple,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (int? newValue) {
+                        if (newValue != null && newValue != currentRoleId) {
+                          String newName = 'PRESTAMO';
+                          if (newValue == 1) newName = 'ADMIN';
+                          if (newValue == 2) newName = 'TI';
+                          _changeUserRole(userId, newValue, newName);
+                        }
+                      },
                     ),
-                    backgroundColor: _getRoleColor(rolStr),
-                  )
-                : DropdownButton<int>(
-                    value: currentRoleId,
-                    underline: Container(),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 1,
-                        child: Text(
-                          'ADMIN',
-                          style: TextStyle(
-                            color: Colors.orange,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 2,
-                        child: Text(
-                          'TI',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 3,
-                        child: Text(
-                          'PRESTAMO',
-                          style: TextStyle(
-                            color: Colors.purple,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                    onChanged: (int? newValue) {
-                      if (newValue != null && newValue != currentRoleId) {
-                        String newName = 'PRESTAMO';
-                        if (newValue == 1) newName = 'ADMIN';
-                        if (newValue == 2) newName = 'TI';
-                        _changeUserRole(userId, newValue, newName);
-                      }
-                    },
-                  ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
