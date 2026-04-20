@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:flutter/foundation.dart';
 
 enum UserRole { admin, ti, ayudante, unknown }
 

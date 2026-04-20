@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
+import 'package:front_inventarios/pages/main_page.dart';
 
 class AdminTablesPage extends StatefulWidget {
   const AdminTablesPage({super.key});
@@ -359,6 +360,19 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    final mainPageState =
+                        context.findAncestorStateOfType<MainPageState>();
+                    mainPageState?.setState(() {
+                      mainPageState.currentPageIndex = 0;
+                    });
+                  },
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Tabla: ${_selectedTable.toUpperCase()}',

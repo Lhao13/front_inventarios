@@ -3,6 +3,7 @@ import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
+import 'package:front_inventarios/pages/main_page.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
 import 'package:front_inventarios/widgets/asset_data_table.dart';
 import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
@@ -548,6 +549,19 @@ class _MaintenancePageState extends State<MaintenancePage> {
           children: [
             Row(
               children: [
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    final mainPageState =
+                        context.findAncestorStateOfType<MainPageState>();
+                    mainPageState?.setState(() {
+                      mainPageState.currentPageIndex = 0;
+                    });
+                  },
+                ),
+                const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
                     'Mantenimientos',

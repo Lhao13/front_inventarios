@@ -26,19 +26,19 @@ class MainPage extends StatefulWidget {
   const MainPage({super.key});
 
   @override
-  State<MainPage> createState() => _MainPageState();
+  State<MainPage> createState() => MainPageState();
 }
 
-class _MainPageState extends State<MainPage> {
+class MainPageState extends State<MainPage> {
   /// Índice de la página actual
-  int _currentPageIndex = 0;
+  int currentPageIndex = 0;
   final GlobalKey<ScaffoldState> _assetScaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<ScaffoldState> _maintenanceScaffoldKey =
       GlobalKey<ScaffoldState>();
 
   /// Lista de páginas disponibles
   late final List<Widget> _pages = [
-    _HomePage(onNavigateToAssets: () => setState(() => _currentPageIndex = 1)),
+    _HomePage(onNavigateToAssets: () => setState(() => currentPageIndex = 1)),
     AssetManagementPage(scaffoldKey: _assetScaffoldKey),
     MaintenancePage(scaffoldKey: _maintenanceScaffoldKey),
     const AdminTablesPage(),
@@ -50,38 +50,38 @@ class _MainPageState extends State<MainPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _currentPageIndex == 0
-              ? 'Sistema de\nInventarios'
-              : _currentPageIndex == 1
+          currentPageIndex == 0
+              ? 'Sistema de\nActivos'
+              : currentPageIndex == 1
               ? 'Gestión de Activos'
-              : _currentPageIndex == 2
+              : currentPageIndex == 2
               ? 'Mantenimientos'
-              : _currentPageIndex == 3
+              : currentPageIndex == 3
               ? 'Tablas Maestras'
               : 'Usuarios',
           textScaler: const TextScaler.linear(0.9),
           textAlign: TextAlign.center,
         ),
-        leading: _currentPageIndex != 0
+        leading: currentPageIndex != 0
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
                   // Si estamos en activos y el filtro está abierto, cerrarlo
-                  if (_currentPageIndex == 1 &&
+                  if (currentPageIndex == 1 &&
                       (_assetScaffoldKey.currentState?.isEndDrawerOpen ??
                           false)) {
                     _assetScaffoldKey.currentState?.closeEndDrawer();
                     return;
                   }
                   // Si estamos en mantenimientos y el filtro está abierto, cerrarlo
-                  if (_currentPageIndex == 2 &&
+                  if (currentPageIndex == 2 &&
                       (_maintenanceScaffoldKey.currentState?.isEndDrawerOpen ??
                           false)) {
                     _maintenanceScaffoldKey.currentState?.closeEndDrawer();
                     return;
                   }
                   // De lo contrario, volver al Home
-                  setState(() => _currentPageIndex = 0);
+                  setState(() => currentPageIndex = 0);
                 },
               )
             : null, // Muestra el ícono del drawer por defecto si es null y hay un drawer
@@ -176,38 +176,38 @@ class _MainPageState extends State<MainPage> {
 
       /// Drawer (menú lateral)
       drawer: SideMenu(
-        currentPageIndex: _currentPageIndex,
+        currentPageIndex: currentPageIndex,
         onPageSelected: (index) {
           setState(() {
-            _currentPageIndex = index;
+            currentPageIndex = index;
           });
         },
       ),
 
       /// Cuerpo: muestra la página actual según el índice
       body: PopScope(
-        canPop: _currentPageIndex == 0,
+        canPop: currentPageIndex == 0,
         onPopInvokedWithResult: (didPop, result) {
           if (didPop) return;
 
           // SI EL FILTRO DE ACTIVOS ESTÁ ABIERTO, CERRARLO PRIMERO
-          if (_currentPageIndex == 1 &&
+          if (currentPageIndex == 1 &&
               (_assetScaffoldKey.currentState?.isEndDrawerOpen ?? false)) {
             _assetScaffoldKey.currentState?.closeEndDrawer();
             return;
           }
 
           // SI EL FILTRO DE MANTENIMIENTO ESTÁ ABIERTO, CERRARLO PRIMERO
-          if (_currentPageIndex == 2 &&
+          if (currentPageIndex == 2 &&
               (_maintenanceScaffoldKey.currentState?.isEndDrawerOpen ??
                   false)) {
             _maintenanceScaffoldKey.currentState?.closeEndDrawer();
             return;
           }
 
-          if (_currentPageIndex != 0) {
+          if (currentPageIndex != 0) {
             setState(() {
-              _currentPageIndex = 0;
+              currentPageIndex = 0;
             });
           }
         },
@@ -216,7 +216,8 @@ class _MainPageState extends State<MainPage> {
           child: Column(
             children: [
               ValueListenableBuilder<bool>(
-                valueListenable: SyncQueueService.instance.hasSyncErrorsNotifier,
+                valueListenable:
+                    SyncQueueService.instance.hasSyncErrorsNotifier,
                 builder: (context, hasErrors, _) {
                   if (!hasErrors) return const SizedBox.shrink();
                   return Material(
@@ -246,7 +247,7 @@ class _MainPageState extends State<MainPage> {
                   );
                 },
               ),
-              Expanded(child: _pages[_currentPageIndex]),
+              Expanded(child: _pages[currentPageIndex]),
             ],
           ),
         ),
@@ -400,7 +401,9 @@ class _HomePageState extends State<_HomePage> {
 
   Future<void> _fetchStats() async {
     try {
-      final response = await Supabase.instance.client.from('activo').select('id');
+      final response = await Supabase.instance.client
+          .from('activo')
+          .select('id');
       if (mounted) {
         setState(() {
           _totalAssets = (response as List).length;
@@ -447,318 +450,360 @@ class _HomePageState extends State<_HomePage> {
       trackVisibility: true,
       child: SingleChildScrollView(
         controller: _homeScrollController,
-        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // SECCIÓN 1: STATS HEADER
-            const Text(
-              'Panel de Control',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
+            // SECCIÓN 1
             _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _buildStatCard(
-                    context,
-                    title: 'Total de Activos Registrados',
-                    value: _totalAssets.toString(),
-                    icon: Icons.inventory_2_rounded,
-                    color: Colors.blue.shade800,
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.only(
+                      top: 40,
+                      bottom: 20,
+                      left: 24,
+                      right: 24,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF1566bd), Colors.blue.shade900],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(10),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$_totalAssets Activos',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Registrados',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withAlpha(25),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.analytics_rounded,
+                            color: Colors.white,
+                            size: 42,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-            const SizedBox(height: 32),
 
-            // SECCIÓN 2: MENÚ DE NAVEGACIÓN (MÓDULOS) POR ROLES
-            const Text(
-              'Módulos Principales',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Accede a las herramientas de gestión general.',
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              children: [
-                _buildActionCard(
-                  context,
-                  title: 'Gestión de Activos',
-                  icon: Icons.inventory,
-                  onTap: widget.onNavigateToAssets,
-                ),
-                if (RoleService.currentRole != UserRole.ayudante)
-                  _buildActionCard(
-                    context,
-                    title: 'Mantenimientos',
-                    icon: Icons.build_circle,
-                    onTap: () {
-                      // Navigate to maintenance. It's index 2 in main_page.dart
-                      final mainPageState = context
-                          .findAncestorStateOfType<_MainPageState>();
-                      mainPageState?.setState(() {
-                        mainPageState._currentPageIndex = 2;
-                      });
-                    },
+            // Contenido con Padding lateral
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // SECCIÓN 2: GESTIÓN DE ACTIVOS (Agrupados en columna)
+                  const Text(
+                    'Gestión de Activos',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                if (RoleService.currentRole == UserRole.admin) ...[
-                  _buildActionCard(
-                    context,
-                    title: 'Tablas Maestras',
-                    icon: Icons.settings,
-                    onTap: () {
-                      final mainPageState = context
-                          .findAncestorStateOfType<_MainPageState>();
-                      mainPageState?.setState(() {
-                        mainPageState._currentPageIndex = 3;
-                      });
-                    },
+                  const SizedBox(height: 8),
+                  Text(
+                    'Consulta y administra el inventario de la institución.',
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
                   ),
-                  _buildActionCard(
-                    context,
-                    title: 'Usuarios',
-                    icon: Icons.group,
-                    onTap: () {
-                      final mainPageState = context
-                          .findAncestorStateOfType<_MainPageState>();
-                      mainPageState?.setState(() {
-                        mainPageState._currentPageIndex = 4;
-                      });
-                    },
+                  const SizedBox(height: 16),
+                  Column(
+                    children: [
+                      _buildModernMenuCard(
+                        context,
+                        title: 'Activos Globales',
+                        subtitle: 'Ver todo el inventario consolidado',
+                        icon: Icons.inventory_rounded,
+                        color: Colors.blue.shade700,
+                        isHighlighted: true,
+                        onTap: widget.onNavigateToAssets,
+                      ),
+                      _buildModernMenuCard(
+                        context,
+                        title: 'Equipos PC',
+                        subtitle: 'Laptops, desktops y servidores',
+                        icon: Icons.computer_rounded,
+                        color: Colors.blueGrey.shade600,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const PcAssetsPage(),
+                          ),
+                        ),
+                      ),
+                      _buildModernMenuCard(
+                        context,
+                        title: 'Software y Licencias',
+                        subtitle: 'Aplicaciones y registros digitales',
+                        icon: Icons.developer_board_rounded,
+                        color: Colors.blueGrey.shade600,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SoftwareAssetsPage(),
+                          ),
+                        ),
+                      ),
+                      _buildModernMenuCard(
+                        context,
+                        title: 'Comunicaciones',
+                        subtitle: 'Equipos de red, telefonía y conectividad',
+                        icon: Icons.router_rounded,
+                        color: Colors.blueGrey.shade600,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CommsAssetsPage(),
+                          ),
+                        ),
+                      ),
+                      _buildModernMenuCard(
+                        context,
+                        title: 'Activos Genéricos',
+                        subtitle: 'Otros dispositivos y periféricos',
+                        icon: Icons.devices_other_rounded,
+                        color: Colors.blueGrey.shade600,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const GenericAssetsPage(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 17),
+
+                  // SECCIÓN 3: BÚSQUEDA RÁPIDA
+                  const Text(
+                    'Identificación Rápida',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Escanea activos para consulta instantánea.',
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildQuickSearchCard(
+                          context,
+                          title: 'Serie',
+                          subtitle: 'Escanear SN',
+                          icon: Icons.qr_code_scanner_rounded,
+                          color: Colors.indigo,
+                          onTap: () => _handleQuickSearch(false),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildQuickSearchCard(
+                          context,
+                          title: 'Código',
+                          subtitle: 'Escanear ID',
+                          icon: Icons.document_scanner_rounded,
+                          color: Colors.indigo,
+                          onTap: () => _handleQuickSearch(true),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+
+                  // SECCIÓN 4: OPERACIONES
+                  const Text(
+                    'Operación y Control',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  if (RoleService.currentRole != UserRole.ayudante)
+                    _buildModernMenuCard(
+                      context,
+                      title: 'Agenda de Mantenimientos',
+                      subtitle: 'Calendario y programación de tareas',
+                      icon: Icons.build_circle_rounded,
+                      color: Colors.orange.shade800,
+                      onTap: () {
+                        final mainPageState = context
+                            .findAncestorStateOfType<MainPageState>();
+                        mainPageState?.setState(() {
+                          mainPageState.currentPageIndex = 2;
+                        });
+                      },
+                    ),
+                  const SizedBox(height: 17),
+
+                  // SECCIÓN 5: ADMINISTRACIÓN (Solo Visible para Admin)
+                  if (RoleService.currentRole == UserRole.admin) ...[
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Panel Administrativo',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Gestión de configuraciones maestras y usuarios.',
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildModernMenuCard(
+                      context,
+                      title: 'Configuración de Tablas',
+                      subtitle: 'Sedes, Áreas, Marcas y Tipos',
+                      icon: Icons.settings_applications_rounded,
+                      color: Colors.blueGrey.shade800,
+                      onTap: () {
+                        final mainPageState = context
+                            .findAncestorStateOfType<MainPageState>();
+                        mainPageState?.setState(() {
+                          mainPageState.currentPageIndex = 3;
+                        });
+                      },
+                    ),
+                    _buildModernMenuCard(
+                      context,
+                      title: 'Gestión de Usuarios',
+                      subtitle: 'Control de accesos y roles',
+                      icon: Icons.admin_panel_settings_rounded,
+                      color: Colors.blueGrey.shade800,
+                      onTap: () {
+                        final mainPageState = context
+                            .findAncestorStateOfType<MainPageState>();
+                        mainPageState?.setState(() {
+                          mainPageState.currentPageIndex = 4;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 40),
+                  ],
                 ],
-              ],
-            ),
-            const SizedBox(height: 32),
-
-            // SECCIÓN 3: CATEGORÍAS DE ACTIVOS
-            const Text(
-              'Categorías de Clasificación de activos',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Accede rápidamente a las 4 categorías principales de activos.',
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            _buildCategoryCard(
-              context,
-              title: 'PC',
-              description:
-                  'Computadoras de escritorio, laptops y equipos de cómputo.',
-              icon: Icons.computer,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PcAssetsPage()),
               ),
             ),
-            _buildCategoryCard(
-              context,
-              title: 'Software',
-              description: 'Licencias y aplicaciones de software registradas.',
-              icon: Icons.developer_board,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SoftwareAssetsPage()),
-              ),
-            ),
-            _buildCategoryCard(
-              context,
-              title: 'Comunicación',
-              description: 'Routers, switches, teléfonos y equipos de red.',
-              icon: Icons.router,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CommsAssetsPage()),
-              ),
-            ),
-            _buildCategoryCard(
-              context,
-              title: 'Genérico',
-              description:
-                  'Otros equipos, monitores, impresoras y dispositivos.',
-              icon: Icons.devices_other,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const GenericAssetsPage()),
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // SECCIÓN 4: BÚSQUEDA RÁPIDA (BARCODE / QR)
-            const Text(
-              'Búsqueda Rápida',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildQuickSearchCard(
-                    context,
-                    title: 'Por Número de Serie',
-                    subtitle: 'Escanea el SN',
-                    icon: Icons.qr_code_scanner,
-                    color: Colors.indigo,
-                    onTap: () => _handleQuickSearch(false),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildQuickSearchCard(
-                    context,
-                    title: 'Por Código',
-                    subtitle: 'Escanea el ID',
-                    icon: Icons.document_scanner,
-                    color: Colors.indigo,
-                    onTap: () => _handleQuickSearch(true),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatCard(
+  Widget _buildModernMenuCard(
     BuildContext context, {
     required String title,
-    required String value,
+    required String subtitle,
     required IconData icon,
     required Color color,
+    bool isHighlighted = false,
+    required VoidCallback onTap,
   }) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
-          colors: [color, color.withValues(alpha: 0.6)],
+          colors: [
+            color.withAlpha(isHighlighted ? 40 : 20),
+            Colors.cyan.shade100,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(
+          color: isHighlighted ? color : color.withAlpha(80),
+          width: isHighlighted ? 2 : 1.2,
+        ),
       ),
-      padding: const EdgeInsets.all(24.0),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 48, color: Colors.white),
-          ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w600,
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withAlpha(isHighlighted ? 50 : 30),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 28, color: color),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: isHighlighted
+                              ? FontWeight.bold
+                              : FontWeight.w600,
+                          fontSize: 16,
+                          color: isHighlighted ? color : Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: color.withAlpha(180),
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionCard(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 36, color: Colors.blue.shade700),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            ),
-          ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryCard(
-    BuildContext context, {
-    required String title,
-    required String description,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 1,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.blueGrey.shade50,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 32, color: Colors.blueGrey.shade700),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        subtitle: Text(
-          description,
-          style: TextStyle(color: Colors.grey.shade600),
-        ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-        onTap: onTap,
       ),
     );
   }
@@ -778,14 +823,13 @@ class _HomePageState extends State<_HomePage> {
         height: 160,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
+          border: Border.all(color: Colors.blue.shade300, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Colors.blue.shade100,
+              blurRadius: 10,
+              offset: const Offset(0, 6),
             ),
           ],
         ),

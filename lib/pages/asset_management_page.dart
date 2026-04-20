@@ -101,9 +101,6 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   @override
   void dispose() {
     SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
-    _selectedNombres.clear();
-    _selectedCodigos.clear();
-    _selectedSeries.clear();
     _drawerScrollController.dispose();
     _verticalScrollController.dispose();
     _horizontalScrollController.dispose();
@@ -1135,7 +1132,6 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                     label: const Text('PC'),
                     avatar: const Icon(Icons.computer, size: 16),
                     onPressed: () async {
-                      _clearFilters();
                       await Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const PcAssetsPage()),
@@ -1148,7 +1144,6 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                     label: const Text('Comunicaciones'),
                     avatar: const Icon(Icons.router, size: 16),
                     onPressed: () async {
-                      _clearFilters();
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -1163,7 +1158,6 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                     label: const Text('Genéricos'),
                     avatar: const Icon(Icons.devices_other, size: 16),
                     onPressed: () async {
-                      _clearFilters();
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -1178,7 +1172,6 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                     label: const Text('Software'),
                     avatar: const Icon(Icons.developer_board, size: 16),
                     onPressed: () async {
-                      _clearFilters();
                       await Navigator.push(
                         context,
                         MaterialPageRoute(

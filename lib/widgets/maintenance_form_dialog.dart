@@ -84,6 +84,8 @@ class _MaintenanceFormDialogState extends State<MaintenanceFormDialog> {
     try {
       final localActivos = await LocalDbService.instance.getCollection('activo');
       final filtered = localActivos
+          .where((a) => a['categoria_activo'] != 'SOFTWARE')
+          .toList()
         ..sort((a, b) {
           final sA = a['numero_serie']?.toString() ?? '';
           final sB = b['numero_serie']?.toString() ?? '';

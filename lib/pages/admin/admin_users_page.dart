@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
+import 'package:front_inventarios/pages/main_page.dart';
 
 class AdminUsersPage extends StatefulWidget {
   const AdminUsersPage({super.key});
@@ -102,11 +103,25 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         child: Column(
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Usuarios Registrados',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    final mainPageState =
+                        context.findAncestorStateOfType<MainPageState>();
+                    mainPageState?.setState(() {
+                      mainPageState.currentPageIndex = 0;
+                    });
+                  },
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Usuarios Registrados',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh),

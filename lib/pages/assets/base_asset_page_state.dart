@@ -24,7 +24,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
   int _listRowsPerPage = 10;
   int _listCurrentPage = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  
+
   final ScrollController _drawerScrollController = ScrollController();
   final ScrollController _listScrollController = ScrollController();
 
@@ -145,7 +145,9 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
   Future<void> _loadAssets({bool showLoading = true}) async {
     if (showLoading && mounted) setState(() => _isLoading = true);
     try {
-      final localActivos = await LocalDbService.instance.getCollection('activo');
+      final localActivos = await LocalDbService.instance.getCollection(
+        'activo',
+      );
 
       final futures = await Future.wait([
         LocalDbService.instance.getCollection('tipo_activo'),
@@ -161,8 +163,12 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
       if (mounted) {
         setState(() {
           if (categoryName != null) {
-            _tiposActivo = futures[0].where((t) => t['categoria'] == categoryName).toList();
-            _allAssets = localActivos.where((a) => a['categoria_activo'] == categoryName).toList();
+            _tiposActivo = futures[0]
+                .where((t) => t['categoria'] == categoryName)
+                .toList();
+            _allAssets = localActivos
+                .where((a) => a['categoria_activo'] == categoryName)
+                .toList();
           } else {
             _tiposActivo = futures[0];
             _allAssets = localActivos;
@@ -177,7 +183,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
 
           _isLoading = false;
         });
-        applyFilters(); 
+        applyFilters();
       }
     } catch (e) {
       if (mounted) {
@@ -207,12 +213,12 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
 
   void applyFilters() {
     _saveFiltersToCache();
-    if(!mounted) return;
+    if (!mounted) return;
     setState(() {
       _filteredAssets = _createFilterCriteria()
-           .apply(_allAssets)
-           .where((a) => customMatch(a))
-           .toList();
+          .apply(_allAssets)
+          .where((a) => customMatch(a))
+          .toList();
     });
   }
 
@@ -294,10 +300,12 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
     }
   }
 
-  Future<void> _showAssetUpdateDialog(Map<String, dynamic>? existingAsset) async {
-    final String initialCat = existingAsset == null ? 
-                              (categoryName ?? 'GENERICO') : 
-                              (existingAsset['categoria_activo'] ?? 'GENERICO').toString();
+  Future<void> _showAssetUpdateDialog(
+    Map<String, dynamic>? existingAsset,
+  ) async {
+    final String initialCat = existingAsset == null
+        ? (categoryName ?? 'GENERICO')
+        : (existingAsset['categoria_activo'] ?? 'GENERICO').toString();
     final bool isUpdate = existingAsset != null;
 
     showDialog(
@@ -308,10 +316,14 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
         final dialogWidth = screenWidth > 800 ? 600.0 : screenWidth * 0.9;
 
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Container(
             width: dialogWidth,
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(dialogContext).size.height * 0.9),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(dialogContext).size.height * 0.9,
+            ),
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -322,7 +334,10 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                     Expanded(
                       child: Text(
                         isUpdate ? 'Actualizar Activo' : 'Nuevo Activo',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -337,151 +352,172 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                   child: DynamicAssetForm(
                     initialCategory: initialCat,
                     initialData: existingAsset,
-                    onSave: ({
-                      String? numeroSerie,
-                      required String categoria,
-                      required int tipoActivoId,
-                      int? condicionActivoId,
-                      int? custodioId,
-                      int? ciudadActivoId,
-                      int? sedeActivoId,
-                      int? areaActivoId,
-                      int? proveedorId,
-                      String? fechaAdquisicion,
-                      String? fechaEntrega,
-                      String? coordenada,
-                      String? nombre,
-                      String? codigo,
-                      String? ip,
-                      int? marcaId,
-                      String? modelo,
-                      String? observaciones,
-                      String? procesador,
-                      String? ram,
-                      String? almacenamiento,
-                      String? cargadorCodigo,
-                      int? numPuertos,
-                      String? tipoExtension,
-                      int? numConexiones,
-                      String? varImpresoraColor,
-                      String? varMonitorTipoConexion,
-                      String? proveedorSoftware,
-                      String? fechaInicio,
-                      String? fechaFin,
-                    }) async {
-                      try {
-                        String rpcName = '';
-                        Map<String, dynamic> params = {};
-                        final String newId = existingAsset == null ? const Uuid().v4() : existingAsset['id'].toString();
+                    onSave:
+                        ({
+                          String? numeroSerie,
+                          required String categoria,
+                          required int tipoActivoId,
+                          int? condicionActivoId,
+                          int? custodioId,
+                          int? ciudadActivoId,
+                          int? sedeActivoId,
+                          int? areaActivoId,
+                          int? proveedorId,
+                          String? fechaAdquisicion,
+                          String? fechaEntrega,
+                          String? coordenada,
+                          String? nombre,
+                          String? codigo,
+                          String? ip,
+                          int? marcaId,
+                          String? modelo,
+                          String? observaciones,
+                          String? procesador,
+                          String? ram,
+                          String? almacenamiento,
+                          String? cargadorCodigo,
+                          int? numPuertos,
+                          String? tipoExtension,
+                          int? numConexiones,
+                          String? varImpresoraColor,
+                          String? varMonitorTipoConexion,
+                          String? proveedorSoftware,
+                          String? fechaInicio,
+                          String? fechaFin,
+                        }) async {
+                          try {
+                            String rpcName = '';
+                            Map<String, dynamic> params = {};
+                            final String newId = existingAsset == null
+                                ? const Uuid().v4()
+                                : existingAsset['id'].toString();
 
-                        if (categoria == 'PC') {
-                          rpcName = isUpdate ? 'actualizar_activo_pc' : 'crear_activo_pc';
-                          params = {
-                             'p_numero_serie': numeroSerie,
-                             'p_nombre': nombre,
-                             'p_codigo': codigo,
-                             'p_id_tipo_activo': tipoActivoId,
-                             'p_id_condicion_activo': condicionActivoId,
-                             'p_id_custodio': custodioId,
-                             'p_id_ciudad_activo': ciudadActivoId,
-                             'p_id_sede_activo': sedeActivoId,
-                             'p_id_area_activo': areaActivoId,
-                             'p_id_provedor': proveedorId,
-                             'p_fecha_adquisicion': fechaAdquisicion,
-                             'p_ip': ip,
-                             'p_fecha_entrega': fechaEntrega,
-                             'p_coordenada': coordenada,
-                             'p_id_marca': marcaId,
-                             'p_modelo': modelo,
-                             'p_procesador': procesador,
-                             'p_ram': ram,
-                             'p_almacenamiento': almacenamiento,
-                             'p_cargador_codigo': cargadorCodigo,
-                             'p_num_puertos': numPuertos,
-                             'p_observaciones': observaciones,
-                          };
-                        } else if (categoria == 'SOFTWARE') {
-                          rpcName = isUpdate ? 'actualizar_activo_software' : 'crear_activo_software';
-                          params = {
-                             'p_nombre': nombre,
-                             'p_codigo': codigo,
-                             'p_id_tipo_activo': tipoActivoId,
-                             'p_id_condicion_activo': condicionActivoId,
-                             'p_id_custodio': custodioId,
-                             'p_id_area_activo': areaActivoId,
-                             'p_id_provedor': proveedorId,
-                             'p_proveedor': proveedorSoftware,
-                             'p_fecha_inicio': fechaInicio,
-                             'p_fecha_fin': fechaFin,
-                             'p_observaciones': observaciones,
-                          };
-                        } else if (categoria == 'COMUNICACION') {
-                          rpcName = isUpdate ? 'actualizar_activo_equipo_comunicacion' : 'crear_activo_equipo_comunicacion';
-                          params = {
-                             'p_numero_serie': numeroSerie,
-                             'p_nombre': nombre,
-                             'p_codigo': codigo,
-                             'p_id_tipo_activo': tipoActivoId,
-                             'p_id_condicion_activo': condicionActivoId,
-                             'p_id_custodio': custodioId,
-                             'p_id_ciudad_activo': ciudadActivoId,
-                             'p_id_sede_activo': sedeActivoId,
-                             'p_id_area_activo': areaActivoId,
-                             'p_id_provedor': proveedorId,
-                             'p_fecha_adquisicion': fechaAdquisicion,
-                             'p_ip': ip,
-                             'p_fecha_entrega': fechaEntrega,
-                             'p_coordenada': coordenada,
-                             'p_id_marca': marcaId,
-                             'p_modelo': modelo,
-                             'p_num_puertos': numPuertos,
-                             'p_tipo_extension': tipoExtension,
-                             'p_observaciones': observaciones,
-                          };
-                        } else if (categoria == 'GENERICO') {
-                          rpcName = isUpdate ? 'actualizar_activo_equipo_generico' : 'crear_activo_equipo_generico';
-                          params = {
-                             'p_numero_serie': numeroSerie,
-                             'p_nombre': nombre,
-                             'p_codigo': codigo,
-                             'p_id_tipo_activo': tipoActivoId,
-                             'p_id_condicion_activo': condicionActivoId,
-                             'p_id_custodio': custodioId,
-                             'p_id_ciudad_activo': ciudadActivoId,
-                             'p_id_sede_activo': sedeActivoId,
-                             'p_id_area_activo': areaActivoId,
-                             'p_id_provedor': proveedorId,
-                             'p_fecha_adquisicion': fechaAdquisicion,
-                             'p_fecha_entrega': fechaEntrega,
-                             'p_coordenada': coordenada,
-                             'p_id_marca': marcaId,
-                             'p_modelo': modelo,
-                             'p_cargador_codigo': cargadorCodigo,
-                             'p_num_conexiones': numConexiones,
-                             'p_var_impresora_color': varImpresoraColor,
-                             'p_var_monitor_tipo_conexion': varMonitorTipoConexion,
-                             'p_observaciones': observaciones,
-                          };
-                        }
+                            if (categoria == 'PC') {
+                              rpcName = isUpdate
+                                  ? 'actualizar_activo_pc'
+                                  : 'crear_activo_pc';
+                              params = {
+                                'p_numero_serie': numeroSerie,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_ciudad_activo': ciudadActivoId,
+                                'p_id_sede_activo': sedeActivoId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_fecha_adquisicion': fechaAdquisicion,
+                                'p_ip': ip,
+                                'p_fecha_entrega': fechaEntrega,
+                                'p_coordenada': coordenada,
+                                'p_id_marca': marcaId,
+                                'p_modelo': modelo,
+                                'p_procesador': procesador,
+                                'p_ram': ram,
+                                'p_almacenamiento': almacenamiento,
+                                'p_cargador_codigo': cargadorCodigo,
+                                'p_num_puertos': numPuertos,
+                                'p_observaciones': observaciones,
+                              };
+                            } else if (categoria == 'SOFTWARE') {
+                              rpcName = isUpdate
+                                  ? 'actualizar_activo_software'
+                                  : 'crear_activo_software';
+                              params = {
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_proveedor': proveedorSoftware,
+                                'p_fecha_inicio': fechaInicio,
+                                'p_fecha_fin': fechaFin,
+                                'p_observaciones': observaciones,
+                              };
+                            } else if (categoria == 'COMUNICACION') {
+                              rpcName = isUpdate
+                                  ? 'actualizar_activo_equipo_comunicacion'
+                                  : 'crear_activo_equipo_comunicacion';
+                              params = {
+                                'p_numero_serie': numeroSerie,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_ciudad_activo': ciudadActivoId,
+                                'p_id_sede_activo': sedeActivoId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_fecha_adquisicion': fechaAdquisicion,
+                                'p_ip': ip,
+                                'p_fecha_entrega': fechaEntrega,
+                                'p_coordenada': coordenada,
+                                'p_id_marca': marcaId,
+                                'p_modelo': modelo,
+                                'p_num_puertos': numPuertos,
+                                'p_tipo_extension': tipoExtension,
+                                'p_observaciones': observaciones,
+                              };
+                            } else if (categoria == 'GENERICO') {
+                              rpcName = isUpdate
+                                  ? 'actualizar_activo_equipo_generico'
+                                  : 'crear_activo_equipo_generico';
+                              params = {
+                                'p_numero_serie': numeroSerie,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_ciudad_activo': ciudadActivoId,
+                                'p_id_sede_activo': sedeActivoId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_fecha_adquisicion': fechaAdquisicion,
+                                'p_fecha_entrega': fechaEntrega,
+                                'p_coordenada': coordenada,
+                                'p_id_marca': marcaId,
+                                'p_modelo': modelo,
+                                'p_cargador_codigo': cargadorCodigo,
+                                'p_num_conexiones': numConexiones,
+                                'p_var_impresora_color': varImpresoraColor,
+                                'p_var_monitor_tipo_conexion':
+                                    varMonitorTipoConexion,
+                                'p_observaciones': observaciones,
+                              };
+                            }
 
-                        if (rpcName.isNotEmpty) {
-                          params['p_id_activo'] = newId;
-                          await LocalDbService.instance.enqueueOperation(rpcName, params);
-                          if (SyncQueueService.instance.isOnline) {
-                            SyncQueueService.instance.syncPendingOperations();
+                            if (rpcName.isNotEmpty) {
+                              params['p_id_activo'] = newId;
+                              await LocalDbService.instance.enqueueOperation(
+                                rpcName,
+                                params,
+                              );
+                              if (SyncQueueService.instance.isOnline) {
+                                SyncQueueService.instance
+                                    .syncPendingOperations();
+                              }
+                              if (!mounted) return;
+                              context.showSnackBar(
+                                'Activo guardado localmente.',
+                              );
+                              if (dialogContext.mounted) {
+                                Navigator.pop(dialogContext);
+                              }
+                              _loadAssets();
+                            }
+                          } catch (error) {
+                            if (!mounted) return;
+                            context.showSnackBar(
+                              'Error al procesar: $error',
+                              isError: true,
+                            );
                           }
-                          if (!mounted) return;
-                          context.showSnackBar('Activo guardado localmente.');
-                          if (dialogContext.mounted) {
-                            Navigator.pop(dialogContext);
-                          }
-                          _loadAssets();
-                        }
-                      } catch (error) {
-                         if (!mounted) return;
-                         context.showSnackBar('Error al procesar: $error', isError: true);
-                      }
-                    },
+                        },
                   ),
                 ),
               ],
@@ -502,7 +538,11 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
   ) {
     return ListTile(
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(selectedItems.isEmpty ? 'Todos' : '${selectedItems.length} seleccionados'),
+      subtitle: Text(
+        selectedItems.isEmpty
+            ? 'Todos'
+            : '${selectedItems.length} seleccionados',
+      ),
       trailing: const Icon(Icons.arrow_drop_down),
       onTap: () async {
         final result = await showDialog<List<String>>(
@@ -534,7 +574,9 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
   ) {
     return ListTile(
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados'),
+      subtitle: Text(
+        selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados',
+      ),
       trailing: const Icon(Icons.arrow_drop_down),
       onTap: () async {
         final result = await showDialog<List<T>>(
@@ -550,7 +592,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
           setState(() {
             selectedIds.clear();
             selectedIds.addAll(result);
-            _listCurrentPage = 0; 
+            _listCurrentPage = 0;
           });
           applyFilters();
         }
@@ -558,11 +600,16 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
     );
   }
 
-  List<Map<String, dynamic>> getUniquePredictiveList(String key, {String? subKey}) {
+  List<Map<String, dynamic>> getUniquePredictiveList(
+    String key, {
+    String? subKey,
+  }) {
     if (_allAssets.isEmpty) return [];
     final criteria = _createFilterCriteria();
     final possibleAssets = _allAssets.where(
-      (a) => criteria.matches(a, ignoreField: key) && customMatch(a, ignoreField: key),
+      (a) =>
+          criteria.matches(a, ignoreField: key) &&
+          customMatch(a, ignoreField: key),
     );
     final items = possibleAssets
         .map((a) {
@@ -586,14 +633,20 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
     if (_allAssets.isEmpty || masterList.isEmpty) return [];
     final criteria = _createFilterCriteria();
     final validKeys = <int>{};
-    for (var a in _allAssets.where((asset) => criteria.matches(asset, ignoreField: ignoreField) && customMatch(asset, ignoreField: ignoreField))) {
+    for (var a in _allAssets.where(
+      (asset) =>
+          criteria.matches(asset, ignoreField: ignoreField) &&
+          customMatch(asset, ignoreField: ignoreField),
+    )) {
       if (ignoreField == 'id_marca') {
         int? assetMarcaId;
         if (a['info_pc'] != null && (a['info_pc'] as List).isNotEmpty) {
           assetMarcaId = (a['info_pc'] as List)[0]['id_marca'];
-        } else if (a['info_equipo_comunicacion'] != null && (a['info_equipo_comunicacion'] as List).isNotEmpty) {
+        } else if (a['info_equipo_comunicacion'] != null &&
+            (a['info_equipo_comunicacion'] as List).isNotEmpty) {
           assetMarcaId = (a['info_equipo_comunicacion'] as List)[0]['id_marca'];
-        } else if (a['info_equipo_generico'] != null && (a['info_equipo_generico'] as List).isNotEmpty) {
+        } else if (a['info_equipo_generico'] != null &&
+            (a['info_equipo_generico'] as List).isNotEmpty) {
           assetMarcaId = (a['info_equipo_generico'] as List)[0]['id_marca'];
         }
         if (assetMarcaId != null) validKeys.add(assetMarcaId);
@@ -643,25 +696,33 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
 
   Color _getCategoryColor(String category) {
     switch (category.toUpperCase()) {
-      case 'PC': return Colors.blue.shade100;
-      case 'SOFTWARE': return Colors.green.shade100;
-      case 'COMUNICACION': return Colors.orange.shade100;
-      case 'GENERICO': return Colors.blueGrey.shade100;
-      default: return Colors.grey.shade100;
+      case 'PC':
+        return Colors.blue.shade100;
+      case 'SOFTWARE':
+        return Colors.green.shade100;
+      case 'COMUNICACION':
+        return Colors.orange.shade100;
+      case 'GENERICO':
+        return Colors.blueGrey.shade100;
+      default:
+        return Colors.grey.shade100;
     }
   }
 
   Color _getCategoryTextColor(String category) {
     switch (category.toUpperCase()) {
-      case 'PC': return Colors.blue.shade900;
-      case 'SOFTWARE': return Colors.green.shade900;
-      case 'COMUNICACION': return Colors.orange.shade900;
-      case 'GENERICO': return Colors.blueGrey.shade900;
-      default: return Colors.grey.shade900;
+      case 'PC':
+        return Colors.blue.shade900;
+      case 'SOFTWARE':
+        return Colors.green.shade900;
+      case 'COMUNICACION':
+        return Colors.orange.shade900;
+      case 'GENERICO':
+        return Colors.blueGrey.shade900;
+      default:
+        return Colors.grey.shade900;
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -673,19 +734,39 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
           child: Column(
             children: [
               Container(
-                padding: const EdgeInsets.only(top: 10, bottom: 16, left: 16, right: 16),
+                padding: const EdgeInsets.only(
+                  top: 10,
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                ),
                 color: Colors.blue.shade50,
                 child: Column(
                   children: [
                     Row(
                       children: [
-                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-                        const Text('Filtros', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const Text(
+                          'Filtros',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                     Row(
                       children: [
-                        Text('Filtros activos: ${_getFilterCount()}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                        Text(
+                          'Filtros activos: ${_getFilterCount()}',
+                          style: const TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const Spacer(),
                         TextButton.icon(
                           icon: const Icon(Icons.delete),
@@ -708,26 +789,96 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                     children: [
                       const Padding(
                         padding: EdgeInsets.all(16.0),
-                        child: Text('Identificadores Predictivos', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                        child: Text(
+                          'Identificadores Predictivos',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                      buildDrawerFilterButton<String>('Nombres', _selectedNombres, getUniquePredictiveList('nombre'), 'valor'),
-                      buildDrawerFilterButton<String>('Códigos', _selectedCodigos, getUniquePredictiveList('codigo'), 'valor'),
-                      buildDrawerFilterButton<String>('Números de Serie', _selectedSeries, getUniquePredictiveList('numero_serie'), 'valor'),
+                      buildDrawerFilterButton<String>(
+                        'Nombres',
+                        _selectedNombres,
+                        getUniquePredictiveList('nombre'),
+                        'valor',
+                      ),
+                      buildDrawerFilterButton<String>(
+                        'Códigos',
+                        _selectedCodigos,
+                        getUniquePredictiveList('codigo'),
+                        'valor',
+                      ),
+                      buildDrawerFilterButton<String>(
+                        'Números de Serie',
+                        _selectedSeries,
+                        getUniquePredictiveList('numero_serie'),
+                        'valor',
+                      ),
 
                       const Divider(),
                       const Padding(
                         padding: EdgeInsets.all(16.0),
-                        child: Text('Listas Maestras', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                        child: Text(
+                          'Listas Maestras',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                       if (categoryName == null)
-                        buildDrawerFilterButton('Tipo Activo', _selectedTiposActivo, getFilteredMasterList(_tiposActivo, 'id_tipo_activo'), 'tipo'),
-                      buildDrawerFilterButton('Condición', _selectedCondiciones, getFilteredMasterList(_condiciones, 'id_condicion_activo'), 'condicion'),
-                      buildDrawerFilterButton('Custodio', _selectedCustodios, getFilteredMasterList(_custodios, 'id_custodio'), 'nombre_completo'),
-                      buildDrawerFilterButton('Sede', _selectedSedes, getFilteredMasterList(_sedes, 'id_sede_activo'), 'sede'),
-                      buildDrawerFilterButton('Área', _selectedAreas, getFilteredMasterList(_areas, 'id_area_activo'), 'area'),
-                      buildDrawerFilterButton('Ciudad', _selectedCiudades, getFilteredMasterList(_ciudades, 'id_ciudad_activo'), 'ciudad'),
-                      buildDrawerFilterButton('Proveedor', _selectedProveedores, getFilteredMasterList(_proveedores, 'id_provedor'), 'nombre'),
-                      buildDrawerFilterButton('Marca', _selectedMarcas, getFilteredMasterList(_marcas, 'id_marca'), 'marca_proveedor'),
+                        buildDrawerFilterButton(
+                          'Tipo Activo',
+                          _selectedTiposActivo,
+                          getFilteredMasterList(_tiposActivo, 'id_tipo_activo'),
+                          'tipo',
+                        ),
+                      buildDrawerFilterButton(
+                        'Condición',
+                        _selectedCondiciones,
+                        getFilteredMasterList(
+                          _condiciones,
+                          'id_condicion_activo',
+                        ),
+                        'condicion',
+                      ),
+                      buildDrawerFilterButton(
+                        'Custodio',
+                        _selectedCustodios,
+                        getFilteredMasterList(_custodios, 'id_custodio'),
+                        'nombre_completo',
+                      ),
+                      buildDrawerFilterButton(
+                        'Sede',
+                        _selectedSedes,
+                        getFilteredMasterList(_sedes, 'id_sede_activo'),
+                        'sede',
+                      ),
+                      buildDrawerFilterButton(
+                        'Área',
+                        _selectedAreas,
+                        getFilteredMasterList(_areas, 'id_area_activo'),
+                        'area',
+                      ),
+                      buildDrawerFilterButton(
+                        'Ciudad',
+                        _selectedCiudades,
+                        getFilteredMasterList(_ciudades, 'id_ciudad_activo'),
+                        'ciudad',
+                      ),
+                      buildDrawerFilterButton(
+                        'Proveedor',
+                        _selectedProveedores,
+                        getFilteredMasterList(_proveedores, 'id_provedor'),
+                        'nombre',
+                      ),
+                      buildDrawerFilterButton(
+                        'Marca',
+                        _selectedMarcas,
+                        getFilteredMasterList(_marcas, 'id_marca'),
+                        'marca_proveedor',
+                      ),
 
                       // Extra custom filters injected by subclass
                       ...buildCustomDrawerFilters(),
@@ -735,10 +886,24 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                       const Divider(),
                       const Padding(
                         padding: EdgeInsets.all(16.0),
-                        child: Text('Rangos de Fechas', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                        child: Text(
+                          'Rangos de Fechas',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                      _buildDrawerDateFilter('Fecha de Adquisición', _rangoAdquisicion, (r) => setState(() => _rangoAdquisicion = r)),
-                      _buildDrawerDateFilter('Fecha de Entrega', _rangoEntrega, (r) => setState(() => _rangoEntrega = r)),
+                      _buildDrawerDateFilter(
+                        'Fecha de Adquisición',
+                        _rangoAdquisicion,
+                        (r) => setState(() => _rangoAdquisicion = r),
+                      ),
+                      _buildDrawerDateFilter(
+                        'Fecha de Entrega',
+                        _rangoEntrega,
+                        (r) => setState(() => _rangoEntrega = r),
+                      ),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -748,88 +913,152 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
           ),
         ),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                Expanded(
-                  child: Text(
-                    pageTitle,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Actualizar\nDatos', style: TextStyle(fontSize: 10), textAlign: TextAlign.center),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: () async {
-                    setState(() => _isLoading = true);
-                    await SyncQueueService.instance.forceSyncAndRefresh();
-                    await _loadAssets();
-                  },
-                ),
-                Builder(
-                  builder: (context) => IconButton(
-                    icon: Badge(
-                      isLabelVisible: _getFilterCount() > 0,
-                      label: Text(_getFilterCount().toString()),
-                      child: const Icon(Icons.filter_list),
+      body: Column(
+        children: [
+          Container(
+            color: Colors.blue.shade600,
+            child: SafeArea(
+              bottom: false,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon:
+                              const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            pageTitle,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text(
+                            'Actualizar\nDatos',
+                            style: TextStyle(fontSize: 10),
+                            textAlign: TextAlign.center,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () async {
+                            setState(() => _isLoading = true);
+                            await SyncQueueService.instance
+                                .forceSyncAndRefresh();
+                            await _loadAssets();
+                          },
+                        ),
+                        Builder(
+                          builder: (context) => IconButton(
+                            icon: Badge(
+                              isLabelVisible: _getFilterCount() > 0,
+                              label: Text(_getFilterCount().toString()),
+                              child: const Icon(
+                                Icons.filter_list,
+                                color: Colors.white,
+                              ),
+                            ),
+                            tooltip: 'Filtros: ${_getFilterCount()} activos',
+                            onPressed: () =>
+                                Scaffold.of(context).openEndDrawer(),
+                          ),
+                        ),
+                      ],
                     ),
-                    tooltip: 'Filtros: ${_getFilterCount()} activos',
-                    onPressed: () => Scaffold.of(context).openEndDrawer(),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Optional custom header (chips, etc)
-            if (buildHeader() != null) buildHeader()!,
-            if (buildHeader() != null) const Divider(),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment<bool>(value: false, icon: Icon(Icons.view_list), label: Text('Lista')),
-                    ButtonSegment<bool>(value: true, icon: Icon(Icons.table_chart), label: Text('Tabla')),
+                    if (buildHeader() != null) ...[
+                      const SizedBox(height: 8),
+                      buildHeader()!,
+                    ],
                   ],
-                  selected: {_isTableView},
-                  onSelectionChanged: (Set<bool> newSelection) {
-                    setState(() => _isTableView = newSelection.first);
-                  },
                 ),
-                if (categoryName != null && RoleService.currentRole != UserRole.ayudante)
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-                    icon: const Icon(Icons.add),
-                    label: Text('Agregar $categoryName'),
-                    onPressed: () => _showAssetUpdateDialog(null),
-                  ),
-              ],
+              ),
             ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _allAssets.isEmpty
-                      ? const Center(child: Text('No hay activos en inventario.'))
-                      : _filteredAssets.isEmpty
-                          ? const Center(child: Text('No se encontraron activos con los filtros actuales.'))
+          ),
+          Expanded(
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        SegmentedButton<bool>(
+                          segments: const [
+                            ButtonSegment<bool>(
+                              value: false,
+                              icon: Icon(Icons.view_list),
+                              label: Text('Lista'),
+                            ),
+                            ButtonSegment<bool>(
+                              value: true,
+                              icon: Icon(Icons.table_chart),
+                              label: Text('Tabla'),
+                            ),
+                          ],
+                          selected: {_isTableView},
+                          onSelectionChanged: (Set<bool> newSelection) {
+                            setState(() => _isTableView = newSelection.first);
+                          },
+                        ),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.add),
+                          label: Text(
+                            'Agregar\n$categoryName',
+                            textAlign: TextAlign.center,
+                          ),
+                          onPressed: () => _showAssetUpdateDialog(null),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _allAssets.isEmpty
+                          ? const Center(
+                              child: Text('No hay activos en inventario.'),
+                            )
+                          : _filteredAssets.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No se encontraron activos con los filtros actuales.',
+                              ),
+                            )
                           : _isTableView
-                              ? _buildTableSection()
-                              : _buildListSection(),
+                          ? _buildTableSection()
+                          : _buildListSection(),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
-        ),
-      ),
-      ), // Closing SafeArea
+          ),
+        ],
+      ), // Closing Segmented UI
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 60.0),
         child: Builder(
@@ -848,36 +1077,52 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
     return AssetDataTable(
       assets: _filteredAssets,
       columns: columns,
-      onEdit: RoleService.currentRole != UserRole.ayudante ? (a) async {
-        await _showAssetUpdateDialog(a);
-      } : null,
-      onDelete: RoleService.currentRole != UserRole.ayudante ? (id) async {
-        await _deleteAsset(id);
-      } : null,
-      customActionsBuilder: (asset) => [
-        Tooltip(
-          message: 'Programar Mantenimiento',
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: () => showDialog(
-              context: context,
-              builder: (_) => MaintenanceFormDialog(initialAssetId: asset['id']?.toString()),
-            ),
-            child: const Padding(
-              padding: EdgeInsets.all(4.0),
-              child: Icon(Icons.build_circle, color: Colors.blueGrey, size: 22),
+      onEdit: RoleService.currentRole != UserRole.ayudante
+          ? (a) async {
+              await _showAssetUpdateDialog(a);
+            }
+          : null,
+      onDelete: RoleService.currentRole != UserRole.ayudante
+          ? (id) async {
+              await _deleteAsset(id);
+            }
+          : null,
+      customActionsBuilder: (asset) {
+        final category = asset['categoria_activo']?.toString().toUpperCase();
+        if (category == 'SOFTWARE') return [];
+        return [
+          Tooltip(
+            message: 'Programar Mantenimiento',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => showDialog(
+                context: context,
+                builder: (_) => MaintenanceFormDialog(
+                  initialAssetId: asset['id']?.toString(),
+                ),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(4.0),
+                child:
+                    Icon(Icons.build_circle, color: Colors.blueGrey, size: 22),
+              ),
             ),
           ),
-        ),
-      ],
+        ];
+      },
     );
   }
 
   Widget _buildListSection() {
     final totalItems = _filteredAssets.length;
-    final totalPages = totalItems == 0 ? 1 : (totalItems / _listRowsPerPage).ceil();
+    final totalPages = totalItems == 0
+        ? 1
+        : (totalItems / _listRowsPerPage).ceil();
 
-    final effectivePage = _listCurrentPage.clamp(0, totalPages > 0 ? totalPages - 1 : 0);
+    final effectivePage = _listCurrentPage.clamp(
+      0,
+      totalPages > 0 ? totalPages - 1 : 0,
+    );
 
     final startIndex = effectivePage * _listRowsPerPage;
     final endIndex = (startIndex + _listRowsPerPage) > totalItems
@@ -898,39 +1143,68 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
               itemBuilder: (context, index) {
                 final a = pageAssets[index];
                 return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   child: ListTile(
-                     leading: CircleAvatar(
-                       backgroundColor: categoryName != null ? Colors.blue.shade100 : _getCategoryColor(a['categoria_activo']?.toString() ?? ''),
-                       child: Icon(
-                         AssetUtils.getIconForCategory(a['categoria_activo']?.toString() ?? ''),
-                         color: categoryName != null ? Colors.blue.shade900 : _getCategoryTextColor(a['categoria_activo']?.toString() ?? ''),
-                       ),
-                     ),
-                     title: Text(a['nombre']?.toString() ?? 'Sin nombre', style: const TextStyle(fontWeight: FontWeight.bold)),
-                     subtitle: Text('S/N: ${a['numero_serie'] ?? 'N/A'}\nCódigo: ${a['codigo'] ?? 'N/A'}\nEstado: ${a['condicion_activo']?['condicion'] ?? 'N/A'}'),
-                     isThreeLine: true,
-                     trailing: Row(
-                       mainAxisSize: MainAxisSize.min,
-                       children: [
-                         IconButton(
-                             icon: const Icon(Icons.build, color: Colors.blueGrey),
-                             tooltip: 'Mantenimientos',
-                             onPressed: () {
-                                 showDialog(
-                                     context: context,
-                                     builder: (_) => MaintenanceFormDialog(
-                                         initialAssetId: a['id']?.toString(),
-                                     ),
-                                 );
-                             },
-                         ),
-                         if (RoleService.currentRole != UserRole.ayudante)
-                           IconButton(icon: const Icon(Icons.edit, color: Colors.blue), tooltip: 'Editar', onPressed: () => _showAssetUpdateDialog(a)),
-                         if (RoleService.currentRole != UserRole.ayudante)
-                           IconButton(icon: const Icon(Icons.delete, color: Colors.red), tooltip: 'Eliminar', onPressed: () => _deleteAsset(a['id'].toString())),
-                       ],
-                     ),
+                    leading: CircleAvatar(
+                      backgroundColor: categoryName != null
+                          ? Colors.blue.shade100
+                          : _getCategoryColor(
+                              a['categoria_activo']?.toString() ?? '',
+                            ),
+                      child: Icon(
+                        AssetUtils.getIconForCategory(
+                          a['categoria_activo']?.toString() ?? '',
+                        ),
+                        color: categoryName != null
+                            ? Colors.blue.shade900
+                            : _getCategoryTextColor(
+                                a['categoria_activo']?.toString() ?? '',
+                              ),
+                      ),
+                    ),
+                    title: Text(
+                      a['nombre']?.toString() ?? 'Sin nombre',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      'S/N: ${a['numero_serie'] ?? 'N/A'}\nCódigo: ${a['codigo'] ?? 'N/A'}\nEstado: ${a['condicion_activo']?['condicion'] ?? 'N/A'}',
+                    ),
+                    isThreeLine: true,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (a['categoria_activo']?.toString().toUpperCase() !=
+                            'SOFTWARE')
+                          IconButton(
+                            icon:
+                                const Icon(Icons.build, color: Colors.blueGrey),
+                            tooltip: 'Mantenimientos',
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => MaintenanceFormDialog(
+                                  initialAssetId: a['id']?.toString(),
+                                ),
+                              );
+                            },
+                          ),
+                        if (RoleService.currentRole != UserRole.ayudante)
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue),
+                            tooltip: 'Editar',
+                            onPressed: () => _showAssetUpdateDialog(a),
+                          ),
+                        if (RoleService.currentRole != UserRole.ayudante)
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            tooltip: 'Eliminar',
+                            onPressed: () => _deleteAsset(a['id'].toString()),
+                          ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -947,7 +1221,8 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
             _listCurrentPage = 0;
           }),
           onFirst: () => setState(() => _listCurrentPage = 0),
-          onPrevious: () => setState(() => _listCurrentPage = effectivePage - 1),
+          onPrevious: () =>
+              setState(() => _listCurrentPage = effectivePage - 1),
           onNext: () => setState(() => _listCurrentPage = effectivePage + 1),
           onLast: () => setState(() => _listCurrentPage = totalPages - 1),
         ),

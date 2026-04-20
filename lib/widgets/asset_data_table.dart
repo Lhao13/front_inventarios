@@ -375,7 +375,7 @@ class _AssetDataTableState extends State<AssetDataTable> {
             children: [
               Text(
                 '${widget.assets.length} registro(s)',
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
+                style: const TextStyle(color: Colors.black54, fontSize: 13),
               ),
               const Spacer(),
               OutlinedButton.icon(
