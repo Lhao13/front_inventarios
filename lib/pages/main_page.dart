@@ -689,8 +689,9 @@ class _HomePageState extends State<_HomePage> {
                     const SizedBox(height: 16),
                     _buildModernMenuCard(
                       context,
-                      title: 'Configuración de Tablas',
-                      subtitle: 'Sedes, Áreas, Marcas y Tipos',
+                      title: 'Configuración estados de los activos',
+                      subtitle:
+                          'Aqui configuramos los diferentes campos que un activo puede tener',
                       icon: Icons.settings_applications_rounded,
                       color: Colors.blueGrey.shade800,
                       onTap: () {

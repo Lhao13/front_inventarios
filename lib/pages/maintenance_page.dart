@@ -3,11 +3,11 @@ import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
-import 'package:front_inventarios/pages/main_page.dart';
 import 'package:front_inventarios/widgets/multi_select_dialog.dart';
 import 'package:front_inventarios/widgets/asset_data_table.dart';
 import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
 import 'package:front_inventarios/utils/date_utils.dart';
+import 'package:front_inventarios/utils/asset_filter.dart';
 
 /// Página de Mantenimientos.
 ///
@@ -29,6 +29,8 @@ class _MaintenancePageState extends State<MaintenancePage> {
   // Variables for view and filters
   bool _isTableView = true;
   List<Map<String, dynamic>> _filteredMaintenances = [];
+  int? _sortColumnIndex;
+  bool _sortAscending = true;
 
   // Filter models
   final List<String> _selectedTipos = [];
@@ -68,6 +70,11 @@ class _MaintenancePageState extends State<MaintenancePage> {
   @override
   void initState() {
     super.initState();
+    final cachedSort = FilterMemoryCache.tableSortCache['Maintenance'];
+    if (cachedSort != null) {
+      _sortColumnIndex = cachedSort.columnIndex;
+      _sortAscending = cachedSort.ascending;
+    }
     _loadMaintenances();
     _loadAssets();
     SyncQueueService.instance.onCacheUpdated.addListener(_onCacheUpdated);
@@ -86,8 +93,6 @@ class _MaintenancePageState extends State<MaintenancePage> {
     _listScrollController.dispose();
     super.dispose();
   }
-
-
 
   String _getAssetDisplayInfo(Map<String, dynamic> m) {
     if (m['activo'] != null) {
@@ -272,7 +277,9 @@ class _MaintenancePageState extends State<MaintenancePage> {
     List<Map<String, dynamic>> items,
     String displayKey,
   ) {
+    final bool isActive = selectedIds.isNotEmpty;
     return ListTile(
+      tileColor: isActive ? Colors.blue.shade200 : null,
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(
         selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados',
@@ -304,7 +311,9 @@ class _MaintenancePageState extends State<MaintenancePage> {
     DateTimeRange? currentRange,
     ValueChanged<DateTimeRange?> onChanged,
   ) {
+    final bool isActive = currentRange != null;
     return ListTile(
+      tileColor: isActive ? Colors.blue.shade50 : null,
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(
         currentRange == null
@@ -421,6 +430,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
         elevation: 0,
       ),
       endDrawer: Drawer(
+        width: MediaQuery.of(context).size.width * 0.6,
         child: SafeArea(
           child: Column(
             children: [
@@ -441,7 +451,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
                           onPressed: () => Navigator.pop(context),
                         ),
                         const Text(
-                          'Filtros Mantenimiento',
+                          'Filtros',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -452,7 +462,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
                     Row(
                       children: [
                         Text(
-                          'Filtros activos: ${_getFilterCount()}',
+                          'Filtros: ${_getFilterCount()}',
                           style: const TextStyle(
                             color: Colors.blue,
                             fontWeight: FontWeight.bold,
@@ -461,7 +471,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
                         const Spacer(),
                         TextButton.icon(
                           icon: const Icon(Icons.delete),
-                          label: const Text('Limpiar Filtros'),
+                          label: const Text('Limpiar'),
                           onPressed: _clearFilters,
                         ),
                       ],
@@ -469,99 +479,86 @@ class _MaintenancePageState extends State<MaintenancePage> {
                   ],
                 ),
               ),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'Buscar por ID de Activo',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Buscar por ID de Activo',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  _buildDrawerFilterButton<String>(
-                    'Por Serial / Nombre',
-                    _selectedActivosStr,
-                    _getUniquePredictiveList('activo'),
-                    'valor',
-                  ),
+                    _buildDrawerFilterButton<String>(
+                      'Por Serial / Nombre',
+                      _selectedActivosStr,
+                      _getUniquePredictiveList('activo'),
+                      'valor',
+                    ),
 
-                  const Divider(),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'Filtros de Estado',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
+                    const Divider(),
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Filtros de Estado',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  _buildDrawerFilterButton(
-                    'Tipo',
-                    _selectedTipos,
-                    _getUniquePredictiveList('tipo'),
-                    'valor',
-                  ),
-                  _buildDrawerFilterButton(
-                    'Estado',
-                    _selectedEstados,
-                    _getUniquePredictiveList('estado'),
-                    'valor',
-                  ),
+                    _buildDrawerFilterButton(
+                      'Tipo',
+                      _selectedTipos,
+                      _getUniquePredictiveList('tipo'),
+                      'valor',
+                    ),
+                    _buildDrawerFilterButton(
+                      'Estado',
+                      _selectedEstados,
+                      _getUniquePredictiveList('estado'),
+                      'valor',
+                    ),
 
-                  const Divider(),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'Rango de Fechas',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
+                    const Divider(),
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Rango de Fechas',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  _buildDrawerDateFilter(
-                    'Fecha Programada',
-                    _rangoProgramada,
-                    (r) => setState(() => _rangoProgramada = r),
-                  ),
-                  _buildDrawerDateFilter(
-                    'Fecha Realizada',
-                    _rangoRealizada,
-                    (r) => setState(() => _rangoRealizada = r),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                    _buildDrawerDateFilter(
+                      'Fecha Programada',
+                      _rangoProgramada,
+                      (r) => setState(() => _rangoProgramada = r),
+                    ),
+                    _buildDrawerDateFilter(
+                      'Fecha Realizada',
+                      _rangoRealizada,
+                      (r) => setState(() => _rangoRealizada = r),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-    body: Padding(
+      body: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             Row(
               children: [
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    final mainPageState =
-                        context.findAncestorStateOfType<MainPageState>();
-                    mainPageState?.setState(() {
-                      mainPageState.currentPageIndex = 0;
-                    });
-                  },
-                ),
-                const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
                     'Mantenimientos',
@@ -578,18 +575,19 @@ class _MaintenancePageState extends State<MaintenancePage> {
                     await _loadAssets();
                   },
                 ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 if (RoleService.currentRole != UserRole.ayudante)
                   ElevatedButton.icon(
                     onPressed: _showAddMaintenanceDialog,
                     icon: const Icon(Icons.add),
                     label: const Text('Programar'),
                   ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+
                 SegmentedButton<bool>(
                   segments: const [
                     ButtonSegment<bool>(
@@ -667,6 +665,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
           builder: (context) => FloatingActionButton.extended(
             onPressed: () => Scaffold.of(context).openEndDrawer(),
             tooltip: 'Abrir Filtros',
+            backgroundColor: _getFilterCount() > 0 ? Colors.orange : null,
             icon: const Icon(Icons.filter_list),
             label: Text('Filtros (${_getFilterCount()})'),
           ),
@@ -735,7 +734,8 @@ class _MaintenancePageState extends State<MaintenancePage> {
                     IconButton(
                       icon: const Icon(Icons.edit_outlined, color: Colors.blue),
                       tooltip: 'Editar',
-                      onPressed: () => _showAddMaintenanceDialog(initialData: m),
+                      onPressed: () =>
+                          _showAddMaintenanceDialog(initialData: m),
                     ),
                   if (m['estado'] != 'Completado' &&
                       RoleService.currentRole != UserRole.ayudante)

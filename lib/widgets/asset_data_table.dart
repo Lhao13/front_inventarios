@@ -32,6 +32,9 @@ class AssetDataTable extends StatefulWidget {
   final List<Map<String, dynamic>> assets;
   final List<AssetColumnDef> columns;
   final bool isLoading;
+  final int? initialSortColumnIndex;
+  final bool initialSortAscending;
+  final Function(int? index, bool ascending)? onSortChanged;
   final Future<void> Function(Map<String, dynamic> asset)? onEdit;
   final Future<void> Function(String id)? onDelete;
   final List<Widget> Function(Map<String, dynamic> asset)? customActionsBuilder;
@@ -41,6 +44,9 @@ class AssetDataTable extends StatefulWidget {
     required this.assets,
     required this.columns,
     this.isLoading = false,
+    this.initialSortColumnIndex,
+    this.initialSortAscending = true,
+    this.onSortChanged,
     this.onEdit,
     this.onDelete,
     this.customActionsBuilder,
@@ -56,6 +62,8 @@ class _AssetDataTableState extends State<AssetDataTable> {
 
   int _rowsPerPage = 10;
   int _currentPage = 0;
+  int? _sortColumnIndex;
+  bool _sortAscending = true;
   final ScrollController _verticalScrollController = ScrollController();
   final ScrollController _horizontalScrollController = ScrollController();
 
@@ -66,6 +74,8 @@ class _AssetDataTableState extends State<AssetDataTable> {
       for (final col in widget.columns)
         if (col.visibleByDefault) col.label,
     };
+    _sortColumnIndex = widget.initialSortColumnIndex;
+    _sortAscending = widget.initialSortAscending;
   }
 
   /// When the column list changes (e.g. page navigation), re-init.
@@ -163,39 +173,50 @@ class _AssetDataTableState extends State<AssetDataTable> {
   }
 
   double _getColWidth(String label) {
+    // Generous widths to avoid alignment drift. Base + extra for icon and padding.
     switch (label) {
       case 'Acciones':
-        return 120;
+        return 140;
       case 'S/N':
-        return 130;
+        return 120;
       case 'Nombre':
-        return 160;
+        return 200;
       case 'Código':
-        return 110;
+        return 140;
       case 'Tipo Activo':
-        return 140;
+        return 170;
       case 'Condición':
-        return 140;
+        return 170;
       case 'Custodio':
-        return 150;
+        return 180;
       case 'Ciudad':
-        return 110;
+        return 140;
       case 'Sede':
-        return 110;
+        return 140;
       case 'Área':
-        return 140;
+        return 170;
       case 'Proveedor':
-        return 150;
+        return 180;
       case 'Fe. Adquisición':
-        return 120;
+        return 150;
       case 'IP':
-        return 120;
+        return 140;
       case 'Fe. Entrega':
-        return 120;
+        return 150;
       case 'Coordenada':
-        return 140;
+        return 170;
+      case 'Cód. Cargador':
+        return 180;
+      case 'Num. Puertos':
+        return 160;
+      case 'Marca':
+        return 160;
+      case 'Modelo':
+        return 180;
       default:
-        return 140;
+        // Let categories like Observations be wider
+        if (label.length > 15) return 220;
+        return 160;
     }
   }
 
@@ -212,49 +233,56 @@ class _AssetDataTableState extends State<AssetDataTable> {
           DataCell(
             SizedBox(
               width: _getColWidth('Acciones'),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (widget.onEdit != null)
-                    Tooltip(
-                      message: 'Editar',
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () => widget.onEdit!(asset),
-                        child: const Padding(
-                          padding: EdgeInsets.all(4.0),
-                          child: Icon(Icons.edit, color: Colors.blue, size: 22),
-                        ),
-                      ),
-                    ),
-                  if (widget.customActionsBuilder != null) ...[
-                    if (widget.onEdit != null) const SizedBox(width: 4),
-                    ...widget.customActionsBuilder!(asset),
-                  ],
-                  if (widget.onDelete != null &&
-                      asset['id'] != null &&
-                      RoleService.currentRole != UserRole.ayudante) ...[
-                    if (widget.onEdit != null ||
-                        (widget.customActionsBuilder != null &&
-                            widget.customActionsBuilder!(asset).isNotEmpty))
-                      const SizedBox(width: 4),
-                    Tooltip(
-                      message: 'Eliminar',
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () => widget.onDelete!(asset['id'] as String),
-                        child: const Padding(
-                          padding: EdgeInsets.all(4.0),
-                          child: Icon(
-                            Icons.delete,
-                            color: Colors.red,
-                            size: 22,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.onEdit != null)
+                      Tooltip(
+                        message: 'Editar',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => widget.onEdit!(asset),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4.0),
+                            child: Icon(
+                              Icons.edit,
+                              color: Colors.blue,
+                              size: 22,
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    if (widget.customActionsBuilder != null) ...[
+                      if (widget.onEdit != null) const SizedBox(width: 4),
+                      ...widget.customActionsBuilder!(asset),
+                    ],
+                    if (widget.onDelete != null &&
+                        asset['id'] != null &&
+                        RoleService.currentRole != UserRole.ayudante) ...[
+                      if (widget.onEdit != null ||
+                          (widget.customActionsBuilder != null &&
+                              widget.customActionsBuilder!(asset).isNotEmpty))
+                        const SizedBox(width: 4),
+                      Tooltip(
+                        message: 'Eliminar',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => widget.onDelete!(asset['id'] as String),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4.0),
+                            child: Icon(
+                              Icons.delete,
+                              color: Colors.red,
+                              size: 22,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -316,10 +344,94 @@ class _AssetDataTableState extends State<AssetDataTable> {
             cellContent = Text(value, overflow: TextOverflow.ellipsis);
           }
 
-          return DataCell(SizedBox(width: width, child: cellContent));
+          return DataCell(
+            SizedBox(
+              width: width,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: cellContent,
+              ),
+            ),
+          );
         }),
       ],
     );
+  }
+
+  List<Map<String, dynamic>> _getSortedAssets(
+    List<AssetColumnDef> visibleCols,
+  ) {
+    if (_sortColumnIndex == null) return widget.assets;
+
+    final hasActions =
+        widget.onEdit != null ||
+        widget.onDelete != null ||
+        widget.customActionsBuilder != null;
+
+    final int colIdx = hasActions ? _sortColumnIndex! - 1 : _sortColumnIndex!;
+    if (colIdx < 0 || colIdx >= visibleCols.length) return widget.assets;
+
+    final colDef = visibleCols[colIdx];
+    final sortedList = List<Map<String, dynamic>>.from(widget.assets);
+
+    sortedList.sort((a, b) {
+      final valA = colDef.getValue(a);
+      final valB = colDef.getValue(b);
+
+      // Handle nulls / NAs (always push to bottom)
+      final isNullA = valA == 'N/A' || valA.isEmpty;
+      final isNullB = valB == 'N/A' || valB.isEmpty;
+
+      if (isNullA && isNullB) return 0;
+      if (isNullA) return 1; // a is null, b is not -> a comes later
+      if (isNullB) return -1; // b is null, a is not -> a comes earlier
+
+      // Natural Sort Logic
+      final int comparison = _naturalCompare(valA, valB);
+      return _sortAscending ? comparison : -comparison;
+    });
+
+    return sortedList;
+  }
+
+  int _naturalCompare(String a, String b) {
+    // Try to parse as numbers first
+    final numA = double.tryParse(a.replaceAll(RegExp(r'[^0-9.]'), ''));
+    final numB = double.tryParse(b.replaceAll(RegExp(r'[^0-9.]'), ''));
+
+    if (numA != null && numB != null) {
+      return numA.compareTo(numB);
+    }
+
+    return a.toLowerCase().compareTo(b.toLowerCase());
+  }
+
+  void _onSort(
+    int columnIndex,
+    bool ascending,
+    List<AssetColumnDef> visibleCols,
+  ) {
+    if (mounted) {
+      setState(() {
+        if (_sortColumnIndex == columnIndex) {
+          if (_sortAscending) {
+            // Already Asc -> Desc
+            _sortAscending = false;
+          } else {
+            // Already Desc -> None
+            _sortColumnIndex = null;
+            _sortAscending = true;
+          }
+        } else {
+          // New column -> Asc
+          _sortColumnIndex = columnIndex;
+          _sortAscending = true;
+        }
+      });
+      if (widget.onSortChanged != null) {
+        widget.onSortChanged!(_sortColumnIndex, _sortAscending);
+      }
+    }
   }
 
   @override
@@ -340,20 +452,25 @@ class _AssetDataTableState extends State<AssetDataTable> {
         .where((c) => _visibleLabels.contains(c.label))
         .toList();
 
+    final sortedAssets = _getSortedAssets(visibleCols);
+
     final hasActions =
         widget.onEdit != null ||
         widget.onDelete != null ||
         widget.customActionsBuilder != null;
 
     // ── Pagination math ────────────────────────────────────────────────────
-    final totalItems = widget.assets.length;
+    final totalItems = sortedAssets.length;
     final totalPages = totalItems == 0 ? 1 : (totalItems / _rowsPerPage).ceil();
 
-    final effectivePage = _currentPage.clamp(0, totalPages > 0 ? totalPages - 1 : 0);
+    final effectivePage = _currentPage.clamp(
+      0,
+      totalPages > 0 ? totalPages - 1 : 0,
+    );
 
     final startIndex = effectivePage * _rowsPerPage;
     final endIndex = (startIndex + _rowsPerPage).clamp(0, totalItems);
-    final pageAssets = widget.assets.sublist(startIndex, endIndex);
+    final pageAssets = sortedAssets.sublist(startIndex, endIndex);
 
     final datatableTheme = Theme.of(context).copyWith(
       cardTheme: const CardThemeData(
@@ -374,8 +491,8 @@ class _AssetDataTableState extends State<AssetDataTable> {
           child: Row(
             children: [
               Text(
-                '${widget.assets.length} registro(s)',
-                style: const TextStyle(color: Colors.black54, fontSize: 13),
+                '${sortedAssets.length} registro(s)',
+                style: const TextStyle(color: Colors.black87, fontSize: 13),
               ),
               const Spacer(),
               OutlinedButton.icon(
@@ -412,8 +529,12 @@ class _AssetDataTableState extends State<AssetDataTable> {
                   Theme(
                     data: datatableTheme,
                     child: DataTable(
-                      columnSpacing: 8,
-                      horizontalMargin: 8,
+                      columnSpacing: 0,
+                      horizontalMargin: 0,
+                      headingRowHeight: 56, // Fixed height for both
+                      // Remove built-in sort to prevent layout shift
+                      sortColumnIndex: null,
+                      sortAscending: _sortAscending,
                       headingRowColor: WidgetStateProperty.resolveWith(
                         (states) => Theme.of(
                           context,
@@ -424,25 +545,62 @@ class _AssetDataTableState extends State<AssetDataTable> {
                           DataColumn(
                             label: SizedBox(
                               width: _getColWidth('Acciones'),
-                              child: const Text(
-                                'Acciones',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ),
-                        ...visibleCols.map(
-                          (col) => DataColumn(
-                            label: SizedBox(
-                              width: _getColWidth(col.label),
-                              child: Text(
-                                col.label,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 12.0),
+                                child: Text(
+                                  'Acciones',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ),
                           ),
-                        ),
+                        ...visibleCols.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final col = entry.value;
+                          final colIdx = hasActions ? idx + 1 : idx;
+                          final isSorted = _sortColumnIndex == colIdx;
+
+                          return DataColumn(
+                            // Remove onSort to eliminate the 16x16 RichText spacing
+                            label: InkWell(
+                              onTap: () =>
+                                  _onSort(colIdx, _sortAscending, visibleCols),
+                              child: SizedBox(
+                                width: _getColWidth(col.label),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12.0,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          col.label,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Icon(
+                                        isSorted
+                                            ? (_sortAscending
+                                                  ? Icons.arrow_upward
+                                                  : Icons.arrow_downward)
+                                            : Icons.sort,
+                                        size: 14,
+                                        color: isSorted
+                                            ? Colors.blue
+                                            : Colors.grey,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
                       ],
                       rows: const [], // No data rows in header component
                     ),
@@ -456,8 +614,12 @@ class _AssetDataTableState extends State<AssetDataTable> {
                         data: datatableTheme,
                         child: DataTable(
                           headingRowHeight: 0, // Hide the header in body
-                          columnSpacing: 8,
-                          horizontalMargin: 8,
+                          dataRowMinHeight: 52,
+                          dataRowMaxHeight: 52,
+                          columnSpacing: 0,
+                          horizontalMargin: 0,
+                          sortColumnIndex: null, // Unified alignment
+                          sortAscending: _sortAscending,
                           border: TableBorder(
                             verticalInside: BorderSide(
                               color: Colors.grey.withAlpha(80),

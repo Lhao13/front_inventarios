@@ -23,6 +23,8 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
 
   int _listRowsPerPage = 10;
   int _listCurrentPage = 0;
+  int? _sortColumnIndex;
+  bool _sortAscending = true;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final ScrollController _drawerScrollController = ScrollController();
@@ -195,19 +197,21 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
 
   AssetFilterCriteria _createFilterCriteria() {
     return AssetFilterCriteria(
-      selectedTiposActivo: _selectedTiposActivo,
-      selectedCondiciones: _selectedCondiciones,
-      selectedSedes: _selectedSedes,
-      selectedAreas: _selectedAreas,
-      selectedCiudades: _selectedCiudades,
-      selectedCustodios: _selectedCustodios,
-      selectedProveedores: _selectedProveedores,
-      selectedMarcas: _selectedMarcas,
-      selectedNombres: _selectedNombres,
-      selectedCodigos: _selectedCodigos,
-      selectedSeries: _selectedSeries,
+      selectedTiposActivo: Set.from(_selectedTiposActivo),
+      selectedCondiciones: Set.from(_selectedCondiciones),
+      selectedSedes: Set.from(_selectedSedes),
+      selectedAreas: Set.from(_selectedAreas),
+      selectedCiudades: Set.from(_selectedCiudades),
+      selectedCustodios: Set.from(_selectedCustodios),
+      selectedProveedores: Set.from(_selectedProveedores),
+      selectedMarcas: Set.from(_selectedMarcas),
+      selectedNombres: Set.from(_selectedNombres),
+      selectedCodigos: Set.from(_selectedCodigos),
+      selectedSeries: Set.from(_selectedSeries),
       rangoAdquisicion: _rangoAdquisicion,
       rangoEntrega: _rangoEntrega,
+      sortColumnIndex: _sortColumnIndex,
+      sortAscending: _sortAscending,
     );
   }
 
@@ -572,7 +576,9 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
     List<Map<String, dynamic>> items,
     String displayKey,
   ) {
+    final bool isActive = selectedIds.isNotEmpty;
     return ListTile(
+      tileColor: isActive ? Colors.blue.shade200 : null,
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(
         selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados',
@@ -663,7 +669,9 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
     DateTimeRange? currentRange,
     ValueChanged<DateTimeRange?> onChanged,
   ) {
+    final bool isActive = currentRange != null;
     return ListTile(
+      tileColor: isActive ? Colors.blue.shade50 : null,
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(
         currentRange == null
@@ -730,6 +738,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
     return Scaffold(
       key: _scaffoldKey,
       endDrawer: Drawer(
+        width: MediaQuery.of(context).size.width * 0.6,
         child: SafeArea(
           child: Column(
             children: [
@@ -761,7 +770,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                     Row(
                       children: [
                         Text(
-                          'Filtros activos: ${_getFilterCount()}',
+                          'Activos: ${_getFilterCount()}',
                           style: const TextStyle(
                             color: Colors.blue,
                             fontWeight: FontWeight.bold,
@@ -770,7 +779,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                         const Spacer(),
                         TextButton.icon(
                           icon: const Icon(Icons.delete),
-                          label: const Text('Limpiar Filtros'),
+                          label: const Text('Limpiar'),
                           onPressed: _clearGlobalFilters,
                         ),
                       ],
@@ -928,8 +937,10 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
-                          icon:
-                              const Icon(Icons.arrow_back, color: Colors.white),
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                          ),
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                         const SizedBox(width: 8),
@@ -1002,6 +1013,15 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.add),
+                          label: Text('Agregar', textAlign: TextAlign.center),
+                          onPressed: () => _showAssetUpdateDialog(null),
+                        ),
                         SegmentedButton<bool>(
                           segments: const [
                             ButtonSegment<bool>(
@@ -1019,18 +1039,6 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                           onSelectionChanged: (Set<bool> newSelection) {
                             setState(() => _isTableView = newSelection.first);
                           },
-                        ),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                          ),
-                          icon: const Icon(Icons.add),
-                          label: Text(
-                            'Agregar\n$categoryName',
-                            textAlign: TextAlign.center,
-                          ),
-                          onPressed: () => _showAssetUpdateDialog(null),
                         ),
                       ],
                     ),
@@ -1065,6 +1073,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
           builder: (context) => FloatingActionButton.extended(
             onPressed: () => Scaffold.of(context).openEndDrawer(),
             tooltip: 'Filtros',
+            backgroundColor: _getFilterCount() > 0 ? Colors.orange : null,
             icon: const Icon(Icons.filter_list),
             label: Text('Filtros (${_getFilterCount()})'),
           ),
@@ -1077,6 +1086,15 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
     return AssetDataTable(
       assets: _filteredAssets,
       columns: columns,
+      initialSortColumnIndex: _sortColumnIndex,
+      initialSortAscending: _sortAscending,
+      onSortChanged: (idx, asc) {
+        setState(() {
+          _sortColumnIndex = idx;
+          _sortAscending = asc;
+        });
+        _saveFiltersToCache();
+      },
       onEdit: RoleService.currentRole != UserRole.ayudante
           ? (a) async {
               await _showAssetUpdateDialog(a);
@@ -1103,8 +1121,11 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
               ),
               child: const Padding(
                 padding: EdgeInsets.all(4.0),
-                child:
-                    Icon(Icons.build_circle, color: Colors.blueGrey, size: 22),
+                child: Icon(
+                  Icons.build_circle,
+                  color: Colors.blueGrey,
+                  size: 22,
+                ),
               ),
             ),
           ),
@@ -1179,8 +1200,10 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                         if (a['categoria_activo']?.toString().toUpperCase() !=
                             'SOFTWARE')
                           IconButton(
-                            icon:
-                                const Icon(Icons.build, color: Colors.blueGrey),
+                            icon: const Icon(
+                              Icons.build,
+                              color: Colors.blueGrey,
+                            ),
                             tooltip: 'Mantenimientos',
                             onPressed: () {
                               showDialog(

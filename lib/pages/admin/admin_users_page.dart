@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
-import 'package:front_inventarios/pages/main_page.dart';
 
 class AdminUsersPage extends StatefulWidget {
   const AdminUsersPage({super.key});
@@ -44,7 +43,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       // However, we can join usuario_rol, custadio, or use a custom RPC if necessary.
       // Let's first try to get from usuario_rol joined with rol
       // Consultamos una vista SQL personalizada para poder extraer el nombre desde auth.users
-      final response = await Supabase.instance.client.from('vista_usuarios_admin').select();
+      final response = await Supabase.instance.client
+          .from('vista_usuarios_admin')
+          .select();
 
       if (!mounted) return;
       setState(() {
@@ -104,19 +105,6 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
           children: [
             Row(
               children: [
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    final mainPageState =
-                        context.findAncestorStateOfType<MainPageState>();
-                    mainPageState?.setState(() {
-                      mainPageState.currentPageIndex = 0;
-                    });
-                  },
-                ),
-                const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
                     'Usuarios Registrados',
@@ -215,7 +203,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     }).toList();
 
     if (filteredUsers.isEmpty) {
-      return const Center(child: Text('No se encontraron usuarios coincidentes.'));
+      return const Center(
+        child: Text('No se encontraron usuarios coincidentes.'),
+      );
     }
 
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
@@ -260,8 +250,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                   ? Chip(
                       label: Text(
                         rolStr,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
                       ),
                       backgroundColor: _getRoleColor(rolStr),
                     )

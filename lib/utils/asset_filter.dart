@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 
 class FilterMemoryCache {
   static final Map<String, AssetFilterCriteria> globalCache = {};
+  static final Map<String, TableSortState> tableSortCache = {};
+}
+
+class TableSortState {
+  final int? columnIndex;
+  final bool ascending;
+  const TableSortState(this.columnIndex, this.ascending);
 }
 
 class AssetFilterCriteria {
@@ -18,6 +25,8 @@ class AssetFilterCriteria {
   final Set<String> selectedSeries;
   final DateTimeRange? rangoAdquisicion;
   final DateTimeRange? rangoEntrega;
+  final int? sortColumnIndex;
+  final bool sortAscending;
 
   const AssetFilterCriteria({
     this.selectedTiposActivo = const {},
@@ -33,6 +42,8 @@ class AssetFilterCriteria {
     this.selectedSeries = const {},
     this.rangoAdquisicion,
     this.rangoEntrega,
+    this.sortColumnIndex,
+    this.sortAscending = true,
   });
 
   bool matches(Map<String, dynamic> asset, {String? ignoreField}) {
