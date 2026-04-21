@@ -209,7 +209,8 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                           await Future.delayed(
                             const Duration(milliseconds: 100),
                           );
-                          if (dialogContext.mounted && Navigator.canPop(dialogContext)) {
+                          if (dialogContext.mounted &&
+                              Navigator.canPop(dialogContext)) {
                             Navigator.pop(dialogContext);
                           }
                         },
@@ -252,7 +253,8 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                             await Future.delayed(
                               const Duration(milliseconds: 100),
                             );
-                            if (dialogContext.mounted && Navigator.canPop(dialogContext)) {
+                            if (dialogContext.mounted &&
+                                Navigator.canPop(dialogContext)) {
                               Navigator.pop(dialogContext);
                             }
 
@@ -384,7 +386,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                     onPressed: () => Scaffold.of(context).openEndDrawer(),
                     icon: const Icon(Icons.table_chart, color: Colors.white),
                     label: const Text(
-                      'Ver Tablas',
+                      'Menu Tablas',
                       style: TextStyle(color: Colors.white),
                     ),
                     style: ElevatedButton.styleFrom(

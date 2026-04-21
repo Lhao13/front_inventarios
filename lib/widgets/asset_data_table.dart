@@ -11,11 +11,13 @@ import 'package:front_inventarios/widgets/material_list_paginator.dart';
 class AssetColumnDef {
   final String label;
   final String Function(Map<String, dynamic> asset) getValue;
+  final Widget Function(Map<String, dynamic> asset)? cellBuilder;
   final bool visibleByDefault;
 
   const AssetColumnDef({
     required this.label,
     required this.getValue,
+    this.cellBuilder,
     this.visibleByDefault = true,
   });
 }
@@ -117,33 +119,42 @@ class _AssetDataTableState extends State<AssetDataTable> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
+            // We use a dedicated controller for the dialog's list to ensure the scrollbar works correctly
+            final dialogScrollController = ScrollController();
+
             return AlertDialog(
               title: const Text('Columnas visibles'),
               content: SizedBox(
                 width: double.maxFinite,
-                child: ListView(
-                  shrinkWrap: true,
-                  children: widget.columns.map((col) {
-                    final isChecked = tempVisible.contains(col.label);
-                    return CheckboxListTile(
-                      dense: true,
-                      title: Text(col.label),
-                      value: isChecked,
-                      onChanged: (val) {
-                        setDialogState(() {
-                          if (val == true) {
-                            tempVisible.add(col.label);
-                          } else {
-                            if (tempVisible.length > 1) {
-                              tempVisible.remove(col.label);
-                            }
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
+                  child: Scrollbar(
+                    controller: dialogScrollController,
+                    thumbVisibility: true,
+                    thickness: 8,
+                    child: ListView(
+                      controller: dialogScrollController,
+                      shrinkWrap: true,
+                      children: widget.columns.map((col) {
+                        final isChecked = tempVisible.contains(col.label);
+                        return CheckboxListTile(
+                          dense: true,
+                          title: Text(col.label),
+                          value: isChecked,
+                          onChanged: (val) {
+                            setDialogState(() {
+                              if (val == true) {
+                                tempVisible.add(col.label);
+                              } else {
+                                if (tempVisible.length > 1) {
+                                  tempVisible.remove(col.label);
+                                }
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
                 ),
-              ),
               actions: [
                 TextButton(
                   onPressed: () {
@@ -230,8 +241,12 @@ class _AssetDataTableState extends State<AssetDataTable> {
     bool hasActions,
   ) {
     return DataRow(
-      onSelectChanged: widget.onRowTap != null ? (selected) => widget.onRowTap!(asset) : null,
-      mouseCursor: widget.onRowTap != null ? WidgetStateMouseCursor.clickable : null,
+      onSelectChanged: widget.onRowTap != null
+          ? (selected) => widget.onRowTap!(asset)
+          : null,
+      mouseCursor: widget.onRowTap != null
+          ? WidgetStateMouseCursor.clickable
+          : null,
       cells: [
         if (hasActions)
           DataCell(
@@ -295,8 +310,9 @@ class _AssetDataTableState extends State<AssetDataTable> {
           final double width = _getColWidth(col.label);
 
           Widget cellContent;
-          // Special case: coordinate column shows a tappable map link
-          if (col.label == 'Coordenada' && value != 'N/A' && value.isNotEmpty) {
+          if (col.cellBuilder != null) {
+            cellContent = col.cellBuilder!(asset);
+          } else if (col.label == 'Coordenada' && value != 'N/A' && value.isNotEmpty) {
             cellContent = InkWell(
               onTap: () {
                 try {
@@ -503,7 +519,7 @@ class _AssetDataTableState extends State<AssetDataTable> {
           child: Row(
             children: [
               Text(
-                '${sortedAssets.length} registro(s)',
+                '${sortedAssets.length} Activos(s)',
                 style: const TextStyle(color: Colors.black87, fontSize: 13),
               ),
               const Spacer(),
@@ -511,7 +527,7 @@ class _AssetDataTableState extends State<AssetDataTable> {
                 onPressed: _showColumnSelector,
                 icon: const Icon(Icons.view_column, size: 18),
                 label: Text(
-                  'Columnas (${_visibleLabels.length}/${widget.columns.length})',
+                  'Columnas Ver (${_visibleLabels.length}/${widget.columns.length})',
                   style: const TextStyle(fontSize: 12),
                 ),
                 style: OutlinedButton.styleFrom(

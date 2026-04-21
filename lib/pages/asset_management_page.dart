@@ -72,6 +72,27 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     AssetColumnDef(
       label: 'Categoría',
       getValue: (a) => a['categoria_activo']?.toString() ?? 'N/A',
+      cellBuilder: (a) {
+        final category = a['categoria_activo']?.toString();
+        final color = AssetUtils.getColorForCategory(category);
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.5), width: 1),
+          ),
+          child: Text(
+            category ?? 'N/A',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
+        );
+      },
     ),
     AssetColumnDef(
       label: 'S/N',
@@ -1065,6 +1086,10 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                 ),
                 const Spacer(),
                 SegmentedButton<bool>(
+                  style: SegmentedButton.styleFrom(
+                    selectedForegroundColor: Colors.white,
+                    selectedBackgroundColor: Colors.blue,
+                  ),
                   segments: const [
                     ButtonSegment<bool>(
                       value: false,
@@ -1226,6 +1251,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
             controller: _listScrollController,
             thumbVisibility: true,
             child: ListView.builder(
+              padding: EdgeInsets.zero,
               controller: _listScrollController,
               itemCount: pageAssets.length,
               itemBuilder: (context, index) {
@@ -1241,9 +1267,12 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
 
                 final displaySubtitle = isSoftware
                     ? 'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'}\n'
-                          'Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}'
-                    : 'Nombre: ${asset['nombre'] ?? 'Sin Nombre'} | Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'}\n'
-                          'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'} | Área: ${asset['area_activo']?['area'] ?? 'N/A'}';
+                          'Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'} \n'
+                          'Área: ${asset['area_activo']?['area'] ?? 'N/A'}'
+                    : 'Nombre: ${asset['nombre'] ?? 'Sin Nombre'}\n'
+                          'Tipo: ${asset['tipo_activo']?['tipo'] ?? 'N/A'}\n'
+                          'Categoría: ${asset['categoria_activo'] ?? 'Desconocida'} \n'
+                          'Área: ${asset['area_activo']?['area'] ?? 'N/A'}';
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
@@ -1251,7 +1280,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                     vertical: 8,
                   ),
                   elevation: 2,
-                  child: ListTile(
+                  child: InkWell(
                     onTap: () async {
                       final result = await Navigator.push(
                         context,
@@ -1263,45 +1292,119 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                         _loadAssets();
                       }
                     },
-                    leading: Icon(icon, size: 40, color: Colors.blueGrey),
-                    title: Text(
-                      displayTitle,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(displaySubtitle),
-                    isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          tooltip: 'Editar Activo',
-                          onPressed: () {
-                            final String category =
-                                (asset['categoria_activo'] ?? 'PC').toString();
-                            _showAssetFormDialog(category, asset: asset);
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.build_circle,
-                            color: Colors.blueGrey,
-                          ),
-                          tooltip: 'Programar Mantenimiento',
-                          onPressed: () => showDialog(
-                            context: context,
-                            builder: (_) => MaintenanceFormDialog(
-                              initialAssetId: asset['id'],
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Leading: Icono en Círculo
+                            CircleAvatar(
+                              backgroundColor: AssetUtils.getColorForCategory(
+                                asset['categoria_activo'],
+                              ).withValues(alpha: 0.2),
+                              radius: 25,
+                              child: Icon(
+                                icon,
+                                size: 28,
+                                color: AssetUtils.getColorForCategory(
+                                  asset['categoria_activo'],
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            // Centro: Información (Título y Subtítulo)
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    displayTitle,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 17,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    displaySubtitle,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Derecha: Acciones (Columna para evitar overflow)
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                // Botón Editar
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(20),
+                                  onTap: () {
+                                    final String category =
+                                        (asset['categoria_activo'] ?? 'PC')
+                                            .toString();
+                                    _showAssetFormDialog(
+                                      category,
+                                      asset: asset,
+                                    );
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(6.0),
+                                    child: Icon(
+                                      Icons.edit,
+                                      color: Colors.blue,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                // Botón Mantenimiento
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(20),
+                                  onTap: () => showDialog(
+                                    context: context,
+                                    builder: (_) => MaintenanceFormDialog(
+                                      initialAssetId: asset['id'],
+                                    ),
+                                  ),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(6.0),
+                                    child: Icon(
+                                      Icons.build_circle,
+                                      color: Colors.blueGrey,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                                if (RoleService.currentRole !=
+                                    UserRole.ayudante) ...[
+                                  const SizedBox(height: 4),
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: () => _deleteAsset(asset['id']),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(6.0),
+                                      child: Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
                         ),
-                        if (RoleService.currentRole != UserRole.ayudante)
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteAsset(asset['id']),
-                            tooltip: 'Eliminar',
-                          ),
-                      ],
+                      ),
                     ),
                   ),
                 );

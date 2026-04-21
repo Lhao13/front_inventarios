@@ -16,6 +16,7 @@ import 'package:front_inventarios/pages/assets/generic_assets_page.dart';
 import 'package:front_inventarios/pages/assets/software_assets_page.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
+import 'package:front_inventarios/widgets/user_info_widget.dart';
 
 /// Página principal de la aplicación.
 ///
@@ -484,6 +485,8 @@ class _HomePageState extends State<_HomePage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              const UserInfoWidget(),
+                              const SizedBox(height: 20),
                               Text(
                                 '$_totalAssets Activos',
                                 style: const TextStyle(
@@ -535,7 +538,7 @@ class _HomePageState extends State<_HomePage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Consulta y administra el inventario de la institución.',
+                    'Consulta y administra el inventario.',
                     style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
@@ -680,7 +683,7 @@ class _HomePageState extends State<_HomePage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Gestión de configuraciones maestras y usuarios.',
+                      'Configuraciones maestras y usuarios.',
                       style: TextStyle(
                         color: Colors.grey.shade700,
                         fontSize: 14,
@@ -689,9 +692,9 @@ class _HomePageState extends State<_HomePage> {
                     const SizedBox(height: 16),
                     _buildModernMenuCard(
                       context,
-                      title: 'Configuración estados de los activos',
+                      title: 'Estados de los activos',
                       subtitle:
-                          'Aqui configuramos los diferentes campos que un activo puede tener',
+                          'Configurar los campos que un activo puede tener',
                       icon: Icons.settings_applications_rounded,
                       color: Colors.blueGrey.shade800,
                       onTap: () {

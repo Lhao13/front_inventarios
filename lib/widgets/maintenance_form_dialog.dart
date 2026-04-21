@@ -123,12 +123,18 @@ class _MaintenanceFormDialogState extends State<MaintenanceFormDialog> {
       return;
     }
 
+    String? fechaRealizada;
+    if (_selectedEstado == 'Completado') {
+      fechaRealizada = widget.initialData?['fecha_realizada']?.toString();
+    }
+
     final data = {
       'id_activo': _selectedActivoId,
       'fecha_programada': AppDateUtils.formatYYYYMMDD(_selectedDate!),
       'tipo': _selectedTipo,
       'estado': _selectedEstado,
       'observacion': _observacionController.text.trim(),
+      'fecha_realizada': fechaRealizada,
     };
 
     try {

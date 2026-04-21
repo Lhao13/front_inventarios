@@ -703,36 +703,6 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
     );
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category.toUpperCase()) {
-      case 'PC':
-        return Colors.blue.shade100;
-      case 'SOFTWARE':
-        return Colors.green.shade100;
-      case 'COMUNICACION':
-        return Colors.orange.shade100;
-      case 'GENERICO':
-        return Colors.blueGrey.shade100;
-      default:
-        return Colors.grey.shade100;
-    }
-  }
-
-  Color _getCategoryTextColor(String category) {
-    switch (category.toUpperCase()) {
-      case 'PC':
-        return Colors.blue.shade900;
-      case 'SOFTWARE':
-        return Colors.green.shade900;
-      case 'COMUNICACION':
-        return Colors.orange.shade900;
-      case 'GENERICO':
-        return Colors.blueGrey.shade900;
-      default:
-        return Colors.grey.shade900;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Si la subclase no define appBar (y usamos Drawer al final), podemos integrarlo libremente.
@@ -926,7 +896,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
       body: Column(
         children: [
           Container(
-            color: Colors.blue.shade600,
+            color: Color(0xFF1566bd),
             child: SafeArea(
               bottom: false,
               child: Container(
@@ -1024,6 +994,10 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                           onPressed: () => _showAssetUpdateDialog(null),
                         ),
                         SegmentedButton<bool>(
+                          style: SegmentedButton.styleFrom(
+                            selectedForegroundColor: Colors.white,
+                            selectedBackgroundColor: Colors.blue,
+                          ),
                           segments: const [
                             ButtonSegment<bool>(
                               value: false,
@@ -1169,6 +1143,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
             controller: _listScrollController,
             thumbVisibility: true,
             child: ListView.builder(
+              padding: EdgeInsets.zero,
               controller: _listScrollController,
               itemCount: pageAssets.length,
               itemBuilder: (context, index) {
@@ -1178,7 +1153,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                     horizontal: 12,
                     vertical: 6,
                   ),
-                  child: ListTile(
+                  child: InkWell(
                     onTap: () async {
                       final result = await Navigator.push(
                         context,
@@ -1190,64 +1165,117 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                         _loadAssets();
                       }
                     },
-                    leading: CircleAvatar(
-                      backgroundColor: categoryName != null
-                          ? Colors.blue.shade100
-                          : _getCategoryColor(
-                              a['categoria_activo']?.toString() ?? '',
-                            ),
-                      child: Icon(
-                        AssetUtils.getIconForCategory(
-                          a['categoria_activo']?.toString() ?? '',
-                        ),
-                        color: categoryName != null
-                            ? Colors.blue.shade900
-                            : _getCategoryTextColor(
-                                a['categoria_activo']?.toString() ?? '',
-                              ),
-                      ),
-                    ),
-                    title: Text(
-                      a['nombre']?.toString() ?? 'Sin nombre',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      'S/N: ${a['numero_serie'] ?? 'N/A'}\nCódigo: ${a['codigo'] ?? 'N/A'}\nEstado: ${a['condicion_activo']?['condicion'] ?? 'N/A'}',
-                    ),
-                    isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (a['categoria_activo']?.toString().toUpperCase() !=
-                            'SOFTWARE')
-                          IconButton(
-                            icon: const Icon(
-                              Icons.build,
-                              color: Colors.blueGrey,
-                            ),
-                            tooltip: 'Mantenimientos',
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (_) => MaintenanceFormDialog(
-                                  initialAssetId: a['id']?.toString(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Leading: Icono en Círculo
+                            CircleAvatar(
+                              backgroundColor: AssetUtils.getColorForCategory(
+                                a['categoria_activo']?.toString(),
+                              ).withValues(alpha: 0.2),
+                              child: Icon(
+                                AssetUtils.getIconForCategory(
+                                  a['categoria_activo']?.toString(),
                                 ),
-                              );
-                            },
-                          ),
-                        if (RoleService.currentRole != UserRole.ayudante)
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            tooltip: 'Editar',
-                            onPressed: () => _showAssetUpdateDialog(a),
-                          ),
-                        if (RoleService.currentRole != UserRole.ayudante)
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            tooltip: 'Eliminar',
-                            onPressed: () => _deleteAsset(a['id'].toString()),
-                          ),
-                      ],
+                                color: AssetUtils.getColorForCategory(
+                                  a['categoria_activo']?.toString(),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Centro: Información
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    a['nombre']?.toString() ?? 'Sin nombre',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 17,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'S/N: ${a['numero_serie'] ?? 'N/A'}\nCódigo: ${a['codigo'] ?? 'N/A'}\nEstado: ${a['condicion_activo']?['condicion'] ?? 'N/A'}',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                // Botón Editar
+                                if (RoleService.currentRole !=
+                                    UserRole.ayudante) ...[
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: () => _showAssetUpdateDialog(a),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(6.0),
+                                      child: Icon(Icons.edit,
+                                          color: Colors.blue, size: 20),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                ],
+                                // Botón Mantenimiento
+                                if (a['categoria_activo']
+                                        ?.toString()
+                                        .toUpperCase() !=
+                                    'SOFTWARE') ...[
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (_) => MaintenanceFormDialog(
+                                          initialAssetId: a['id']?.toString(),
+                                        ),
+                                      );
+                                    },
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(6.0),
+                                      child: Icon(
+                                        Icons.build_circle,
+                                        color: Colors.blueGrey,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                                  if (RoleService.currentRole !=
+                                      UserRole.ayudante)
+                                    const SizedBox(height: 4),
+                                ],
+                                // Botón Eliminar
+                                if (RoleService.currentRole !=
+                                    UserRole.ayudante)
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: () =>
+                                        _deleteAsset(a['id'].toString()),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(6.0),
+                                      child: Icon(Icons.delete,
+                                          color: Colors.red, size: 20),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 );

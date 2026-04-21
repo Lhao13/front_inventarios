@@ -28,7 +28,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
   List<Map<String, dynamic>> _assets = [];
 
   // Variables for view and filters
-  bool _isTableView = true;
+  bool _isTableView = false;
   List<Map<String, dynamic>> _filteredMaintenances = [];
   int? _sortColumnIndex;
   bool _sortAscending = true;
@@ -590,6 +590,10 @@ class _MaintenancePageState extends State<MaintenancePage> {
                   ),
 
                 SegmentedButton<bool>(
+                  style: SegmentedButton.styleFrom(
+                    selectedForegroundColor: Colors.white,
+                    selectedBackgroundColor: Colors.blue,
+                  ),
                   segments: const [
                     ButtonSegment<bool>(
                       value: false,
@@ -702,8 +706,10 @@ class _MaintenancePageState extends State<MaintenancePage> {
           _sortColumnIndex = index;
           _sortAscending = ascending;
         });
-        FilterMemoryCache.tableSortCache['Maintenance'] =
-            TableSortState(index, ascending);
+        FilterMemoryCache.tableSortCache['Maintenance'] = TableSortState(
+          index,
+          ascending,
+        );
       },
       onEdit: RoleService.currentRole != UserRole.ayudante
           ? (m) async => _showAddMaintenanceDialog(initialData: m)
@@ -730,59 +736,157 @@ class _MaintenancePageState extends State<MaintenancePage> {
       trackVisibility: true,
       thickness: 8,
       child: ListView.builder(
+        padding: EdgeInsets.zero,
         controller: _listScrollController,
         itemCount: _filteredMaintenances.length,
         itemBuilder: (context, index) {
           final m = _filteredMaintenances[index];
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: m['estado'] == 'Pendiente'
-                    ? Colors.orange
-                    : m['estado'] == 'Completado'
-                    ? Colors.green
-                    : Colors.blue,
-                child: Icon(
-                  m['estado'] == 'Completado' ? Icons.check : Icons.build,
-                  color: Colors.white,
-                  size: 20,
+            child: Container(
+              padding: const EdgeInsets.all(12.0),
+              constraints: const BoxConstraints(minHeight: 70),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Parte izquierda: Icono/Estado
+                    Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: m['estado'] == 'Pendiente'
+                              ? Colors.orange
+                              : m['estado'] == 'Completado'
+                                  ? Colors.green
+                                  : Colors.blue,
+                          child: Icon(
+                            m['estado'] == 'Completado' ? Icons.check : Icons.build,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 12),
+                    // Parte central: Información del Activo
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${_getAssetDisplayInfo(m)} - ${m['tipo']}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Programado: ${m['fecha_programada']} | Estado: ${m['estado']}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          if (m['fecha_realizada'] != null &&
+                              m['estado'] == 'Completado')
+                            Text(
+                              'Realizado: ${m['fecha_realizada']}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.green,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Parte derecha: Acciones (Iconos arriba, Botón abajo)
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Iconos en la parte superior
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (RoleService.currentRole != UserRole.ayudante)
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(Icons.edit,
+                                    color: Colors.blue, size: 20),
+                                tooltip: 'Editar',
+                                onPressed: () =>
+                                    _showAddMaintenanceDialog(initialData: m),
+                              ),
+                            if (RoleService.currentRole != UserRole.ayudante) ...[
+                              const SizedBox(width: 12),
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(Icons.delete,
+                                    color: Colors.red, size: 20),
+                                tooltip: 'Eliminar',
+                                onPressed: () =>
+                                    _deleteMaintenance(m['id'] as String),
+                              ),
+                            ],
+                          ],
+                        ),
+                        // Botón de estado en la parte inferior
+                        if (m['estado'] != 'Completado' &&
+                            RoleService.currentRole != UserRole.ayudante)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
+                                minimumSize: const Size(90, 28),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                elevation: 2,
+                              ),
+                              onPressed: () =>
+                                  _completeMaintenance(m['id'] as String),
+                              child: const Text(
+                                'Completar',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          )
+                        else if (m['estado'] == 'Completado')
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8.0),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle,
+                                    color: Colors.green, size: 14),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Mantenimiento\ncompletado',
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              title: Text('${_getAssetDisplayInfo(m)} - ${m['tipo']}'),
-              subtitle: Text(
-                'Programado: ${m['fecha_programada']} | Estado: ${m['estado']}'
-                '${m['fecha_realizada'] != null ? '\nRealizado: ${m['fecha_realizada']}' : ''}',
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (RoleService.currentRole != UserRole.ayudante)
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined, color: Colors.blue),
-                      tooltip: 'Editar',
-                      onPressed: () =>
-                          _showAddMaintenanceDialog(initialData: m),
-                    ),
-                  if (m['estado'] != 'Completado' &&
-                      RoleService.currentRole != UserRole.ayudante)
-                    IconButton(
-                      icon: const Icon(
-                        Icons.check_circle_outline,
-                        color: Colors.green,
-                      ),
-                      tooltip: 'Marcar como Completado',
-                      onPressed: () => _completeMaintenance(m['id'] as String),
-                    ),
-                  if (RoleService.currentRole != UserRole.ayudante)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      tooltip: 'Eliminar',
-                      onPressed: () => _deleteMaintenance(m['id'] as String),
-                    ),
-                ],
-              ),
-              isThreeLine: true,
             ),
           );
         },
