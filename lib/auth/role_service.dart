@@ -8,7 +8,7 @@ enum UserRole { admin, ti, ayudante, unknown }
 class RoleService {
   static final ValueNotifier<UserRole?> _currentRoleNotifier = ValueNotifier<UserRole?>(null);
 
-  /// Reactivo. Los componentes pueden hacer ValueListenableBuilder<UserRole?>(valueListenable: RoleService.notifier, ...)
+  /// Reactivo. Los componentes pueden hacer `ValueListenableBuilder<UserRole?>`(valueListenable: RoleService.notifier, ...)
   static ValueNotifier<UserRole?> get notifier => _currentRoleNotifier;
 
   static UserRole get currentRole => _currentRoleNotifier.value ?? UserRole.unknown;

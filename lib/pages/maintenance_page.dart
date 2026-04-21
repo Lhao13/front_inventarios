@@ -8,6 +8,7 @@ import 'package:front_inventarios/widgets/asset_data_table.dart';
 import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
 import 'package:front_inventarios/utils/date_utils.dart';
 import 'package:front_inventarios/utils/asset_filter.dart';
+import 'package:front_inventarios/pages/asset_detail_page.dart';
 
 /// Página de Mantenimientos.
 ///
@@ -678,6 +679,32 @@ class _MaintenancePageState extends State<MaintenancePage> {
     return AssetDataTable(
       assets: _filteredMaintenances,
       columns: _columns,
+      initialSortColumnIndex: _sortColumnIndex,
+      initialSortAscending: _sortAscending,
+      onRowTap: (m) async {
+        // Encontrar el activo asociado al mantenimiento
+        Map<String, dynamic>? asset = m['activo'] is Map ? m['activo'] : null;
+        asset ??= _assets.firstWhere(
+          (a) => a['id'] == m['id_activo'],
+          orElse: () => {},
+        );
+
+        if (asset.isNotEmpty) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => AssetDetailPage(asset: asset!)),
+          );
+          _loadMaintenances(showLoading: false);
+        }
+      },
+      onSortChanged: (index, ascending) {
+        setState(() {
+          _sortColumnIndex = index;
+          _sortAscending = ascending;
+        });
+        FilterMemoryCache.tableSortCache['Maintenance'] =
+            TableSortState(index, ascending);
+      },
       onEdit: RoleService.currentRole != UserRole.ayudante
           ? (m) async => _showAddMaintenanceDialog(initialData: m)
           : null,

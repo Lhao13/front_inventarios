@@ -10,6 +10,7 @@ import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
 import 'package:front_inventarios/widgets/material_list_paginator.dart';
 import 'package:front_inventarios/widgets/asset_data_table.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
+import 'package:front_inventarios/pages/asset_detail_page.dart';
 import 'package:uuid/uuid.dart';
 
 /// Clase base para las páginas de gestión de activos.
@@ -19,7 +20,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
   List<Map<String, dynamic>> _allAssets = [];
   List<Map<String, dynamic>> _filteredAssets = [];
   bool _isLoading = true;
-  bool _isTableView = true;
+  bool _isTableView = false;
 
   int _listRowsPerPage = 10;
   int _listCurrentPage = 0;
@@ -570,9 +571,9 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
   }
 
   /// Construye un Filtro para Entidades Foraneas como Custodio o Marca
-  Widget buildDrawerFilterButton<T>(
+  Widget buildDrawerFilterButton<V>(
     String label,
-    Set<T> selectedIds,
+    Set<V> selectedIds,
     List<Map<String, dynamic>> items,
     String displayKey,
   ) {
@@ -585,9 +586,9 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
       ),
       trailing: const Icon(Icons.arrow_drop_down),
       onTap: () async {
-        final result = await showDialog<List<T>>(
+        final result = await showDialog<List<V>>(
           context: context,
-          builder: (_) => MultiSelectDialog<T>(
+          builder: (_) => MultiSelectDialog<V>(
             title: label,
             items: items,
             initialSelectedIds: selectedIds.toList(),
@@ -1088,6 +1089,15 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
       columns: columns,
       initialSortColumnIndex: _sortColumnIndex,
       initialSortAscending: _sortAscending,
+      onRowTap: (asset) async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => AssetDetailPage(asset: asset)),
+        );
+        if (result == true) {
+          _loadAssets();
+        }
+      },
       onSortChanged: (idx, asc) {
         setState(() {
           _sortColumnIndex = idx;
@@ -1169,6 +1179,17 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                     vertical: 6,
                   ),
                   child: ListTile(
+                    onTap: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AssetDetailPage(asset: a),
+                        ),
+                      );
+                      if (result == true) {
+                        _loadAssets();
+                      }
+                    },
                     leading: CircleAvatar(
                       backgroundColor: categoryName != null
                           ? Colors.blue.shade100

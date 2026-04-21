@@ -185,12 +185,13 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     List? infoList;
     if (_categoria == 'PC') {
       infoList = d['info_pc'] as List?;
-    } else if (_categoria == 'COMUNICACION')
+    } else if (_categoria == 'COMUNICACION') {
       infoList = d['info_equipo_comunicacion'] as List?;
-    else if (_categoria == 'GENERICO')
+    } else if (_categoria == 'GENERICO') {
       infoList = d['info_equipo_generico'] as List?;
-    else if (_categoria == 'SOFTWARE')
+    } else if (_categoria == 'SOFTWARE') {
       infoList = d['info_software'] as List?;
+    }
 
     final info = (infoList != null && infoList.isNotEmpty)
         ? infoList[0] as Map<String, dynamic>
@@ -490,7 +491,7 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       }
 
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
       setState(() {
         _coordenadaCtrl.text = '${position.latitude},${position.longitude}';
@@ -628,8 +629,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                         builder: (_) => const BarcodeScannerScreen(),
                       ),
                     );
-                    if (result != null && result is String)
+                    if (result != null && result is String) {
                       setState(() => _numeroSerieCtrl.text = result);
+                    }
                   },
                 ),
               ),
@@ -651,8 +653,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                                 const BarcodeScannerScreen(isOnlyNumeric: true),
                           ),
                         );
-                        if (result != null && result is String)
+                        if (result != null && result is String) {
                           setState(() => _codigoCtrl.text = result);
+                        }
                       },
                     ),
             ),
@@ -782,8 +785,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                             const BarcodeScannerScreen(isOnlyNumeric: true),
                       ),
                     );
-                    if (result != null && result is String)
+                    if (result != null && result is String) {
                       setState(() => _cargadorCodigoCtrl.text = result);
+                    }
                   },
                 ),
               ),
@@ -818,8 +822,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                             const BarcodeScannerScreen(isOnlyNumeric: true),
                       ),
                     );
-                    if (result != null && result is String)
+                    if (result != null && result is String) {
                       setState(() => _cargadorCodigoCtrl.text = result);
+                    }
                   },
                 ),
               ),
@@ -880,12 +885,13 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
                             );
 
                             if (isDuplicate) {
-                              if (mounted) {
-                                context.showSnackBar(
-                                  'Error: El Número de Serie ya existe en el inventario.',
-                                  isError: true,
-                                );
-                              }
+                              if (!context.mounted) return;
+                              context.showSnackBar(
+                                'Error: El Número de Serie ya existe en el inventario.',
+                                isError: true,
+                              );
+                              
+                              setState(() => _saving = false);
                               return; // Detenemos el guardado
                             }
                           }

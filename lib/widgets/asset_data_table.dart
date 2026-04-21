@@ -37,6 +37,7 @@ class AssetDataTable extends StatefulWidget {
   final Function(int? index, bool ascending)? onSortChanged;
   final Future<void> Function(Map<String, dynamic> asset)? onEdit;
   final Future<void> Function(String id)? onDelete;
+  final Future<void> Function(Map<String, dynamic> asset)? onRowTap;
   final List<Widget> Function(Map<String, dynamic> asset)? customActionsBuilder;
 
   const AssetDataTable({
@@ -49,6 +50,7 @@ class AssetDataTable extends StatefulWidget {
     this.onSortChanged,
     this.onEdit,
     this.onDelete,
+    this.onRowTap,
     this.customActionsBuilder,
   });
 
@@ -228,6 +230,8 @@ class _AssetDataTableState extends State<AssetDataTable> {
     bool hasActions,
   ) {
     return DataRow(
+      onSelectChanged: widget.onRowTap != null ? (selected) => widget.onRowTap!(asset) : null,
+      mouseCursor: widget.onRowTap != null ? WidgetStateMouseCursor.clickable : null,
       cells: [
         if (hasActions)
           DataCell(
@@ -478,6 +482,14 @@ class _AssetDataTableState extends State<AssetDataTable> {
         margin: EdgeInsets.zero,
         color: Colors.transparent,
       ),
+      dataTableTheme: DataTableThemeData(
+        dataRowColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          if (states.contains(WidgetState.hovered) && widget.onRowTap != null) {
+            return Theme.of(context).colorScheme.primary.withAlpha(20);
+          }
+          return null;
+        }),
+      ),
     );
 
     // ───────────────────────────────────────────────────────────────────────
@@ -535,6 +547,7 @@ class _AssetDataTableState extends State<AssetDataTable> {
                       // Remove built-in sort to prevent layout shift
                       sortColumnIndex: null,
                       sortAscending: _sortAscending,
+                      showCheckboxColumn: false,
                       headingRowColor: WidgetStateProperty.resolveWith(
                         (states) => Theme.of(
                           context,
@@ -620,6 +633,7 @@ class _AssetDataTableState extends State<AssetDataTable> {
                           horizontalMargin: 0,
                           sortColumnIndex: null, // Unified alignment
                           sortAscending: _sortAscending,
+                          showCheckboxColumn: false,
                           border: TableBorder(
                             verticalInside: BorderSide(
                               color: Colors.grey.withAlpha(80),

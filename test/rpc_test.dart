@@ -45,8 +45,6 @@ void main() {
     });
 
     test('Crear Activo PC and Delete Activo', () async {
-      final testAssetId = 999999;
-      final testDetailId = 999999;
       
       try {
         debugPrint('Intentando crear activo...');

@@ -15,6 +15,7 @@ import 'package:front_inventarios/widgets/material_list_paginator.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
 import 'package:uuid/uuid.dart';
 import 'package:front_inventarios/widgets/asset_data_table.dart';
+import 'package:front_inventarios/pages/asset_detail_page.dart';
 
 class AssetManagementPage extends StatefulWidget {
   final GlobalKey<ScaffoldState>? scaffoldKey;
@@ -28,18 +29,14 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   List<Map<String, dynamic>> _allAssets = [];
   List<Map<String, dynamic>> _filteredAssets = [];
   bool _isLoading = true;
-  bool _isTableView = true;
+  bool _isTableView = false;
   int? _sortColumnIndex;
   bool _sortAscending = true;
 
-  int _tableRowsPerPage = 10;
-  int _tableCurrentPage = 0;
   int _listRowsPerPage = 10;
   int _listCurrentPage = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _drawerScrollController = ScrollController();
-  final ScrollController _verticalScrollController = ScrollController();
-  final ScrollController _horizontalScrollController = ScrollController();
   final ScrollController _listScrollController = ScrollController();
   final GlobalKey<FormFieldState> _categoryDropdownKey =
       GlobalKey<FormFieldState>();
@@ -119,8 +116,9 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
         if (val is Map) return val['nombre_completo']?.toString() ?? 'N/A';
         if (val is List && val.isNotEmpty) {
           final first = val[0];
-          if (first is Map)
+          if (first is Map) {
             return first['nombre_completo']?.toString() ?? 'N/A';
+          }
         }
         return val?.toString() ?? 'N/A';
       },
@@ -225,8 +223,6 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   void dispose() {
     SyncQueueService.instance.onCacheUpdated.removeListener(_onCacheUpdated);
     _drawerScrollController.dispose();
-    _verticalScrollController.dispose();
-    _horizontalScrollController.dispose();
     _listScrollController.dispose();
     super.dispose();
   }
@@ -362,23 +358,12 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     }
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category.toUpperCase()) {
-      case 'PC':
-        return Colors.blue.shade100;
-      case 'SOFTWARE':
-        return Colors.green.shade100;
-      case 'COMUNICACION':
-        return Colors.orange.shade100;
-      case 'GENERICO':
-        return Colors.blueGrey.shade100;
-      default:
-        return Colors.grey.shade100;
-    }
-  }
-
-  Future<void> _showAssetUpdateDialog(Map<String, dynamic> asset) async {
-    final String category = (asset['categoria_activo'] ?? 'PC').toString();
+  Future<void> _showAssetFormDialog(
+    String category, {
+    Map<String, dynamic>? asset,
+  }) async {
+    final bool isUpdate = asset != null;
+    final String titleAction = isUpdate ? 'Actualizar' : 'Agregar';
 
     await showDialog(
       context: context,
@@ -401,7 +386,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Actualizar Activo - $category',
+                        '$titleAction Activo - $category',
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -456,11 +441,16 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                           try {
                             String rpcName = '';
                             Map<String, dynamic> params = {};
+                            final String assetId = isUpdate
+                                ? asset['id']
+                                : const Uuid().v4();
 
                             if (category == 'PC') {
-                              rpcName = 'actualizar_activo_pc';
+                              rpcName = isUpdate
+                                  ? 'actualizar_activo_pc'
+                                  : 'crear_activo_pc';
                               params = {
-                                'p_id_activo': asset['id'],
+                                'p_id_activo': assetId,
                                 'p_numero_serie': numeroSerie,
                                 'p_nombre': nombre,
                                 'p_codigo': codigo,
@@ -485,9 +475,11 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                                 'p_observaciones': observaciones,
                               };
                             } else if (category == 'SOFTWARE') {
-                              rpcName = 'actualizar_activo_software';
+                              rpcName = isUpdate
+                                  ? 'actualizar_activo_software'
+                                  : 'crear_activo_software';
                               params = {
-                                'p_id_activo': asset['id'],
+                                'p_id_activo': assetId,
                                 'p_nombre': nombre,
                                 'p_codigo': codigo,
                                 'p_id_tipo_activo': tipoActivoId,
@@ -501,9 +493,11 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                                 'p_observaciones': observaciones,
                               };
                             } else if (category == 'COMUNICACION') {
-                              rpcName = 'actualizar_activo_equipo_comunicacion';
+                              rpcName = isUpdate
+                                  ? 'actualizar_activo_equipo_comunicacion'
+                                  : 'crear_activo_equipo_comunicacion';
                               params = {
-                                'p_id_activo': asset['id'],
+                                'p_id_activo': assetId,
                                 'p_numero_serie': numeroSerie,
                                 'p_nombre': nombre,
                                 'p_codigo': codigo,
@@ -525,9 +519,11 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                                 'p_observaciones': observaciones,
                               };
                             } else if (category == 'GENERICO') {
-                              rpcName = 'actualizar_activo_equipo_generico';
+                              rpcName = isUpdate
+                                  ? 'actualizar_activo_equipo_generico'
+                                  : 'crear_activo_equipo_generico';
                               params = {
-                                'p_id_activo': asset['id'],
+                                'p_id_activo': assetId,
                                 'p_numero_serie': numeroSerie,
                                 'p_nombre': nombre,
                                 'p_codigo': codigo,
@@ -562,13 +558,13 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                                     .syncPendingOperations();
                               }
 
-                              // 1. Check if the page is still mounted before showing SnackBar
                               if (!mounted) return;
                               context.showSnackBar(
-                                'Activo actualizado localmente.',
+                                isUpdate
+                                    ? 'Activo actualizado localmente.'
+                                    : 'Activo creado localmente.',
                               );
 
-                              // 2. Check if the dialog is still mounted before popping it
                               if (dialogContext.mounted) {
                                 Navigator.pop(dialogContext);
                               }
@@ -578,7 +574,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                           } catch (error) {
                             if (!mounted) return;
                             context.showSnackBar(
-                              'Error al actualizar: $error',
+                              'Error al ${isUpdate ? 'actualizar' : 'crear'}: $error',
                               isError: true,
                             );
                           }
@@ -660,7 +656,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
       child: InkWell(
         onTap: () {
           Navigator.pop(context);
-          _showAssetCreateDialog(category);
+          _showAssetFormDialog(category);
         },
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -691,217 +687,6 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
           ),
         ),
       ),
-    );
-  }
-
-  Future<void> _showAssetCreateDialog(String category) async {
-    await showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Container(
-            width: 600,
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.9,
-            ),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Agregar Activo - $category',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(dialogContext),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: DynamicAssetForm(
-                    initialCategory: category,
-                    initialData: null,
-                    onSave:
-                        ({
-                          String? numeroSerie,
-                          required String categoria,
-                          required int tipoActivoId,
-                          int? condicionActivoId,
-                          int? custodioId,
-                          int? ciudadActivoId,
-                          int? sedeActivoId,
-                          int? areaActivoId,
-                          int? proveedorId,
-                          String? fechaAdquisicion,
-                          String? fechaEntrega,
-                          String? coordenada,
-                          String? nombre,
-                          String? codigo,
-                          String? ip,
-                          int? marcaId,
-                          String? modelo,
-                          String? observaciones,
-                          String? procesador,
-                          String? ram,
-                          String? almacenamiento,
-                          String? cargadorCodigo,
-                          int? numPuertos,
-                          String? tipoExtension,
-                          int? numConexiones,
-                          String? varImpresoraColor,
-                          String? varMonitorTipoConexion,
-                          String? proveedorSoftware,
-                          String? fechaInicio,
-                          String? fechaFin,
-                        }) async {
-                          try {
-                            String rpcName = '';
-                            Map<String, dynamic> params = {};
-                            final String newId = const Uuid().v4();
-
-                            if (category == 'PC') {
-                              rpcName = 'crear_activo_pc';
-                              params = {
-                                'p_id_activo': newId,
-                                'p_numero_serie': numeroSerie,
-                                'p_nombre': nombre,
-                                'p_codigo': codigo,
-                                'p_id_tipo_activo': tipoActivoId,
-                                'p_id_condicion_activo': condicionActivoId,
-                                'p_id_custodio': custodioId,
-                                'p_id_ciudad_activo': ciudadActivoId,
-                                'p_id_sede_activo': sedeActivoId,
-                                'p_id_area_activo': areaActivoId,
-                                'p_id_provedor': proveedorId,
-                                'p_fecha_adquisicion': fechaAdquisicion,
-                                'p_ip': ip,
-                                'p_fecha_entrega': fechaEntrega,
-                                'p_coordenada': coordenada,
-                                'p_id_marca': marcaId,
-                                'p_modelo': modelo,
-                                'p_procesador': procesador,
-                                'p_ram': ram,
-                                'p_almacenamiento': almacenamiento,
-                                'p_cargador_codigo': cargadorCodigo,
-                                'p_num_puertos': numPuertos,
-                                'p_observaciones': observaciones,
-                              };
-                            } else if (category == 'SOFTWARE') {
-                              rpcName = 'crear_activo_software';
-                              params = {
-                                'p_id_activo': newId,
-                                'p_nombre': nombre,
-                                'p_codigo': codigo,
-                                'p_id_tipo_activo': tipoActivoId,
-                                'p_id_condicion_activo': condicionActivoId,
-                                'p_id_custodio': custodioId,
-                                'p_id_area_activo': areaActivoId,
-                                'p_id_provedor': proveedorId,
-                                'p_proveedor': proveedorSoftware,
-                                'p_fecha_inicio': fechaInicio,
-                                'p_fecha_fin': fechaFin,
-                                'p_observaciones': observaciones,
-                              };
-                            } else if (category == 'COMUNICACION') {
-                              rpcName = 'crear_activo_equipo_comunicacion';
-                              params = {
-                                'p_id_activo': newId,
-                                'p_numero_serie': numeroSerie,
-                                'p_nombre': nombre,
-                                'p_codigo': codigo,
-                                'p_id_tipo_activo': tipoActivoId,
-                                'p_id_condicion_activo': condicionActivoId,
-                                'p_id_custodio': custodioId,
-                                'p_id_ciudad_activo': ciudadActivoId,
-                                'p_id_sede_activo': sedeActivoId,
-                                'p_id_area_activo': areaActivoId,
-                                'p_id_provedor': proveedorId,
-                                'p_fecha_adquisicion': fechaAdquisicion,
-                                'p_ip': ip,
-                                'p_fecha_entrega': fechaEntrega,
-                                'p_coordenada': coordenada,
-                                'p_id_marca': marcaId,
-                                'p_modelo': modelo,
-                                'p_num_puertos': numPuertos,
-                                'p_tipo_extension': tipoExtension,
-                                'p_observaciones': observaciones,
-                              };
-                            } else if (category == 'GENERICO') {
-                              rpcName = 'crear_activo_equipo_generico';
-                              params = {
-                                'p_id_activo': newId,
-                                'p_numero_serie': numeroSerie,
-                                'p_nombre': nombre,
-                                'p_codigo': codigo,
-                                'p_id_tipo_activo': tipoActivoId,
-                                'p_id_condicion_activo': condicionActivoId,
-                                'p_id_custodio': custodioId,
-                                'p_id_ciudad_activo': ciudadActivoId,
-                                'p_id_sede_activo': sedeActivoId,
-                                'p_id_area_activo': areaActivoId,
-                                'p_id_provedor': proveedorId,
-                                'p_fecha_adquisicion': fechaAdquisicion,
-                                'p_fecha_entrega': fechaEntrega,
-                                'p_coordenada': coordenada,
-                                'p_id_marca': marcaId,
-                                'p_modelo': modelo,
-                                'p_cargador_codigo': cargadorCodigo,
-                                'p_num_conexiones': numConexiones,
-                                'p_var_impresora_color': varImpresoraColor,
-                                'p_var_monitor_tipo_conexion':
-                                    varMonitorTipoConexion,
-                                'p_observaciones': observaciones,
-                              };
-                            }
-
-                            if (rpcName.isNotEmpty) {
-                              await LocalDbService.instance.enqueueOperation(
-                                rpcName,
-                                params,
-                              );
-                              if (SyncQueueService.instance.isOnline) {
-                                SyncQueueService.instance
-                                    .syncPendingOperations();
-                              }
-
-                              if (!mounted) return;
-                              context.showSnackBar('Activo creado localmente.');
-
-                              if (dialogContext.mounted) {
-                                Navigator.pop(dialogContext);
-                              }
-
-                              _loadAssets();
-                            }
-                          } catch (error) {
-                            if (!mounted) return;
-                            context.showSnackBar(
-                              'Error al crear: $error',
-                              isError: true,
-                            );
-                          }
-                        },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -1324,360 +1109,62 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     );
   }
 
-  double _getColWidth(String label) {
-    // Generous widths to avoid alignment drift. Base + extra for icon and padding.
-    switch (label) {
-      case 'Acciones':
-        return 140;
-      case 'Categoría':
-        return 140;
-      case 'S/N':
-        return 160;
-      case 'Nombre':
-        return 200;
-      case 'Código':
-        return 140;
-      case 'Tipo Activo':
-        return 170;
-      case 'Condición':
-        return 170;
-      case 'Custodio':
-        return 180;
-      case 'Ciudad':
-        return 140;
-      case 'Sede':
-        return 160;
-      case 'Área':
-        return 170;
-      case 'Proveedor':
-        return 180;
-      case 'Fe. Adquisición':
-        return 150;
-      case 'IP':
-        return 140;
-      case 'Fe. Entrega':
-        return 150;
-      case 'Coordenada':
-        return 170;
-      default:
-        if (label.length > 15) return 220;
-        return 160;
-    }
-  }
-
   Widget _buildTableSection() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_filteredAssets.isEmpty) {
-      if (_allAssets.isEmpty) {
-        return ValueListenableBuilder<bool>(
-          valueListenable: SyncQueueService.instance.isSyncingNotifier,
-          builder: (context, isSyncing, child) {
-            if (isSyncing) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text(
-                      'Sincronizando inventario por primera vez...',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  ],
+    return AssetDataTable(
+      assets: _filteredAssets,
+      columns: _globalColumns,
+      initialSortColumnIndex: _sortColumnIndex,
+      initialSortAscending: _sortAscending,
+      onSortChanged: (idx, asc) {
+        setState(() {
+          _sortColumnIndex = idx;
+          _sortAscending = asc;
+        });
+        _saveFiltersToCache();
+      },
+      onRowTap: (asset) async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => AssetDetailPage(asset: asset)),
+        );
+        if (result == true) {
+          _loadAssets();
+        }
+      },
+      onEdit: (asset) async {
+        final String category = (asset['categoria_activo'] ?? 'PC').toString();
+        _showAssetFormDialog(category, asset: asset);
+      },
+      onDelete: RoleService.currentRole != UserRole.ayudante
+          ? (id) async => _deleteAsset(id)
+          : null,
+      customActionsBuilder: (asset) {
+        if (RoleService.currentRole == UserRole.ayudante) return [];
+        return [
+          Tooltip(
+            message: 'Mantenimiento',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => MaintenanceFormDialog(
+                    initialAssetId: asset['id'] as String,
+                  ),
+                );
+              },
+              child: const Padding(
+                padding: EdgeInsets.all(4.0),
+                child: Icon(
+                  Icons.build_circle,
+                  color: Colors.blueGrey,
+                  size: 22,
                 ),
-              );
-            }
-            return const Center(
-              child: Text(
-                'No hay activos para mostrar. Modifique los filtros.',
-              ),
-            );
-          },
-        );
-      } else {
-        return const Center(
-          child: Text('No hay activos para mostrar. Busque en otra categoría.'),
-        );
-      }
-    }
-    // ── Pagination math ──────────────────────────────────────────────────
-    final totalItems = _filteredAssets.length;
-    final totalPages = (totalItems / _tableRowsPerPage).ceil().clamp(1, 999999);
-    if (_tableCurrentPage >= totalPages) _tableCurrentPage = totalPages - 1;
-    if (_tableCurrentPage < 0) _tableCurrentPage = 0;
-
-    final sortedAssets = _getSortedAssets(_globalColumns);
-
-    final startIndex = _tableCurrentPage * _tableRowsPerPage;
-    final endIndex = (startIndex + _tableRowsPerPage).clamp(0, totalItems);
-    final pageAssets = sortedAssets.sublist(startIndex, endIndex);
-
-    final datatableTheme = Theme.of(context).copyWith(
-      cardTheme: const CardThemeData(
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        color: Colors.transparent,
-      ),
-    );
-    // ────────────────────────────────────────────────────────────────────
-
-    return Column(
-      children: [
-        Expanded(
-          child: Scrollbar(
-            controller: _horizontalScrollController,
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              controller: _horizontalScrollController,
-              scrollDirection: Axis.horizontal,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Theme(
-                    data: datatableTheme,
-                    child: DataTable(
-                      columnSpacing: 0,
-                      horizontalMargin: 0,
-                      headingRowHeight: 56,
-                      sortColumnIndex: null,
-                      sortAscending: _sortAscending,
-                      headingRowColor: WidgetStateProperty.resolveWith(
-                        (states) => Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest.withAlpha(128),
-                      ),
-                      columns: [
-                        DataColumn(
-                          label: SizedBox(
-                            width: _getColWidth('Acciones'),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 12.0),
-                              child: Text(
-                                'Acciones',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ),
-                        ),
-                        ..._globalColumns.asMap().entries.map((entry) {
-                          final idx = entry.key;
-                          final AssetColumnDef col =
-                              entry.value as AssetColumnDef;
-                          final colIdx = idx + 1;
-                          final isSorted = _sortColumnIndex == colIdx;
-
-                          return DataColumn(
-                            label: InkWell(
-                              onTap: () => _onSort(
-                                colIdx,
-                                _sortAscending,
-                                _globalColumns,
-                              ),
-                              child: SizedBox(
-                                width: _getColWidth(col.label),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12.0,
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          col.label,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        isSorted
-                                            ? (_sortAscending
-                                                  ? Icons.arrow_upward
-                                                  : Icons.arrow_downward)
-                                            : Icons.sort,
-                                        size: 14,
-                                        color: isSorted
-                                            ? Colors.blue
-                                            : Colors.grey,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                      ],
-                      rows: const [],
-                    ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: _verticalScrollController,
-                      child: Theme(
-                        data: datatableTheme,
-                        child: DataTable(
-                          headingRowHeight: 0,
-                          dataRowMinHeight: 52,
-                          dataRowMaxHeight: 52,
-                          columnSpacing: 0,
-                          horizontalMargin: 0,
-                          sortColumnIndex: null,
-                          sortAscending: _sortAscending,
-                          border: TableBorder(
-                            verticalInside: BorderSide(
-                              color: Colors.grey.withAlpha(80),
-                              width: 1,
-                            ),
-                          ),
-                          columns: [
-                            DataColumn(
-                              label: SizedBox(width: _getColWidth('Acciones')),
-                            ),
-                            ..._globalColumns.map(
-                              (AssetColumnDef col) => DataColumn(
-                                label: SizedBox(width: _getColWidth(col.label)),
-                              ),
-                            ),
-                          ],
-                          rows: pageAssets
-                              .map((asset) => _buildRow(asset))
-                              .toList(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ),
           ),
-        ),
-        MaterialListPaginator(
-          rowsPerPage: _tableRowsPerPage,
-          currentPage: _tableCurrentPage,
-          totalItems: totalItems,
-          rowsPerPageOptions: const [10, 20, 30, 40, 50, 100],
-          onRowsPerPageChanged: (v) => setState(() {
-            _tableRowsPerPage = v;
-            _tableCurrentPage = 0;
-          }),
-          onFirst: () => setState(() => _tableCurrentPage = 0),
-          onPrevious: () => setState(() => _tableCurrentPage--),
-          onNext: () => setState(() => _tableCurrentPage++),
-          onLast: () => setState(() => _tableCurrentPage = totalPages - 1),
-        ),
-      ],
-    );
-  }
-
-  DataRow _buildRow(Map<String, dynamic> asset) {
-    return DataRow(
-      cells: [
-        DataCell(
-          SizedBox(
-            width: _getColWidth('Acciones'),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Tooltip(
-                    message: 'Editar',
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: () => _showAssetUpdateDialog(asset),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4.0),
-                        child: Icon(Icons.edit, color: Colors.blue, size: 22),
-                      ),
-                    ),
-                  ),
-                  if (RoleService.currentRole != UserRole.ayudante) ...[
-                    const SizedBox(width: 4),
-                    Tooltip(
-                      message: 'Mantenimiento',
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => MaintenanceFormDialog(
-                              initialAssetId: asset['id'] as String,
-                            ),
-                          );
-                        },
-                        child: const Padding(
-                          padding: EdgeInsets.all(4.0),
-                          child: Icon(
-                            Icons.build,
-                            color: Colors.orange,
-                            size: 22,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (RoleService.currentRole != UserRole.ayudante) ...[
-                    const SizedBox(width: 4),
-                    Tooltip(
-                      message: 'Eliminar',
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () => _deleteAsset(asset['id'] as String),
-                        child: const Padding(
-                          padding: EdgeInsets.all(4.0),
-                          child: Icon(
-                            Icons.delete,
-                            color: Colors.red,
-                            size: 22,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-        ..._globalColumns.map((AssetColumnDef col) {
-          final value = col.getValue(asset);
-          Widget cellContent;
-          if (col.label == 'Categoría') {
-            cellContent = Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: _getCategoryColor(value),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                value,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            );
-          } else {
-            cellContent = Text(value, overflow: TextOverflow.ellipsis);
-          }
-
-          return DataCell(
-            SizedBox(
-              width: _getColWidth(col.label),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                child: cellContent,
-              ),
-            ),
-          );
-        }),
-      ],
+        ];
+      },
     );
   }
 
@@ -1765,6 +1252,17 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                   ),
                   elevation: 2,
                   child: ListTile(
+                    onTap: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AssetDetailPage(asset: asset),
+                        ),
+                      );
+                      if (result == true) {
+                        _loadAssets();
+                      }
+                    },
                     leading: Icon(icon, size: 40, color: Colors.blueGrey),
                     title: Text(
                       displayTitle,
@@ -1775,6 +1273,15 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          tooltip: 'Editar Activo',
+                          onPressed: () {
+                            final String category =
+                                (asset['categoria_activo'] ?? 'PC').toString();
+                            _showAssetFormDialog(category, asset: asset);
+                          },
+                        ),
                         IconButton(
                           icon: const Icon(
                             Icons.build_circle,
@@ -1821,157 +1328,77 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
   }
 
   Widget _buildCategoryDropdown() {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 200),
-      margin: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade700, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButtonFormField<String>(
-          key: _categoryDropdownKey,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          ),
-          dropdownColor: Colors.white,
-          hint: const Text(
-            'Elija una categoría',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
-          ),
-          icon: const Icon(Icons.arrow_drop_down_circle, color: Colors.blue),
-          style: const TextStyle(
+    return DropdownButtonHideUnderline(
+      child: DropdownButtonFormField<String>(
+        key: _categoryDropdownKey,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        ),
+        dropdownColor: Colors.blueGrey.shade100,
+        hint: const Text(
+          'Elija una categoría',
+          style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
+            fontSize: 13,
           ),
-          items: const [
-            DropdownMenuItem(
-              value: 'PC',
-              child: _CategoryItem(label: 'PC', icon: Icons.computer),
-            ),
-            DropdownMenuItem(
-              value: 'Communications',
-              child: _CategoryItem(label: 'Comunicaciones', icon: Icons.router),
-            ),
-            DropdownMenuItem(
-              value: 'Generic',
-              child: _CategoryItem(
-                label: 'Genéricos',
-                icon: Icons.devices_other,
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'Software',
-              child: _CategoryItem(
-                label: 'Software',
-                icon: Icons.developer_board,
-              ),
-            ),
-          ],
-          onChanged: (val) async {
-            if (val == null) return;
-            Widget page;
-            switch (val) {
-              case 'PC':
-                page = const PcAssetsPage();
-                break;
-              case 'Communications':
-                page = const CommsAssetsPage();
-                break;
-              case 'Generic':
-                page = const GenericAssetsPage();
-                break;
-              case 'Software':
-                page = const SoftwareAssetsPage();
-                break;
-              default:
-                return;
-            }
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => page),
-            );
-            _categoryDropdownKey.currentState?.setValue(null);
-            _loadAssets();
-          },
         ),
+        icon: const Icon(Icons.arrow_drop_down_circle, color: Colors.blue),
+        style: const TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.bold,
+        ),
+        items: const [
+          DropdownMenuItem(
+            value: 'PC',
+            child: _CategoryItem(label: 'PC', icon: Icons.computer),
+          ),
+          DropdownMenuItem(
+            value: 'Communications',
+            child: _CategoryItem(label: 'Comunicaciones', icon: Icons.router),
+          ),
+          DropdownMenuItem(
+            value: 'Generic',
+            child: _CategoryItem(label: 'Genéricos', icon: Icons.devices_other),
+          ),
+          DropdownMenuItem(
+            value: 'Software',
+            child: _CategoryItem(
+              label: 'Software',
+              icon: Icons.developer_board,
+            ),
+          ),
+        ],
+        onChanged: (val) async {
+          if (val == null) return;
+          Widget page;
+          switch (val) {
+            case 'PC':
+              page = const PcAssetsPage();
+              break;
+            case 'Communications':
+              page = const CommsAssetsPage();
+              break;
+            case 'Generic':
+              page = const GenericAssetsPage();
+              break;
+            case 'Software':
+              page = const SoftwareAssetsPage();
+              break;
+            default:
+              return;
+          }
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => page),
+          );
+          _categoryDropdownKey.currentState?.reset();
+          _loadAssets();
+        },
       ),
     );
-  }
-
-  List<Map<String, dynamic>> _getSortedAssets(
-    List<AssetColumnDef> visibleCols,
-  ) {
-    if (_sortColumnIndex == null) return _filteredAssets;
-
-    const bool hasActions = true;
-    final int colIdx = hasActions ? _sortColumnIndex! - 1 : _sortColumnIndex!;
-    if (colIdx < 0 || colIdx >= visibleCols.length) return _filteredAssets;
-
-    final colDef = visibleCols[colIdx];
-    final sortedList = List<Map<String, dynamic>>.from(_filteredAssets);
-
-    sortedList.sort((a, b) {
-      final valA = colDef.getValue(a);
-      final valB = colDef.getValue(b);
-
-      final isNullA = valA == 'N/A' || valA.isEmpty;
-      final isNullB = valB == 'N/A' || valB.isEmpty;
-
-      if (isNullA && isNullB) return 0;
-      if (isNullA) return 1;
-      if (isNullB) return -1;
-
-      final int comparison = _naturalCompare(valA, valB);
-      return _sortAscending ? comparison : -comparison;
-    });
-
-    return sortedList;
-  }
-
-  int _naturalCompare(String a, String b) {
-    final numA = double.tryParse(a.replaceAll(RegExp(r'[^0-9.]'), ''));
-    final numB = double.tryParse(b.replaceAll(RegExp(r'[^0-9.]'), ''));
-
-    if (numA != null && numB != null) return numA.compareTo(numB);
-    return a.toLowerCase().compareTo(b.toLowerCase());
-  }
-
-  void _onSort(
-    int columnIndex,
-    bool ascending,
-    List<AssetColumnDef> visibleCols,
-  ) {
-    if (mounted) {
-      setState(() {
-        if (_sortColumnIndex == columnIndex) {
-          if (_sortAscending) {
-            _sortAscending = false;
-          } else {
-            _sortColumnIndex = null;
-            _sortAscending = true;
-          }
-        } else {
-          _sortColumnIndex = columnIndex;
-          _sortAscending = true;
-        }
-        _saveFiltersToCache();
-      });
-    }
   }
 }
 

@@ -209,7 +209,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                           await Future.delayed(
                             const Duration(milliseconds: 100),
                           );
-                          if (Navigator.canPop(dialogContext)) {
+                          if (dialogContext.mounted && Navigator.canPop(dialogContext)) {
                             Navigator.pop(dialogContext);
                           }
                         },
@@ -252,7 +252,7 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
                             await Future.delayed(
                               const Duration(milliseconds: 100),
                             );
-                            if (mounted && Navigator.canPop(dialogContext)) {
+                            if (dialogContext.mounted && Navigator.canPop(dialogContext)) {
                               Navigator.pop(dialogContext);
                             }
 
@@ -430,12 +430,14 @@ class _AdminTablesPageState extends State<AdminTablesPage> {
     }
 
     if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_errorMessage != null)
+    if (_errorMessage != null) {
       return Center(
         child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
       );
-    if (_tableData.isEmpty)
+    }
+    if (_tableData.isEmpty) {
       return const Center(child: Text('La tabla está vacía o sin datos.'));
+    }
 
     final columns = _tableData.first.keys.toList();
 
