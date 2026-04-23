@@ -392,28 +392,46 @@ class _HomePageState extends State<_HomePage> {
   void initState() {
     super.initState();
     _fetchStats();
+    // Escuchar cambios globales (Realtime, Sincronización, etc)
+    SyncQueueService.instance.onCacheUpdated.addListener(_fetchStats);
   }
 
   @override
   void dispose() {
+    SyncQueueService.instance.onCacheUpdated.removeListener(_fetchStats);
     _homeScrollController.dispose();
     super.dispose();
   }
 
   Future<void> _fetchStats() async {
     try {
-      final response = await Supabase.instance.client
-          .from('activo')
-          .select('id');
-      if (mounted) {
-        setState(() {
-          _totalAssets = (response as List).length;
-          _isLoading = false;
-        });
+      if (SyncQueueService.instance.isOnline) {
+        // Si hay internet, pedimos el conteo real al servidor
+        final response = await Supabase.instance.client
+            .from('activo')
+            .select('id');
+        if (mounted) {
+          setState(() {
+            _totalAssets = (response as List).length;
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Si no hay internet, usamos la caché local
+        final response = await LocalDbService.instance.getCollection('activo');
+        if (mounted) {
+          setState(() {
+            _totalAssets = response.length;
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
+      // Fallback a local si el servidor falla o no hay red
       if (mounted) {
+        final response = await LocalDbService.instance.getCollection('activo');
         setState(() {
+          _totalAssets = response.length;
           _isLoading = false;
         });
       }

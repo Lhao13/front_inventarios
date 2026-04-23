@@ -6,6 +6,7 @@ import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/assets/dynamic_asset_form.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
+import 'package:front_inventarios/widgets/maintenance_form_dialog.dart';
 
 class QuickSearchResultPage extends StatefulWidget {
   final String searchValue;
@@ -24,18 +25,28 @@ class QuickSearchResultPage extends StatefulWidget {
 class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
   bool _isLoading = true;
   Map<String, dynamic>? _assetData;
+  List<Map<String, dynamic>> _maintenanceHistory = [];
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _fetchAsset();
+    // Escuchar cambios globales (Realtime, Sincronización, Ediciones Offline)
+    SyncQueueService.instance.onCacheUpdated.addListener(_fetchAsset);
+  }
+
+  @override
+  void dispose() {
+    SyncQueueService.instance.onCacheUpdated.removeListener(_fetchAsset);
+    super.dispose();
   }
 
   /// Busca el activo de forma offline-first:
   /// 1. Busca en el caché SQLite local.
   /// 2. Si no lo encuentra y hay conexión, consulta Supabase directamente.
   Future<void> _fetchAsset() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -57,20 +68,28 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
       }
 
       if (localMatch != null) {
-        setState(() {
-          _assetData = localMatch;
-          _isLoading = false;
-        });
+        // Cargar historial de mantenimientos localmente
+        final allMaint = await LocalDbService.instance.getCollection('mantenimiento');
+        final assetMaint = allMaint.where((m) => m['id_activo'] == localMatch!['id']).toList();
+        assetMaint.sort((a, b) => (b['fecha_programada'] ?? '').toString().compareTo((a['fecha_programada'] ?? '').toString()));
+
+      if (!mounted) return;
+      setState(() {
+        _assetData = localMatch;
+        _maintenanceHistory = assetMaint;
+        _isLoading = false;
+      });
         return;
       }
 
       // --- Paso 2: fallback a Supabase (solo si hay conexión) ---
       if (!SyncQueueService.instance.isOnline) {
-        setState(() {
-          _errorMessage =
-              'No se encontró el activo en el caché local y no hay conexión a internet.';
-          _isLoading = false;
-        });
+      if (!mounted) return;
+      setState(() {
+        _errorMessage =
+            'No se encontró el activo en el caché local y no hay conexión a internet.';
+        _isLoading = false;
+      });
         return;
       }
 
@@ -97,19 +116,22 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
       }
 
       if (response.isEmpty) {
-        setState(() {
-          _errorMessage =
-              'No se encontró ningún activo con este valor: ${widget.searchValue}';
-          _isLoading = false;
-        });
+      if (!mounted) return;
+      setState(() {
+        _errorMessage =
+            'No se encontró ningún activo con este valor: ${widget.searchValue}';
+        _isLoading = false;
+      });
         return;
       }
 
+      if (!mounted) return;
       setState(() {
         _assetData = response.first as Map<String, dynamic>;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Error al buscar el activo: $e';
         _isLoading = false;
@@ -117,44 +139,33 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
     }
   }
 
-  /// Elimina el activo a través de la cola offline (igual que el resto de páginas).
-  /// Si hay conexión, dispara la sincronización inmediatamente.
-  Future<void> _deleteAsset(String id) async {
-    final confirmar = await showDialog<bool>(
+  Future<void> _deleteMaintenance(String id) async {
+    final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar Activo'),
-        content: const Text('¿Deseas eliminar este activo permanentemente?'),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar Mantenimiento'),
+        content: const Text('¿Estás seguro de eliminar este registro?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Eliminar'),
           ),
         ],
       ),
     );
 
-    if (confirmar != true) return;
+    if (confirm != true) return;
 
     try {
-      await LocalDbService.instance.enqueueOperation('eliminar_activo', {
-        'p_id_activo': id,
-      });
-      // Dispara sync si hay internet (fire-and-forget, igual que otras páginas)
+      await LocalDbService.instance.enqueueOperation('table:mantenimiento:delete', {'id': id});
       if (SyncQueueService.instance.isOnline) {
         SyncQueueService.instance.syncPendingOperations();
       }
-      if (!mounted) return;
-      context.showSnackBar('Activo eliminado de forma local.');
-      Navigator.pop(context); // Volver atrás después de eliminar
+      if (mounted) context.showSnackBar('Mantenimiento eliminado localmente.');
     } catch (e) {
-      if (!mounted) return;
-      context.showSnackBar('Error al eliminar: $e', isError: true);
+      if (mounted) context.showSnackBar('Error: $e', isError: true);
     }
   }
 
@@ -335,20 +346,24 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                             }
 
                             if (rpcName.isNotEmpty) {
-                              await Supabase.instance.client.rpc(
+                              await LocalDbService.instance.enqueueOperation(
                                 rpcName,
-                                params: params,
+                                params,
                               );
+                              if (SyncQueueService.instance.isOnline) {
+                                SyncQueueService.instance.syncPendingOperations();
+                              }
                             }
-
+                            
                             if (!mounted) return;
                             context.showSnackBar(
-                              'Activo actualizado correctamente.',
+                              'Activo actualizado localmente.',
                             );
                             if (dialogContext.mounted) {
                               Navigator.pop(dialogContext);
                             }
-                            _fetchAsset(); // Recargar datos
+                            // Ya no llamamos a _fetchAsset() manualmente aquí
+                            // porque el listener lo hará automáticamente al detectar el cambio local.
                           } catch (error) {
                             if (!mounted) return;
                             context.showSnackBar(
@@ -578,74 +593,90 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                     if (info['marca'] != null)
                       _buildDetailRow(
                         'Marca:',
-                        info['marca']['marca_proveedor']?.toString() ?? 'N/A',
+                        info['marca'] is Map
+                            ? (info['marca']['marca_proveedor']?.toString() ?? 'N/A')
+                            : (info['marca_proveedor']?.toString() ?? 'N/A'),
                       ),
                     if (info['modelo'] != null)
-                      _buildDetailRow(
-                        'Modelo:',
-                        info['modelo']?.toString() ?? 'N/A',
-                      ),
+                      _buildDetailRow('Modelo:', info['modelo']?.toString() ?? 'N/A'),
                     if (info['procesador'] != null)
-                      _buildDetailRow(
-                        'Procesador:',
-                        info['procesador']?.toString() ?? 'N/A',
-                      ),
+                      _buildDetailRow('Procesador:', info['procesador']?.toString() ?? 'N/A'),
                     if (info['ram'] != null)
                       _buildDetailRow('RAM:', info['ram']?.toString() ?? 'N/A'),
                     if (info['almacenamiento'] != null)
-                      _buildDetailRow(
-                        'Almacenamiento:',
-                        info['almacenamiento']?.toString() ?? 'N/A',
-                      ),
+                      _buildDetailRow('Almacenamiento:', info['almacenamiento']?.toString() ?? 'N/A'),
                     if (info['cargador_codigo'] != null)
-                      _buildDetailRow(
-                        'Código Cargador:',
-                        info['cargador_codigo']?.toString() ?? 'N/A',
-                      ),
+                      _buildDetailRow('Código Cargador:', info['cargador_codigo']?.toString() ?? 'N/A'),
                     if (info['num_puertos'] != null)
-                      _buildDetailRow(
-                        'Num. Puertos:',
-                        info['num_puertos']?.toString() ?? 'N/A',
-                      ),
+                      _buildDetailRow('Num. Puertos:', info['num_puertos']?.toString() ?? 'N/A'),
                     if (info['tipo_extension'] != null)
-                      _buildDetailRow(
-                        'Tipo Extensión:',
-                        info['tipo_extension']?.toString() ?? 'N/A',
-                      ),
+                      _buildDetailRow('Tipo Extensión:', info['tipo_extension']?.toString() ?? 'N/A'),
                     if (info['num_conexiones'] != null)
-                      _buildDetailRow(
-                        'Num. Conexiones:',
-                        info['num_conexiones']?.toString() ?? 'N/A',
-                      ),
+                      _buildDetailRow('Num. Conexiones:', info['num_conexiones']?.toString() ?? 'N/A'),
                     if (info['var_impresora_color'] != null)
-                      _buildDetailRow(
-                        'Impresora Color:',
-                        info['var_impresora_color']?.toString() ?? 'N/A',
-                      ),
+                      _buildDetailRow('Impresora Color:', info['var_impresora_color']?.toString() ?? 'N/A'),
                     if (info['var_monitor_tipo_conexion'] != null)
-                      _buildDetailRow(
-                        'Tipo Conexión (Monitor):',
-                        info['var_monitor_tipo_conexion']?.toString() ?? 'N/A',
-                      ),
+                      _buildDetailRow('Tipo Conexión (Monitor):', info['var_monitor_tipo_conexion']?.toString() ?? 'N/A'),
                     if (info['proveedor'] != null)
-                      _buildDetailRow(
-                        'Proveedor (Software):',
-                        info['proveedor']?.toString() ?? 'N/A',
-                      ),
+                      _buildDetailRow('Proveedor (Software):', info['proveedor']?.toString() ?? 'N/A'),
                     if (info['fecha_inicio'] != null)
-                      _buildDetailRow(
-                        'Fecha Inicio (Licencia):',
-                        info['fecha_inicio']?.toString() ?? 'N/A',
-                      ),
+                      _buildDetailRow('Fecha Inicio (Licencia):', info['fecha_inicio']?.toString() ?? 'N/A'),
                     if (info['fecha_fin'] != null)
-                      _buildDetailRow(
-                        'Fecha Fin (Licencia):',
-                        info['fecha_fin']?.toString() ?? 'N/A',
-                      ),
-                    if (info['observaciones'] != null)
-                      _buildDetailRow(
-                        'Observaciones Extras:',
-                        info['observaciones']?.toString() ?? 'N/A',
+                      _buildDetailRow('Fecha Fin (Licencia):', info['fecha_fin']?.toString() ?? 'N/A'),
+                    _buildDetailRow('Observaciones Extras:', info['observaciones']?.toString() ?? 'N/A'),
+                  ],
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 16),
+
+          // Card Historial Mantenimientos
+          if (cat.toUpperCase() != 'SOFTWARE')
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.history, color: Colors.blue, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Historial de Mantenimientos',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+                        ),
+                      ],
+                    ),
+                    const Divider(),
+                    if (_maintenanceHistory.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text('No hay mantenimientos programados.', style: TextStyle(color: Colors.black54)),
+                      )
+                    else
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _maintenanceHistory.length,
+                        separatorBuilder: (_, __) => const Divider(),
+                        itemBuilder: (context, index) {
+                          final m = _maintenanceHistory[index];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text('${m['tipo']} - ${m['estado']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text('Fecha: ${m['fecha_programada']}'),
+                            trailing: RoleService.currentRole != UserRole.ayudante 
+                              ? IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                  onPressed: () => _deleteMaintenance(m['id'].toString()),
+                                )
+                              : null,
+                          );
+                        },
                       ),
                   ],
                 ),
@@ -653,39 +684,107 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
             ),
 
           const SizedBox(height: 32),
+
+          // Acciones
           if (RoleService.currentRole != UserRole.ayudante)
-            Row(
+            Column(
               children: [
-                Expanded(
+                SizedBox(
+                  width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: _showUpdateDialog,
                     icon: const Icon(Icons.edit),
-                    label: const Text('Actualizar'),
+                    label: const Text('ACTUALIZAR DATOS', style: TextStyle(fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.orange,
+                      backgroundColor: Colors.blue.shade700,
                       foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton.icon(
+                if (cat.toUpperCase() != 'SOFTWARE')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (_) => MaintenanceFormDialog(initialAssetId: a['id']),
+                          );
+                        },
+                        icon: const Icon(Icons.build_circle),
+                        label: const Text('PROGRAMAR MANTENIMIENTO', style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.blueGrey.shade700,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
                     onPressed: () => _deleteAsset(a['id']),
-                    icon: const Icon(Icons.delete),
-                    label: const Text('Eliminar'),
-                    style: ElevatedButton.styleFrom(
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('ELIMINAR ACTIVO', style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
               ],
             ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 40),
         ],
       ),
     );
+  }
+
+  /// Elimina el activo a través de la cola offline.
+  Future<void> _deleteAsset(String id) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar Activo'),
+        content: const Text('¿Deseas eliminar este activo permanentemente?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      await LocalDbService.instance.enqueueOperation('eliminar_activo', {
+        'p_id_activo': id,
+      });
+      if (SyncQueueService.instance.isOnline) {
+        SyncQueueService.instance.syncPendingOperations();
+      }
+      if (!mounted) return;
+      context.showSnackBar('Activo eliminado localmente.');
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      context.showSnackBar('Error al eliminar: $e', isError: true);
+    }
   }
 }

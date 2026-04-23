@@ -18,16 +18,74 @@ class AssetDetailPage extends StatefulWidget {
 
 class _AssetDetailPageState extends State<AssetDetailPage> {
   late Map<String, dynamic> _currentAsset;
+  List<Map<String, dynamic>> _maintenanceHistory = [];
   final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _currentAsset = widget.asset;
+    // Escuchar cambios (Realtime, Offline sync, edits locales)
+    SyncQueueService.instance.onCacheUpdated.addListener(_refreshAsset);
+  }
+
+  Future<void> _refreshAsset() async {
+    try {
+      final updatedAssets = await LocalDbService.instance.getCollection('activo');
+      final updatedMatch = updatedAssets.firstWhere(
+        (a) => a['id'] == _currentAsset['id'],
+        orElse: () => _currentAsset,
+      );
+
+      // Cargar historial de mantenimientos localmente
+      final allMaint = await LocalDbService.instance.getCollection('mantenimiento');
+      final assetMaint = allMaint.where((m) => m['id_activo'] == _currentAsset['id']).toList();
+      assetMaint.sort((a, b) => (b['fecha_programada'] ?? '').toString().compareTo((a['fecha_programada'] ?? '').toString()));
+
+      if (mounted) {
+        setState(() {
+          _currentAsset = updatedMatch;
+          _maintenanceHistory = assetMaint;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error refrescando detalle: $e');
+    }
+  }
+
+  Future<void> _deleteMaintenance(String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar Mantenimiento'),
+        content: const Text('¿Estás seguro de eliminar este registro?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await LocalDbService.instance.enqueueOperation('table:mantenimiento:delete', {'id': id});
+      if (SyncQueueService.instance.isOnline) {
+        SyncQueueService.instance.syncPendingOperations();
+      }
+      if (mounted) context.showSnackBar('Mantenimiento eliminado localmente.');
+    } catch (e) {
+      if (mounted) context.showSnackBar('Error: $e', isError: true);
+    }
   }
 
   @override
   void dispose() {
+    SyncQueueService.instance.onCacheUpdated.removeListener(_refreshAsset);
     _scrollController.dispose();
     super.dispose();
   }
@@ -260,22 +318,11 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                               context.showSnackBar(
                                 'Activo actualizado localmente.',
                               );
-
-                              // Recargar la data local para mostrar en esta pantalla de detalle
-                              final updatedAssets = await LocalDbService
-                                  .instance
-                                  .getCollection('activo');
-                              final updatedMatch = updatedAssets.firstWhere(
-                                (a) => a['id'] == _currentAsset['id'],
-                              );
-
-                              if (mounted) {
-                                setState(() {
-                                  _currentAsset = updatedMatch;
-                                });
-                                if (dialogContext.mounted) {
-                                  Navigator.pop(dialogContext);
-                                }
+                              
+                              // Ya no necesitamos recargar manualmente aquí
+                              // porque el listener de onCacheUpdated lo hará solo.
+                              if (dialogContext.mounted) {
+                                Navigator.pop(dialogContext);
                               }
                             }
                           } catch (error) {
@@ -591,6 +638,60 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                           'Observaciones:',
                           info['observaciones']?.toString() ?? 'N/A',
                         ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 16),
+
+              // Card Historial Mantenimientos
+              if (cat.toUpperCase() != 'SOFTWARE')
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.history, color: Colors.blue, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'Historial de Mantenimientos',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 24),
+                        if (_maintenanceHistory.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text('No hay mantenimientos programados.', style: TextStyle(color: Colors.black54)),
+                          )
+                        else
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _maintenanceHistory.length,
+                            separatorBuilder: (_, __) => const Divider(),
+                            itemBuilder: (context, index) {
+                              final m = _maintenanceHistory[index];
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text('${m['tipo']} - ${m['estado']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                subtitle: Text('Fecha: ${m['fecha_programada']}'),
+                                trailing: RoleService.currentRole != UserRole.ayudante 
+                                  ? IconButton(
+                                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                      onPressed: () => _deleteMaintenance(m['id'].toString()),
+                                    )
+                                  : null,
+                              );
+                            },
+                          ),
                       ],
                     ),
                   ),

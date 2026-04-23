@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -96,7 +97,7 @@ class _LockScreenPageState extends State<LockScreenPage> {
       if (result.isNotEmpty) {
         final storedHash = result.first['json_data'] as String;
         final bytes = utf8.encode(password);
-        final xorBytes = bytes.map((b) => b ^ 0x55).toList();
+        final xorBytes = Uint8List.fromList(bytes.map((b) => b ^ 0x55).toList());
         final checkHash = base64Encode(xorBytes);
 
         if (checkHash == storedHash) {

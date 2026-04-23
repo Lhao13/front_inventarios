@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/pages/login_page.dart';
+import 'package:front_inventarios/services/local_db_service.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:sqflite/sqflite.dart';
 
 class SignUpPage extends StatefulWidget {
 	const SignUpPage({super.key});
@@ -32,11 +36,29 @@ class _SignUpPageState extends State<SignUpPage> {
 			setState(() {
 				_isLoading = true;
 			});
-			await Supabase.instance.client.auth.signUp(
+			final response = await Supabase.instance.client.auth.signUp(
 				email: _emailController.text.trim(),
 				password: _passwordController.text.trim(),
 				data: {'name': _nameController.text.trim()},
 			);
+
+      // Guardar hash local (XOR) para permitir desbloqueo offline inmediato
+      if (response.user != null) {
+        try {
+          final password = _passwordController.text.trim();
+          final bytes = utf8.encode(password);
+          final xorBytes = Uint8List.fromList(bytes.map((b) => b ^ 0x55).toList());
+          final db = await LocalDbService.instance.database;
+          await db.insert('cache_storage', {
+            'collection': 'system',
+            'id': 'user_lock_hash',
+            'json_data': base64Encode(xorBytes),
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
+        } catch (e) {
+          debugPrint('Error saving local hash during signUp: $e');
+        }
+      }
+
 			if (mounted) {
 				context.showSnackBar('Cuenta creada');
 				_nameController.clear();

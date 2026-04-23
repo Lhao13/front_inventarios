@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:uuid/uuid.dart';
+import 'package:front_inventarios/services/sync_queue_service.dart';
 
 /// Servicio local para el manejo Offline-First de Caché y Cola de Operaciones.
 /// Utiliza un esquema tipo "Document Store" (collection, id, json_data) para no 
@@ -129,8 +130,8 @@ class LocalDbService {
         await batch.commit(noResult: true);
       }
 
-      // 3. RE-APLICAR cambios optimistas
-      final pending = await txn.query('sync_queue', where: 'status IN (?, ?)', whereArgs: ['pending', 'failed']);
+      // 3. RE-APLICAR cambios optimistas (Solo los PENDIENTES, no los fallidos/rechazados)
+      final pending = await txn.query('sync_queue', where: 'status = ?', whereArgs: ['pending']);
       for (final row in pending) {
         final rpcName = row['rpc_name'] as String;
         final params = jsonDecode(row['params_json'] as String) as Map<String, dynamic>;
@@ -198,6 +199,9 @@ class LocalDbService {
     await db.transaction((txn) async {
       await _applyOptimisticToTxn(txn, rpcName, params);
     });
+
+    // NOTIFICAR a la UI que hubo un cambio local (Optimismo)
+    SyncQueueService.instance.onCacheUpdated.value = DateTime.now();
   }
 
   /// Parcha la caché local con datos "falsos" mientras la operación se sincroniza.
@@ -293,11 +297,26 @@ class LocalDbService {
         final existing = await txn.query('cache_storage', where: 'collection = ? AND id = ?', whereArgs: ['activo', id]);
         if (existing.isNotEmpty) {
           Map<String, dynamic> oldData = jsonDecode(existing.first['json_data'] as String);
+          
+          // --- 1. Actualización de Campos Básicos ---
           oldData['numero_serie'] = params['p_numero_serie'] ?? oldData['numero_serie'];
           oldData['nombre'] = params['p_nombre'] ?? oldData['nombre'];
           oldData['codigo'] = params['p_codigo'] ?? oldData['codigo'];
+          oldData['ip'] = params['p_ip'] ?? oldData['ip'];
+          oldData['coordenada'] = params['p_coordenada'] ?? oldData['coordenada'];
+          oldData['fecha_adquisicion'] = params['p_fecha_adquisicion'] ?? oldData['fecha_adquisicion'];
+          oldData['fecha_entrega'] = params['p_fecha_entrega'] ?? oldData['fecha_entrega'];
+          
+          // IDs de llaves foráneas
+          oldData['id_tipo_activo'] = params['p_id_tipo_activo'] ?? oldData['id_tipo_activo'];
+          oldData['id_area_activo'] = params['p_id_area_activo'] ?? oldData['id_area_activo'];
+          oldData['id_sede_activo'] = params['p_id_sede_activo'] ?? oldData['id_sede_activo'];
+          oldData['id_ciudad_activo'] = params['p_id_ciudad_activo'] ?? oldData['id_ciudad_activo'];
+          oldData['id_condicion_activo'] = params['p_id_condicion_activo'] ?? oldData['id_condicion_activo'];
+          oldData['id_custodio'] = params['p_id_custodio'] ?? oldData['id_custodio'];
+          oldData['id_provedor'] = params['p_id_proveedor'] ?? oldData['id_provedor'];
 
-          // Función local para inyectar anidados por llave foránea
+          // --- 2. Actualización de Objetos Anidados (para la UI) ---
           Future<void> injectNested(String paramKey, String table, String fieldKey) async {
             final fId = params[paramKey];
             if (fId != null) {
@@ -305,7 +324,7 @@ class LocalDbService {
               if (nested.isNotEmpty) oldData[fieldKey] = jsonDecode(nested.first['json_data'] as String);
             }
           }
- 
+
           await injectNested('p_id_tipo_activo', 'tipo_activo', 'tipo_activo');
           await injectNested('p_id_area_activo', 'area_activo', 'area_activo');
           await injectNested('p_id_sede_activo', 'sede_activo', 'sede_activo');
@@ -313,7 +332,65 @@ class LocalDbService {
           await injectNested('p_id_condicion_activo', 'condicion_activo', 'condicion_activo');
           await injectNested('p_id_custodio', 'custodio', 'custodio');
           await injectNested('p_id_proveedor', 'proveedor', 'proveedor');
-          
+
+          // --- 3. Actualización de Tablas de Info (PC, Software, etc) ---
+          if (rpcName.contains('_pc')) {
+            List<dynamic> infoList = oldData['info_pc'] ?? [{}];
+            Map<String, dynamic> info = Map<String, dynamic>.from(infoList[0]);
+            info['procesador'] = params['p_procesador'] ?? info['procesador'];
+            info['ram'] = params['p_ram'] ?? info['ram'];
+            info['almacenamiento'] = params['p_almacenamiento'] ?? info['almacenamiento'];
+            info['modelo'] = params['p_modelo'] ?? info['modelo'];
+            info['id_marca'] = params['p_id_marca'] ?? info['id_marca'];
+            info['cargador_codigo'] = params['p_cargador_codigo'] ?? info['cargador_codigo'];
+            info['num_puertos'] = params['p_num_puertos'] ?? info['num_puertos'];
+            info['observaciones'] = params['p_observaciones'] ?? info['observaciones'];
+            
+            if (params['p_id_marca'] != null) {
+              final m = await txn.query('cache_storage', where: 'collection = ? AND id = ?', whereArgs: ['marca', params['p_id_marca'].toString()]);
+              if (m.isNotEmpty) info['marca'] = jsonDecode(m.first['json_data'] as String);
+            }
+            oldData['info_pc'] = [info];
+
+          } else if (rpcName.contains('_software')) {
+            List<dynamic> infoList = oldData['info_software'] ?? [{}];
+            Map<String, dynamic> info = Map<String, dynamic>.from(infoList[0]);
+            info['proveedor_software'] = params['p_proveedor_software'] ?? info['proveedor_software'];
+            info['fecha_inicio'] = params['p_fecha_inicio'] ?? info['fecha_inicio'];
+            info['fecha_fin'] = params['p_fecha_fin'] ?? info['fecha_fin'];
+            info['observaciones'] = params['p_observaciones'] ?? info['observaciones'];
+            oldData['info_software'] = [info];
+
+          } else if (rpcName.contains('_comunicacion')) {
+            List<dynamic> infoList = oldData['info_equipo_comunicacion'] ?? [{}];
+            Map<String, dynamic> info = Map<String, dynamic>.from(infoList[0]);
+            info['num_puertos'] = params['p_num_puertos'] ?? info['num_puertos'];
+            info['num_conexiones'] = params['p_num_conexiones'] ?? info['num_conexiones'];
+            info['tipo_extension'] = params['p_tipo_extension'] ?? info['tipo_extension'];
+            info['modelo'] = params['p_modelo'] ?? info['modelo'];
+            info['id_marca'] = params['p_id_marca'] ?? info['id_marca'];
+            info['observaciones'] = params['p_observaciones'] ?? info['observaciones'];
+            
+            if (params['p_id_marca'] != null) {
+              final m = await txn.query('cache_storage', where: 'collection = ? AND id = ?', whereArgs: ['marca', params['p_id_marca'].toString()]);
+              if (m.isNotEmpty) info['marca'] = jsonDecode(m.first['json_data'] as String);
+            }
+            oldData['info_equipo_comunicacion'] = [info];
+
+          } else if (rpcName.contains('_generico')) {
+            List<dynamic> infoList = oldData['info_equipo_generico'] ?? [{}];
+            Map<String, dynamic> info = Map<String, dynamic>.from(infoList[0]);
+            info['modelo'] = params['p_modelo'] ?? info['modelo'];
+            info['id_marca'] = params['p_id_marca'] ?? info['id_marca'];
+            info['observaciones'] = params['p_observaciones'] ?? info['observaciones'];
+            
+            if (params['p_id_marca'] != null) {
+              final m = await txn.query('cache_storage', where: 'collection = ? AND id = ?', whereArgs: ['marca', params['p_id_marca'].toString()]);
+              if (m.isNotEmpty) info['marca'] = jsonDecode(m.first['json_data'] as String);
+            }
+            oldData['info_equipo_generico'] = [info];
+          }
+
           await txn.update('cache_storage', {
             'json_data': jsonEncode(oldData),
           }, where: 'collection = ? AND id = ?', whereArgs: ['activo', id]);

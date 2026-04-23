@@ -7,6 +7,9 @@ import 'package:front_inventarios/pages/lock_screen_page.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/theme.dart';
 import 'package:front_inventarios/services/sync_queue_service.dart';
+import 'package:front_inventarios/widgets/password_reset_page.dart';
+
+final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +52,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Escuchar cambios de autenticación (Link de Recuperación de Contraseña)
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final event = data.event;
+      if (event == AuthChangeEvent.passwordRecovery) {
+        debugPrint('🔑 Evento de recuperación de contraseña detectado.');
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(builder: (context) => const PasswordResetPage()),
+        );
+      }
+    });
   }
 
   @override
@@ -70,6 +84,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Sistema de Inventarios',
       theme: AppTheme.lightTheme,

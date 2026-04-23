@@ -18,6 +18,7 @@ class SyncQueueService {
   bool _internalIsRefreshing = false;
   Timer? _pollingTimer; // Timer para autorecarga iterativa
   RealtimeChannel? _realtimeChannel;
+  DateTime? _ignoreRealtimeUntil;
 
   // Notifiers for UI
   final ValueNotifier<bool> isOnlineNotifier = ValueNotifier<bool>(false);
@@ -78,7 +79,8 @@ class SyncQueueService {
 
   void pausePolling() {
     _stopPolling();
-    debugPrint('⏸️ SyncQueue polling pausado por AppLifecycleState.');
+    stopRealtime();
+    debugPrint('⏳ Polling y Realtime pausados.');
   }
 
   bool get isPollingActive => _pollingTimer?.isActive ?? false;
@@ -86,13 +88,16 @@ class SyncQueueService {
   void resumePolling() {
     if (_pollingTimer != null && _pollingTimer!.isActive) return;
     _startPolling();
-    debugPrint('▶️ SyncQueue polling reanudado por AppLifecycleState.');
+    if (isOnline) {
+      _setupRealtime();
+    }
+    debugPrint('▶️ SyncQueue polling reanudado (Online: $isOnline).');
   }
 
   void stopListening() {
     _connectivitySubscription?.cancel();
     _stopPolling();
-    _realtimeChannel?.unsubscribe();
+    stopRealtime();
   }
 
   /// Evento lanzado cuando vuelve el internet
@@ -181,20 +186,24 @@ class SyncQueueService {
           anythingSynced = true;
           debugPrint('✅ Operación $id ($rpcName) enviada con éxito.');
           
-        } catch (e) {
-          // Si hay error en Supabase (ej: Unique Constraint, Error 500)
-          debugPrint('❌ Error enviando Operación $id ($rpcName): $e');
+        } on PostgrestException catch (e) {
+          final errorString = e.message;
+          final errorCode = e.code;
           
-          final errorString = e.toString();
-          // Errores permanentes: PGRST202 (función no encontrada), 23505 (llave duplicada), 23503 (llave foránea), P0001 (Activo no existe o conflicto en código)
-          if (errorString.contains('code: PGRST202') || 
-              errorString.contains('code: 23505') || 
-              errorString.contains('code: P0001') || 
-              errorString.contains('code: 23503')) {
-            debugPrint('⚠️ Marcando operación $id ($rpcName) como FALLIDA (error permanente) para no reintentar infinitamente.');
-            await LocalDbService.instance.updateOperationStatus(id, 'failed', errorMsg: errorString);
+          // Errores permanentes: 23505 (Unique violation), P0001 (Raise exception), 23503 (FK), 42703 (Column not found)
+          bool isPermanent = errorCode == '23505' || errorCode == 'P0001' || errorCode == '23503' || (errorCode != null && errorCode.startsWith('42'));
+
+          if (isPermanent) {
+            debugPrint('🚫 Operación $id RECHAZADA (Error Permanente $errorCode): $errorString');
+            await LocalDbService.instance.updateOperationStatus(id, 'rejected', errorMsg: errorString);
             hasPermanentError = true;
+          } else {
+            debugPrint('⚠️ Error temporal en sync: $errorString. Se queda en cola.');
+            await LocalDbService.instance.updateOperationStatus(id, 'failed', errorMsg: errorString);
           }
+        } catch (e) {
+          debugPrint('❌ Error genérico en sync: $e');
+          await LocalDbService.instance.updateOperationStatus(id, 'failed', errorMsg: e.toString());
         }
       }
 
@@ -203,8 +212,18 @@ class SyncQueueService {
       }
 
       if (anythingSynced || hasPermanentError) {
-        debugPrint('🔄 Operaciones sincronizadas o procesadas, actualizando cache local desde supabase para corregir UI...');
-        await refreshCache();
+        debugPrint('🔄 Sincronización de cola finalizada. Iniciando periodo de silencio de Realtime (10s) para evitar ruidos...');
+        
+        // Bloqueamos Realtime por 10 segundos para que los ecos de nuestras propias 
+        // operaciones no ensucien la base de datos mientras terminamos de estabilizar.
+        _ignoreRealtimeUntil = DateTime.now().add(const Duration(seconds: 10));
+
+        // Programamos un refresco de integridad para CUANDO PASE el ruido
+        Future.delayed(const Duration(seconds: 10), () async {
+          debugPrint('🧹 Fin del silencio. Ejecutando Refresco de Integridad Final...');
+          await refreshCache();
+          _ignoreRealtimeUntil = null;
+        });
       }
     } catch (e) {
       debugPrint('❌ Falla Crítica en SyncQueue: $e');
@@ -281,47 +300,78 @@ class SyncQueueService {
   // 3. REALTIME (PUSH NOTIFICATIONS FROM SUPABASE)
   // ==========================================================
 
-  void _setupRealtime() {
-    final client = Supabase.instance.client;
-    if (client.auth.currentSession == null) {
-      _realtimeChannel?.unsubscribe();
+  bool _isSettingUpRealtime = false;
+
+  /// Configura la suscripción a cambios en tiempo real de Supabase
+  void _setupRealtime() async {
+    if (!isOnline || _isSettingUpRealtime) return;
+    if (Supabase.instance.client.auth.currentSession == null) return;
+
+    _isSettingUpRealtime = true;
+    try {
+      // 1. Limpieza total y drástica de canales previos
+      debugPrint('📡 Limpiando todos los canales Realtime...');
+      await Supabase.instance.client.removeAllChannels();
+      _realtimeChannel = null;
+
+      // Un pequeño respiro para el servidor de Supabase
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // 2. Crear canal con nombre ÚNICO para evitar colisiones 1001 o null
+      final channelId = 'db-changes-${DateTime.now().millisecondsSinceEpoch}';
+      debugPrint('📡 Configurando nuevo canal Realtime: $channelId');
+      _realtimeChannel = Supabase.instance.client.channel(channelId);
+      
+      // Escuchar cambios en activos
+      _realtimeChannel!.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'activo',
+        callback: (payload) async => await _handleRealtimePayload(payload, 'Activo'),
+      );
+
+      // Escuchar cambios en mantenimientos
+      _realtimeChannel!.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'mantenimiento',
+        callback: (payload) async => await _handleRealtimePayload(payload, 'Mantenimiento'),
+      );
+
+      _realtimeChannel!.subscribe((status, [error]) {
+        if (status == RealtimeSubscribeStatus.subscribed) {
+          debugPrint('✅ Suscrito con éxito al canal: $channelId');
+        } else if (status == RealtimeSubscribeStatus.channelError) {
+          debugPrint('❌ Error en Suscripción Realtime ($channelId): $error');
+        }
+      });
+    } catch (e) {
+      debugPrint('⚠️ Fallo en el setup de Realtime: $e');
+    } finally {
+      _isSettingUpRealtime = false;
+    }
+  }
+
+  /// Detiene y limpia la conexión Realtime
+  Future<void> stopRealtime() async {
+    if (_realtimeChannel != null) {
+      try {
+        debugPrint('📡 Cerrando canal Realtime previo...');
+        await Supabase.instance.client.removeChannel(_realtimeChannel!);
+        _realtimeChannel = null;
+      } catch (e) {
+        debugPrint('⚠️ Error al cerrar canal Realtime: $e');
+      }
+    }
+  }
+
+  Future<void> _handleRealtimePayload(PostgresChangePayload payload, String source) async {
+    // Si estamos en periodo de "silencio" (post-sincronización masiva), ignoramos el mensaje
+    if (_ignoreRealtimeUntil != null && DateTime.now().isBefore(_ignoreRealtimeUntil!)) {
+      debugPrint('🔇 Realtime: Ignorando mensaje por periodo de silencio (estabilizando sync)...');
       return;
     }
 
-    // Si ya estamos suscritos, no duplicamos
-    if (_realtimeChannel != null) return;
-
-    debugPrint('🔌 Conectando a Supabase Realtime para cambios en DB...');
-
-    _realtimeChannel = client.channel('public:db-changes');
-    
-    // Escuchar cambios en activos
-    _realtimeChannel!.onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'activo',
-      callback: (payload) => _handleRealtimePayload(payload, 'Activo'),
-    );
-
-    // Escuchar cambios en mantenimientos
-    _realtimeChannel!.onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'mantenimiento',
-      callback: (payload) => _handleRealtimePayload(payload, 'Mantenimiento'),
-    );
-
-    _realtimeChannel!.subscribe((status, [error]) {
-      if (status == RealtimeSubscribeStatus.subscribed) {
-        debugPrint('✅ Suscrito a Cambios en Tiempo Real (Postgres)');
-      }
-      if (error != null) {
-        debugPrint('❌ Error en Suscripción Realtime: $error');
-      }
-    });
-  }
-
-  void _handleRealtimePayload(PostgresChangePayload payload, String source) {
     final table = payload.table;
     final event = payload.eventType;
 
@@ -329,15 +379,14 @@ class SyncQueueService {
       final oldId = payload.oldRecord['id'];
       if (oldId != null) {
         debugPrint('🗑️ Realtime: Eliminando $source localmente ($oldId)');
-        LocalDbService.instance.removeFromCollection(table, oldId.toString()).then((_) {
-          onCacheUpdated.value = DateTime.now();
-        });
+        await LocalDbService.instance.removeFromCollection(table, oldId.toString());
+        onCacheUpdated.value = DateTime.now();
       }
     } else {
       // Para Insert o Update, descargamos solo ese registro (Sincronización Quirúrgica)
       final newId = payload.newRecord['id'];
       if (newId != null) {
-        _refreshSingleRow(table, newId.toString(), source);
+        await _refreshSingleRow(table, newId.toString(), source);
       }
     }
   }
