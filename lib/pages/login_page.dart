@@ -124,7 +124,45 @@ class _LoginPageState extends State<LoginPage> {
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey),
                 ),
-                const SizedBox(height: 24),
+                ValueListenableBuilder<bool>(
+                  valueListenable: SyncQueueService.instance.isOnlineNotifier,
+                  builder: (context, isOnline, child) {
+                    if (isOnline) return const SizedBox.shrink();
+                    return Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: Colors.orange.withValues(alpha: 0.2)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.signal_wifi_off,
+                                  color: Colors.orange, size: 24),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Sin conexión detectada. El inicio de sesión inicial requiere internet. Si ya tienes una sesión activa guardada, podrás ingresar tras recuperar la señal.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.orange.shade900,
+                                    height: 1.4,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 4),
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(

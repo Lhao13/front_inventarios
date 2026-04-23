@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:front_inventarios/widgets/barcode_scanner_screen.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
@@ -95,6 +96,12 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
   final _modeloCtrl = TextEditingController();
   final _observacionesCtrl = TextEditingController();
 
+  // Date Controllers for manual entry
+  final _fechaAdquisicionCtrl = TextEditingController();
+  final _fechaEntregaCtrl = TextEditingController();
+  final _fechaInicioCtrl = TextEditingController();
+  final _fechaFinCtrl = TextEditingController();
+
   // PC Specific
   final _procesadorCtrl = TextEditingController();
   final _cargadorCodigoCtrl = TextEditingController();
@@ -137,9 +144,29 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
   bool _saving = false;
   bool _gettingLocation = false;
 
-  // Format a DateTime to YYYY-MM-DD string
+  // Format a DateTime to YYYY-MM-DD string for API
   String _fmtDate(DateTime dt) =>
       '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+
+  // Format a DateTime to DD/MM/YYYY string for Display
+  String _fmtDisplayDate(DateTime dt) =>
+      '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+
+  // Parse DD/MM/YYYY string to DateTime safely
+  DateTime? _parseDisplayDate(String s) {
+    if (s.length != 10) return null;
+    try {
+      final parts = s.split('/');
+      if (parts.length != 3) return null;
+      return DateTime(
+        int.parse(parts[2]),
+        int.parse(parts[1]),
+        int.parse(parts[0]),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 
   // Try to parse a date string safely
   DateTime? _tryParse(String? s) {
@@ -171,7 +198,14 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     _observacionesCtrl.text = d['observaciones']?.toString() ?? '';
 
     _fechaAdquisicion = _tryParse(d['fecha_adquisicion']?.toString());
+    if (_fechaAdquisicion != null) {
+      _fechaAdquisicionCtrl.text = _fmtDisplayDate(_fechaAdquisicion!);
+    }
+
     _fechaEntrega = _tryParse(d['fecha_entrega']?.toString());
+    if (_fechaEntrega != null) {
+      _fechaEntregaCtrl.text = _fmtDisplayDate(_fechaEntrega!);
+    }
 
     _tipoActivoId = d['id_tipo_activo'] as int?;
     _condicionActivoId = d['id_condicion_activo'] as int?;
@@ -232,7 +266,13 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       // Software
       _proveedorSoftwareCtrl.text = info['proveedor']?.toString() ?? '';
       _fechaInicio = _tryParse(info['fecha_inicio']?.toString());
+      if (_fechaInicio != null) {
+        _fechaInicioCtrl.text = _fmtDisplayDate(_fechaInicio!);
+      }
       _fechaFin = _tryParse(info['fecha_fin']?.toString());
+      if (_fechaFin != null) {
+        _fechaFinCtrl.text = _fmtDisplayDate(_fechaFin!);
+      }
     }
   }
 
@@ -304,6 +344,8 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     bool isNumericOnly = false,
     bool required = false,
     Widget? suffixIcon,
+    bool readOnly = false,
+    VoidCallback? onTap,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
@@ -312,11 +354,29 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
         keyboardType: (isNumber || isNumericOnly)
             ? TextInputType.number
             : TextInputType.text,
+        readOnly: readOnly,
+        onTap: onTap,
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
           isDense: true,
+          filled: required,
+          fillColor: required ? Colors.blue.withValues(alpha: 0.05) : null,
+          labelStyle: required
+              ? const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)
+              : null,
+          enabledBorder: required
+              ? OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.blue.shade300),
+                )
+              : const OutlineInputBorder(),
           border: const OutlineInputBorder(),
-          suffixIcon: suffixIcon,
+          suffixIcon: suffixIcon ??
+              (readOnly && controller.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () => controller.clear(),
+                    )
+                  : null),
         ),
         validator: required
             ? (value) {
@@ -359,14 +419,6 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       );
     }).toList();
 
-    dropdownItems.insert(
-      0,
-      const DropdownMenuItem<int?>(
-        value: null,
-        child: Text('-- Ninguno --', style: TextStyle(color: Colors.grey)),
-      ),
-    );
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: DropdownButtonFormField<int?>(
@@ -374,7 +426,23 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
           isDense: true,
+          filled: required,
+          fillColor: required ? Colors.blue.withValues(alpha: 0.05) : null,
+          labelStyle: required
+              ? const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)
+              : null,
+          enabledBorder: required
+              ? OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.blue.shade300),
+                )
+              : const OutlineInputBorder(),
           border: const OutlineInputBorder(),
+          suffixIcon: (!required && validValue != null)
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () => onChanged(null),
+                )
+              : null,
         ),
         items: dropdownItems,
         onChanged: onChanged,
@@ -423,14 +491,6 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       );
     }).toList();
 
-    dropdownItems.insert(
-      0,
-      const DropdownMenuItem<String?>(
-        value: null,
-        child: Text('-- Ninguno --', style: TextStyle(color: Colors.grey)),
-      ),
-    );
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: DropdownButtonFormField<String?>(
@@ -438,7 +498,23 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
         decoration: InputDecoration(
           labelText: required ? '$label *' : label,
           isDense: true,
+          filled: required,
+          fillColor: required ? Colors.blue.withValues(alpha: 0.05) : null,
+          labelStyle: required
+              ? const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)
+              : null,
+          enabledBorder: required
+              ? OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.blue.shade300),
+                )
+              : const OutlineInputBorder(),
           border: const OutlineInputBorder(),
+          suffixIcon: (!required && validValue != null)
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () => onChanged(null),
+                )
+              : null,
         ),
         items: dropdownItems,
         onChanged: onChanged,
@@ -491,7 +567,9 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       }
 
       Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
       setState(() {
         _coordenadaCtrl.text = '${position.latitude},${position.longitude}';
@@ -504,53 +582,96 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
     }
   }
 
-  /// Date picker field. [allowFuture] controls if future dates are selectable.
-  /// When [allowFuture] is false, the last selectable date is today.
+  /// Date picker field. Now supports manual entry with automatic slashes.
   Widget _buildDatePicker(
     String label,
     DateTime? currentValue,
-    ValueChanged<DateTime?> onChanged, {
+    TextEditingController controller,
+    void Function(DateTime?) onDateChanged, {
     bool allowFuture = true,
     bool required = false,
   }) {
     final today = DateTime.now();
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
-      child: InkWell(
-        onTap: () async {
-          final picked = await showDatePicker(
-            context: context,
-            initialDate: currentValue ?? today,
-            firstDate: DateTime(2000),
-            lastDate: allowFuture ? DateTime(2100) : today,
-            helpText: label,
-          );
-          if (picked != null) {
-            onChanged(picked);
-          }
-        },
-        child: InputDecorator(
-          decoration: InputDecoration(
-            labelText: required ? '$label *' : label,
-            isDense: true,
-            border: const OutlineInputBorder(),
-            suffixIcon: currentValue != null
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () => onChanged(null),
-                  )
-                : const Icon(Icons.calendar_today, size: 18),
-          ),
-          child: Text(
-            currentValue != null
-                ? _fmtDate(currentValue)
-                : 'Toca para seleccionar',
-            style: TextStyle(
-              color: currentValue != null ? null : Colors.grey,
-              fontSize: 14,
-            ),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          DateInputFormatter(),
+        ],
+        decoration: InputDecoration(
+          labelText: required ? '$label *' : label,
+          hintText: 'DD/MM/AAAA',
+          isDense: true,
+          filled: required,
+          fillColor: required ? Colors.blue.withValues(alpha: 0.05) : null,
+          labelStyle: required
+              ? const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)
+              : null,
+          enabledBorder: required
+              ? OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.blue.shade300),
+                )
+              : const OutlineInputBorder(),
+          border: const OutlineInputBorder(),
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (controller.text.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () {
+                    controller.clear();
+                    onDateChanged(null);
+                  },
+                ),
+              IconButton(
+                icon: const Icon(Icons.calendar_today, size: 18),
+                onPressed: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: currentValue ?? today,
+                    firstDate: DateTime(2000),
+                    lastDate: allowFuture ? DateTime(2100) : today,
+                    locale: const Locale('es', 'ES'),
+                    helpText: label,
+                    cancelText: 'CANCELAR',
+                    confirmText: 'ACEPTAR',
+                    fieldLabelText: 'Ingresar fecha',
+                    fieldHintText: 'Día/Mes/Año',
+                    initialEntryMode: DatePickerEntryMode.calendar,
+                  );
+                  if (picked != null) {
+                    controller.text = _fmtDisplayDate(picked);
+                    onDateChanged(picked);
+                  }
+                },
+              ),
+            ],
           ),
         ),
+        onChanged: (val) {
+          final d = _parseDisplayDate(val);
+          onDateChanged(d);
+        },
+        validator: required
+            ? (val) {
+                if (val == null || val.isEmpty) return 'Ingrese la fecha';
+                if (_parseDisplayDate(val) == null) {
+                  return 'Formato inválido (DD/MM/AAAA)';
+                }
+                return null;
+              }
+            : (val) {
+                if (val != null &&
+                    val.isNotEmpty &&
+                    _parseDisplayDate(val) == null) {
+                  return 'Formato inválido';
+                }
+                return null;
+              },
       ),
     );
   }
@@ -568,413 +689,461 @@ class _DynamicAssetFormState extends State<DynamicAssetForm> {
       thumbVisibility: true,
       child: SingleChildScrollView(
         controller: _scrollController,
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (widget.initialCategory == null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: DropdownButtonFormField<String>(
-                  value: _categoria,
-                  items: const [
-                    DropdownMenuItem(value: 'PC', child: Text('PC')),
-                    DropdownMenuItem(
-                      value: 'SOFTWARE',
-                      child: Text('SOFTWARE'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'COMUNICACION',
-                      child: Text('COMUNICACIÓN'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'GENERICO',
-                      child: Text('GENÉRICO'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null && value != _categoria) {
-                      setState(() {
-                        _categoria = value;
-                        _tipoActivoId = null;
-                      });
-                    }
-                  },
-                  decoration: const InputDecoration(
-                    labelText: 'Categoría de Activo *',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-
-            const Text(
-              'Datos Generales',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const Divider(),
-            if (_categoria != 'SOFTWARE')
-              _buildTextField(
-                _numeroSerieCtrl,
-                'Número de Serie',
-                required: true,
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.qr_code_scanner),
-                  tooltip: 'Escanear Número de Serie',
-                  onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const BarcodeScannerScreen(),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.initialCategory == null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: DropdownButtonFormField<String>(
+                    value: _categoria,
+                    items: const [
+                      DropdownMenuItem(value: 'PC', child: Text('PC')),
+                      DropdownMenuItem(
+                        value: 'SOFTWARE',
+                        child: Text('SOFTWARE'),
                       ),
-                    );
-                    if (result != null && result is String) {
-                      setState(() => _numeroSerieCtrl.text = result);
-                    }
-                  },
-                ),
-              ),
-            _buildTextField(_nombreCtrl, 'Nombre (opcional)'),
-            _buildTextField(
-              _codigoCtrl,
-              'Código (opcional)',
-              isNumericOnly: true,
-              suffixIcon: _categoria == 'SOFTWARE'
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.qr_code_scanner),
-                      tooltip: 'Escanear Código Numérico',
-                      onPressed: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const BarcodeScannerScreen(isOnlyNumeric: true),
-                          ),
-                        );
-                        if (result != null && result is String) {
-                          setState(() => _codigoCtrl.text = result);
-                        }
-                      },
-                    ),
-            ),
-            _buildDropdown(
-              'Tipo de Activo',
-              _tipoActivoId,
-              _tiposActivo.where((t) => t['categoria'] == _categoria).toList(),
-              'tipo',
-              (v) => setState(() => _tipoActivoId = v),
-              required: true,
-            ),
-            _buildDropdown(
-              'Condición (opcional)',
-              _condicionActivoId,
-              _condicionesActivo,
-              'condicion',
-              (v) => setState(() => _condicionActivoId = v),
-            ),
-            _buildSearchableDropdown(
-              'Custodio (opcional)',
-              _custodioId,
-              _custodios,
-              'nombre_completo',
-              (v) => setState(() => _custodioId = v),
-            ),
-            _buildSearchableDropdown(
-              'Área (opcional)',
-              _areaActivoId,
-              _areas,
-              'area',
-              (v) => setState(() => _areaActivoId = v),
-            ),
-            _buildDropdown(
-              'Proveedor General (opcional)',
-              _proveedorId,
-              _proveedores,
-              'nombre',
-              (v) => setState(() => _proveedorId = v),
-            ),
-
-            if (_categoria != 'SOFTWARE') ...[
-              _buildDropdown(
-                'Ciudad (opcional)',
-                _ciudadActivoId,
-                _ciudades,
-                'ciudad',
-                (v) => setState(() => _ciudadActivoId = v),
-              ),
-              _buildSearchableDropdown(
-                'Sede (opcional)',
-                _sedeActivoId,
-                _sedes,
-                'sede',
-                (v) => setState(() => _sedeActivoId = v),
-              ),
-              _buildTextField(_ipCtrl, 'IP (opcional)'),
-              _buildDropdown(
-                'Marca (opcional)',
-                _marcaId,
-                _marcas,
-                'marca_proveedor',
-                (v) => setState(() => _marcaId = v),
-              ),
-              _buildTextField(_modeloCtrl, 'Modelo (opcional)'),
-              // Date pickers — adquisicion must be ≤ today
-              _buildDatePicker(
-                'Fecha de Adquisición (opcional)',
-                _fechaAdquisicion,
-                (d) => setState(() => _fechaAdquisicion = d),
-                allowFuture: false,
-              ),
-              _buildDatePicker(
-                'Fecha de Entrega (opcional)',
-                _fechaEntrega,
-                (d) => setState(() => _fechaEntrega = d),
-                allowFuture: true,
-              ),
-              _buildTextField(
-                _coordenadaCtrl,
-                'Coordenada (opcional)',
-                suffixIcon: IconButton(
-                  icon: _gettingLocation
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.my_location),
-                  tooltip: 'Obtener mi ubicación actual',
-                  onPressed: _gettingLocation ? null : _getCurrentLocation,
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 16),
-            const Text(
-              'Detalles Específicos',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const Divider(),
-
-            if (_categoria == 'PC') ...[
-              _buildTextField(_procesadorCtrl, 'Procesador (opcional)'),
-              _buildStringDropdown(
-                'RAM (opcional)',
-                _selectedRam,
-                _ramOptions,
-                (v) => setState(() => _selectedRam = v),
-              ),
-              _buildStringDropdown(
-                'Almacenamiento (opcional)',
-                _selectedAlmacenamiento,
-                _storageOptions,
-                (v) => setState(() => _selectedAlmacenamiento = v),
-              ),
-              _buildTextField(
-                _cargadorCodigoCtrl,
-                'Código Cargador (opcional)',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.qr_code_scanner),
-                  tooltip: 'Escanear Código',
-                  onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            const BarcodeScannerScreen(isOnlyNumeric: true),
+                      DropdownMenuItem(
+                        value: 'COMUNICACION',
+                        child: Text('COMUNICACIÓN'),
                       ),
-                    );
-                    if (result != null && result is String) {
-                      setState(() => _cargadorCodigoCtrl.text = result);
-                    }
-                  },
-                ),
-              ),
-              _buildTextField(
-                _numPuertosCtrl,
-                'Número de Puertos (opcional)',
-                isNumber: true,
-              ),
-            ],
-
-            if (_categoria == 'COMUNICACION') ...[
-              _buildTextField(
-                _numPuertosCtrl,
-                'Número de Puertos (opcional)',
-                isNumber: true,
-              ),
-              _buildTextField(_tipoExtensionCtrl, 'Tipo Extensión (opcional)'),
-            ],
-
-            if (_categoria == 'GENERICO') ...[
-              _buildTextField(
-                _cargadorCodigoCtrl,
-                'Código Cargador (opcional)',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.qr_code_scanner),
-                  tooltip: 'Escanear Código',
-                  onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            const BarcodeScannerScreen(isOnlyNumeric: true),
+                      DropdownMenuItem(
+                        value: 'GENERICO',
+                        child: Text('GENÉRICO'),
                       ),
-                    );
-                    if (result != null && result is String) {
-                      setState(() => _cargadorCodigoCtrl.text = result);
-                    }
-                  },
-                ),
-              ),
-              _buildTextField(
-                _numConexionesCtrl,
-                'Número de Conexiones (opcional)',
-                isNumber: true,
-              ),
-              _buildTextField(
-                _varImpresoraColorCtrl,
-                'Impresora Color (opcional)',
-              ),
-              _buildTextField(
-                _varMonitorTipoConexionCtrl,
-                'Monitor Tipo Conexión (opcional)',
-              ),
-            ],
-
-            if (_categoria == 'SOFTWARE') ...[
-              _buildTextField(
-                _proveedorSoftwareCtrl,
-                'Proveedor de Software (opcional)',
-              ),
-              _buildDatePicker(
-                'Fecha Inicio Licencia (opcional)',
-                _fechaInicio,
-                (d) => setState(() => _fechaInicio = d),
-              ),
-              _buildDatePicker(
-                'Fecha Fin Licencia (opcional)',
-                _fechaFin,
-                (d) => setState(() => _fechaFin = d),
-              ),
-            ],
-
-            _buildTextField(_observacionesCtrl, 'Observaciones (opcional)'),
-
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _saving
-                  ? null
-                  : () async {
-                      if (!_formKey.currentState!.validate()) return;
-                      setState(() => _saving = true);
-                      try {
-                        // PRE-VALIDACIÓN OFFLINE: Evitar números de serie duplicados revisando Caché
-                        if (_categoria != 'SOFTWARE') {
-                          final currentSerial = _numeroSerieCtrl.text.trim();
-                          if (currentSerial.isNotEmpty) {
-                            final allAssets = await LocalDbService.instance
-                                .getCollection('activo');
-                            final isDuplicate = allAssets.any(
-                              (a) =>
-                                  a['numero_serie']?.toString().trim() ==
-                                      currentSerial &&
-                                  a['id']?.toString() !=
-                                      widget.initialData?['id']?.toString(),
-                            );
-
-                            if (isDuplicate) {
-                              if (!context.mounted) return;
-                              context.showSnackBar(
-                                'Error: El Número de Serie ya existe en el inventario.',
-                                isError: true,
-                              );
-                              
-                              setState(() => _saving = false);
-                              return; // Detenemos el guardado
-                            }
-                          }
-                        }
-
-                        await widget.onSave(
-                          numeroSerie: _categoria == 'SOFTWARE'
-                              ? ''
-                              : _numeroSerieCtrl.text,
-                          categoria: _categoria,
-                          tipoActivoId: _tipoActivoId ?? 0,
-                          condicionActivoId: _condicionActivoId,
-                          custodioId: _custodioId,
-                          ciudadActivoId: _ciudadActivoId,
-                          sedeActivoId: _sedeActivoId,
-                          areaActivoId: _areaActivoId,
-                          proveedorId: _proveedorId,
-                          fechaAdquisicion: _fechaAdquisicion != null
-                              ? _fmtDate(_fechaAdquisicion!)
-                              : null,
-                          fechaEntrega: _fechaEntrega != null
-                              ? _fmtDate(_fechaEntrega!)
-                              : null,
-                          coordenada: _coordenadaCtrl.text.isEmpty
-                              ? null
-                              : _coordenadaCtrl.text,
-                          nombre: _nombreCtrl.text.isEmpty
-                              ? null
-                              : _nombreCtrl.text,
-                          codigo: _codigoCtrl.text.isEmpty
-                              ? null
-                              : _codigoCtrl.text,
-                          ip: _ipCtrl.text.isEmpty ? null : _ipCtrl.text,
-                          marcaId: _marcaId,
-                          modelo: _modeloCtrl.text.isEmpty
-                              ? null
-                              : _modeloCtrl.text,
-                          observaciones: _observacionesCtrl.text.isEmpty
-                              ? null
-                              : _observacionesCtrl.text,
-                          procesador: _procesadorCtrl.text.isEmpty
-                              ? null
-                              : _procesadorCtrl.text,
-                          ram: _selectedRam,
-                          almacenamiento: _selectedAlmacenamiento,
-                          cargadorCodigo: _cargadorCodigoCtrl.text.isEmpty
-                              ? null
-                              : _cargadorCodigoCtrl.text,
-                          numPuertos: int.tryParse(_numPuertosCtrl.text),
-                          tipoExtension: _tipoExtensionCtrl.text.isEmpty
-                              ? null
-                              : _tipoExtensionCtrl.text,
-                          numConexiones: int.tryParse(_numConexionesCtrl.text),
-                          varImpresoraColor: _varImpresoraColorCtrl.text.isEmpty
-                              ? null
-                              : _varImpresoraColorCtrl.text,
-                          varMonitorTipoConexion:
-                              _varMonitorTipoConexionCtrl.text.isEmpty
-                              ? null
-                              : _varMonitorTipoConexionCtrl.text,
-                          proveedorSoftware: _proveedorSoftwareCtrl.text.isEmpty
-                              ? null
-                              : _proveedorSoftwareCtrl.text,
-                          fechaInicio: _fechaInicio != null
-                              ? _fmtDate(_fechaInicio!)
-                              : null,
-                          fechaFin: _fechaFin != null
-                              ? _fmtDate(_fechaFin!)
-                              : null,
-                        );
-                      } finally {
-                        if (mounted) setState(() => _saving = false);
+                    ],
+                    onChanged: (value) {
+                      if (value != null && value != _categoria) {
+                        setState(() {
+                          _categoria = value;
+                          _tipoActivoId = null;
+                        });
                       }
                     },
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: const InputDecoration(
+                      labelText: 'Categoría de Activo *',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+
+              const Text(
+                'Datos Generales',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              child: Text(_saving ? 'Guardando...' : 'Guardar Activo'),
-            ),
-          ],
+              const Divider(),
+              if (_categoria != 'SOFTWARE')
+                _buildTextField(
+                  _numeroSerieCtrl,
+                  'Número de Serie',
+                  required: true,
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.qr_code_scanner),
+                    tooltip: 'Escanear Número de Serie',
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const BarcodeScannerScreen(),
+                        ),
+                      );
+                      if (result != null && result is String) {
+                        setState(() => _numeroSerieCtrl.text = result);
+                      }
+                    },
+                  ),
+                ),
+              _buildTextField(_nombreCtrl, 'Nombre'),
+              _buildTextField(
+                _codigoCtrl,
+                'Código ',
+                isNumericOnly: true,
+                suffixIcon: _categoria == 'SOFTWARE'
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.qr_code_scanner),
+                        tooltip: 'Escanear Código Numérico',
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const BarcodeScannerScreen(
+                                isOnlyNumeric: true,
+                              ),
+                            ),
+                          );
+                          if (result != null && result is String) {
+                            setState(() => _codigoCtrl.text = result);
+                          }
+                        },
+                      ),
+              ),
+              _buildDropdown(
+                'Tipo de Activo',
+                _tipoActivoId,
+                _tiposActivo
+                    .where((t) => t['categoria'] == _categoria)
+                    .toList(),
+                'tipo',
+                (v) => setState(() => _tipoActivoId = v),
+                required: true,
+              ),
+              _buildDropdown(
+                'Condición',
+                _condicionActivoId,
+                _condicionesActivo,
+                'condicion',
+                (v) => setState(() => _condicionActivoId = v),
+              ),
+              _buildSearchableDropdown(
+                'Custodio',
+                _custodioId,
+                _custodios,
+                'nombre_completo',
+                (v) => setState(() => _custodioId = v),
+              ),
+              _buildSearchableDropdown(
+                'Área',
+                _areaActivoId,
+                _areas,
+                'area',
+                (v) => setState(() => _areaActivoId = v),
+              ),
+              _buildDropdown(
+                'Proveedor General',
+                _proveedorId,
+                _proveedores,
+                'nombre',
+                (v) => setState(() => _proveedorId = v),
+              ),
+
+              if (_categoria != 'SOFTWARE') ...[
+                _buildDropdown(
+                  'Ciudad',
+                  _ciudadActivoId,
+                  _ciudades,
+                  'ciudad',
+                  (v) => setState(() => _ciudadActivoId = v),
+                ),
+                _buildSearchableDropdown(
+                  'Sede',
+                  _sedeActivoId,
+                  _sedes,
+                  'sede',
+                  (v) => setState(() => _sedeActivoId = v),
+                ),
+                if (_categoria == 'PC' || _categoria == 'COMUNICACION')
+                  _buildTextField(_ipCtrl, 'IP'),
+                _buildDropdown(
+                  'Marca',
+                  _marcaId,
+                  _marcas,
+                  'marca_proveedor',
+                  (v) => setState(() => _marcaId = v),
+                ),
+                _buildTextField(_modeloCtrl, 'Modelo'),
+                // Date pickers — adquisicion must be ≤ today
+                _buildDatePicker(
+                  'Fecha de Adquisición',
+                  _fechaAdquisicion,
+                  _fechaAdquisicionCtrl,
+                  (d) => setState(() => _fechaAdquisicion = d),
+                  allowFuture: false,
+                ),
+                _buildDatePicker(
+                  'Fecha de Entrega',
+                  _fechaEntrega,
+                  _fechaEntregaCtrl,
+                  (d) => setState(() => _fechaEntrega = d),
+                  allowFuture: true,
+                ),
+                _buildTextField(
+                  _coordenadaCtrl,
+                  'Coordenada',
+                  readOnly: true,
+                  onTap: _gettingLocation ? null : _getCurrentLocation,
+                  suffixIcon: _gettingLocation
+                      ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : const Icon(Icons.my_location),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+              const Text(
+                'Detalles Específicos',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const Divider(),
+
+              if (_categoria == 'PC') ...[
+                _buildTextField(_procesadorCtrl, 'Procesador'),
+                _buildStringDropdown(
+                  'RAM',
+                  _selectedRam,
+                  _ramOptions,
+                  (v) => setState(() => _selectedRam = v),
+                ),
+                _buildStringDropdown(
+                  'Almacenamiento',
+                  _selectedAlmacenamiento,
+                  _storageOptions,
+                  (v) => setState(() => _selectedAlmacenamiento = v),
+                ),
+                _buildTextField(
+                  _cargadorCodigoCtrl,
+                  'Código Cargador',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.qr_code_scanner),
+                    tooltip: 'Escanear Código',
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const BarcodeScannerScreen(isOnlyNumeric: true),
+                        ),
+                      );
+                      if (result != null && result is String) {
+                        setState(() => _cargadorCodigoCtrl.text = result);
+                      }
+                    },
+                  ),
+                ),
+                _buildTextField(
+                  _numPuertosCtrl,
+                  'Número de Puertos',
+                  isNumber: true,
+                ),
+              ],
+
+              if (_categoria == 'COMUNICACION') ...[
+                _buildTextField(
+                  _numPuertosCtrl,
+                  'Número de Puertos',
+                  isNumber: true,
+                ),
+                _buildTextField(_tipoExtensionCtrl, 'Tipo Extensión'),
+              ],
+
+              if (_categoria == 'GENERICO') ...[
+                _buildTextField(
+                  _cargadorCodigoCtrl,
+                  'Código Cargador',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.qr_code_scanner),
+                    tooltip: 'Escanear Código',
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const BarcodeScannerScreen(isOnlyNumeric: true),
+                        ),
+                      );
+                      if (result != null && result is String) {
+                        setState(() => _cargadorCodigoCtrl.text = result);
+                      }
+                    },
+                  ),
+                ),
+                _buildTextField(
+                  _numConexionesCtrl,
+                  'Número de Conexiones',
+                  isNumber: true,
+                ),
+                _buildTextField(_varImpresoraColorCtrl, 'Impresora Color'),
+                _buildTextField(
+                  _varMonitorTipoConexionCtrl,
+                  'Monitor Tipo Conexión',
+                ),
+              ],
+
+              if (_categoria == 'SOFTWARE') ...[
+                _buildTextField(
+                  _proveedorSoftwareCtrl,
+                  'Proveedor de Software',
+                ),
+                _buildDatePicker(
+                  'Fecha Inicio Licencia',
+                  _fechaInicio,
+                  _fechaInicioCtrl,
+                  (d) => setState(() => _fechaInicio = d),
+                ),
+                _buildDatePicker(
+                  'Fecha Fin Licencia',
+                  _fechaFin,
+                  _fechaFinCtrl,
+                  (d) => setState(() => _fechaFin = d),
+                ),
+              ],
+
+              _buildTextField(_observacionesCtrl, 'Observaciones'),
+
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _saving
+                    ? null
+                    : () async {
+                        if (!_formKey.currentState!.validate()) return;
+                        setState(() => _saving = true);
+                        try {
+                          // PRE-VALIDACIÓN OFFLINE: Evitar números de serie duplicados revisando Caché
+                          if (_categoria != 'SOFTWARE') {
+                            final currentSerial = _numeroSerieCtrl.text.trim();
+                            if (currentSerial.isNotEmpty) {
+                              final allAssets = await LocalDbService.instance
+                                  .getCollection('activo');
+                              final isDuplicate = allAssets.any(
+                                (a) =>
+                                    a['numero_serie']?.toString().trim() ==
+                                        currentSerial &&
+                                    a['id']?.toString() !=
+                                        widget.initialData?['id']?.toString(),
+                              );
+
+                              if (isDuplicate) {
+                                if (!context.mounted) return;
+                                context.showSnackBar(
+                                  'Error: El Número de Serie ya existe en el inventario.',
+                                  isError: true,
+                                );
+
+                                setState(() => _saving = false);
+                                return; // Detenemos el guardado
+                              }
+                            }
+                          }
+
+                          await widget.onSave(
+                            numeroSerie: _categoria == 'SOFTWARE'
+                                ? ''
+                                : _numeroSerieCtrl.text,
+                            categoria: _categoria,
+                            tipoActivoId: _tipoActivoId ?? 0,
+                            condicionActivoId: _condicionActivoId,
+                            custodioId: _custodioId,
+                            ciudadActivoId: _ciudadActivoId,
+                            sedeActivoId: _sedeActivoId,
+                            areaActivoId: _areaActivoId,
+                            proveedorId: _proveedorId,
+                            fechaAdquisicion: _fechaAdquisicion != null
+                                ? _fmtDate(_fechaAdquisicion!)
+                                : null,
+                            fechaEntrega: _fechaEntrega != null
+                                ? _fmtDate(_fechaEntrega!)
+                                : null,
+                            coordenada: _coordenadaCtrl.text.isEmpty
+                                ? null
+                                : _coordenadaCtrl.text,
+                            nombre: _nombreCtrl.text.isEmpty
+                                ? null
+                                : _nombreCtrl.text,
+                            codigo: _codigoCtrl.text.isEmpty
+                                ? null
+                                : _codigoCtrl.text,
+                            ip: _ipCtrl.text.isEmpty ? null : _ipCtrl.text,
+                            marcaId: _marcaId,
+                            modelo: _modeloCtrl.text.isEmpty
+                                ? null
+                                : _modeloCtrl.text,
+                            observaciones: _observacionesCtrl.text.isEmpty
+                                ? null
+                                : _observacionesCtrl.text,
+                            procesador: _procesadorCtrl.text.isEmpty
+                                ? null
+                                : _procesadorCtrl.text,
+                            ram: _selectedRam,
+                            almacenamiento: _selectedAlmacenamiento,
+                            cargadorCodigo: _cargadorCodigoCtrl.text.isEmpty
+                                ? null
+                                : _cargadorCodigoCtrl.text,
+                            numPuertos: int.tryParse(_numPuertosCtrl.text),
+                            tipoExtension: _tipoExtensionCtrl.text.isEmpty
+                                ? null
+                                : _tipoExtensionCtrl.text,
+                            numConexiones: int.tryParse(
+                              _numConexionesCtrl.text,
+                            ),
+                            varImpresoraColor:
+                                _varImpresoraColorCtrl.text.isEmpty
+                                ? null
+                                : _varImpresoraColorCtrl.text,
+                            varMonitorTipoConexion:
+                                _varMonitorTipoConexionCtrl.text.isEmpty
+                                ? null
+                                : _varMonitorTipoConexionCtrl.text,
+                            proveedorSoftware:
+                                _proveedorSoftwareCtrl.text.isEmpty
+                                ? null
+                                : _proveedorSoftwareCtrl.text,
+                            fechaInicio: _fechaInicio != null
+                                ? _fmtDate(_fechaInicio!)
+                                : null,
+                            fechaFin: _fechaFin != null
+                                ? _fmtDate(_fechaFin!)
+                                : null,
+                          );
+                        } finally {
+                          if (mounted) setState(() => _saving = false);
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: Text(_saving ? 'Guardando...' : 'Guardar Activo'),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
+    );
+  }
+}
+
+/// Formateador automático para fechas DD/MM/AAAA
+class DateInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text;
+
+    // Si está borrando, permitir la acción sin formatear
+    if (text.length < oldValue.text.length) {
+      return newValue;
+    }
+
+    // Quitar cualquier cosa que no sea número para procesar
+    var newText = text.replaceAll('/', '');
+
+    // Limitar a 8 dígitos (DDMMYYYY)
+    if (newText.length > 8) {
+      newText = newText.substring(0, 8);
+    }
+
+    final buffer = StringBuffer();
+    for (int i = 0; i < newText.length; i++) {
+      buffer.write(newText[i]);
+      // Insertar barra después del día (2 chars) y mes (4 chars)
+      if ((i == 1 || i == 3) && i != newText.length - 1) {
+        buffer.write('/');
+      }
+    }
+
+    return TextEditingValue(
+      text: buffer.toString(),
+      selection: TextSelection.collapsed(offset: buffer.length),
     );
   }
 }

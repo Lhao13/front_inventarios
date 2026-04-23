@@ -384,7 +384,6 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
     Map<String, dynamic>? asset,
   }) async {
     final bool isUpdate = asset != null;
-    final String titleAction = isUpdate ? 'Actualizar' : 'Agregar';
 
     await showDialog(
       context: context,
@@ -407,7 +406,7 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                   children: [
                     Expanded(
                       child: Text(
-                        '$titleAction Activo - $category',
+                        isUpdate ? 'Actualizar Activo' : 'Nuevo Activo',
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -1164,7 +1163,11 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
           ? (id) async => _deleteAsset(id)
           : null,
       customActionsBuilder: (asset) {
-        if (RoleService.currentRole == UserRole.ayudante) return [];
+        final category = asset['categoria_activo']?.toString().toUpperCase();
+        if (RoleService.currentRole == UserRole.ayudante ||
+            category == 'SOFTWARE') {
+          return [];
+        }
         return [
           Tooltip(
             message: 'Mantenimiento',
@@ -1366,24 +1369,28 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                // Botón Mantenimiento
-                                InkWell(
-                                  borderRadius: BorderRadius.circular(20),
-                                  onTap: () => showDialog(
-                                    context: context,
-                                    builder: (_) => MaintenanceFormDialog(
-                                      initialAssetId: asset['id'],
+                                if (asset['categoria_activo']
+                                        ?.toString()
+                                        .toUpperCase() !=
+                                    'SOFTWARE') ...[
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: () => showDialog(
+                                      context: context,
+                                      builder: (_) => MaintenanceFormDialog(
+                                        initialAssetId: asset['id'],
+                                      ),
+                                    ),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(6.0),
+                                      child: Icon(
+                                        Icons.build_circle,
+                                        color: Colors.blueGrey,
+                                        size: 20,
+                                      ),
                                     ),
                                   ),
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(6.0),
-                                    child: Icon(
-                                      Icons.build_circle,
-                                      color: Colors.blueGrey,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ),
+                                ],
                                 if (RoleService.currentRole !=
                                     UserRole.ayudante) ...[
                                   const SizedBox(height: 4),

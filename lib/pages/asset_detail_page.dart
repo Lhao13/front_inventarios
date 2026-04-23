@@ -95,7 +95,7 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Actualizar Activo - $category',
+                        'Actualizar Activo',
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -149,58 +149,101 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                         }) async {
                           try {
                             String rpcName = '';
-                            Map<String, dynamic> params = {
-                              'p_id_activo': _currentAsset['id'],
-                              'p_numero_serie': numeroSerie,
-                              'p_nombre': nombre,
-                              'p_codigo': codigo,
-                              'p_id_tipo_activo': tipoActivoId,
-                              'p_id_condicion_activo': condicionActivoId,
-                              'p_id_custodio': custodioId,
-                              'p_id_ciudad_activo': ciudadActivoId,
-                              'p_id_sede_activo': sedeActivoId,
-                              'p_id_area_activo': areaActivoId,
-                              'p_id_provedor': proveedorId,
-                              'p_fecha_adquisicion': fechaAdquisicion,
-                              'p_ip': ip,
-                              'p_fecha_entrega': fechaEntrega,
-                              'p_coordenada': coordenada,
-                              'p_id_marca': marcaId,
-                              'p_modelo': modelo,
-                              'p_observaciones': observaciones,
-                            };
+                            Map<String, dynamic> params = {};
 
                             if (category == 'PC') {
                               rpcName = 'actualizar_activo_pc';
-                              params.addAll({
+                              params = {
+                                'p_id_activo': _currentAsset['id'],
+                                'p_numero_serie': numeroSerie,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_ciudad_activo': ciudadActivoId,
+                                'p_id_sede_activo': sedeActivoId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_fecha_adquisicion': fechaAdquisicion,
+                                'p_ip': ip,
+                                'p_fecha_entrega': fechaEntrega,
+                                'p_coordenada': coordenada,
                                 'p_procesador': procesador,
                                 'p_ram': ram,
                                 'p_almacenamiento': almacenamiento,
+                                'p_id_marca': marcaId,
+                                'p_modelo': modelo,
                                 'p_cargador_codigo': cargadorCodigo,
                                 'p_num_puertos': numPuertos,
-                              });
+                                'p_observaciones': observaciones,
+                              };
                             } else if (category == 'SOFTWARE') {
                               rpcName = 'actualizar_activo_software';
-                              params.addAll({
+                              params = {
+                                'p_id_activo': _currentAsset['id'],
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
                                 'p_proveedor': proveedorSoftware,
                                 'p_fecha_inicio': fechaInicio,
                                 'p_fecha_fin': fechaFin,
-                              });
+                                'p_observaciones': observaciones,
+                              };
                             } else if (category == 'COMUNICACION') {
                               rpcName = 'actualizar_activo_equipo_comunicacion';
-                              params.addAll({
+                              params = {
+                                'p_id_activo': _currentAsset['id'],
+                                'p_numero_serie': numeroSerie,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_ciudad_activo': ciudadActivoId,
+                                'p_id_sede_activo': sedeActivoId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_fecha_adquisicion': fechaAdquisicion,
+                                'p_ip': ip,
+                                'p_fecha_entrega': fechaEntrega,
+                                'p_coordenada': coordenada,
+                                'p_id_marca': marcaId,
+                                'p_modelo': modelo,
                                 'p_num_puertos': numPuertos,
                                 'p_tipo_extension': tipoExtension,
-                              });
+                                'p_observaciones': observaciones,
+                              };
                             } else if (category == 'GENERICO') {
                               rpcName = 'actualizar_activo_equipo_generico';
-                              params.addAll({
+                              params = {
+                                'p_id_activo': _currentAsset['id'],
+                                'p_numero_serie': numeroSerie,
+                                'p_nombre': nombre,
+                                'p_codigo': codigo,
+                                'p_id_tipo_activo': tipoActivoId,
+                                'p_id_condicion_activo': condicionActivoId,
+                                'p_id_custodio': custodioId,
+                                'p_id_ciudad_activo': ciudadActivoId,
+                                'p_id_sede_activo': sedeActivoId,
+                                'p_id_area_activo': areaActivoId,
+                                'p_id_provedor': proveedorId,
+                                'p_fecha_adquisicion': fechaAdquisicion,
+                                'p_fecha_entrega': fechaEntrega,
+                                'p_coordenada': coordenada,
+                                'p_id_marca': marcaId,
+                                'p_modelo': modelo,
+                                'p_observaciones': observaciones,
                                 'p_cargador_codigo': cargadorCodigo,
                                 'p_num_conexiones': numConexiones,
                                 'p_var_impresora_color': varImpresoraColor,
                                 'p_var_monitor_tipo_conexion':
                                     varMonitorTipoConexion,
-                              });
+                              };
                             }
 
                             if (rpcName.isNotEmpty) {
@@ -578,32 +621,35 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) =>
-                                MaintenanceFormDialog(initialAssetId: a['id']),
-                          );
-                        },
-                        icon: const Icon(Icons.build_circle),
-                        label: const Text(
-                          'PROGRAMAR MANTENIMIENTO',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueGrey.shade700,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    if (cat.toUpperCase() != 'SOFTWARE')
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12.0),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) =>
+                                    MaintenanceFormDialog(initialAssetId: a['id']),
+                              );
+                            },
+                            icon: const Icon(Icons.build_circle),
+                            label: const Text(
+                              'PROGRAMAR MANTENIMIENTO',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueGrey.shade700,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,

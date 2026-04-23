@@ -17,6 +17,7 @@ class SyncQueueService {
   bool _internalIsSyncing = false;
   bool _internalIsRefreshing = false;
   Timer? _pollingTimer; // Timer para autorecarga iterativa
+  RealtimeChannel? _realtimeChannel;
 
   // Notifiers for UI
   final ValueNotifier<bool> isOnlineNotifier = ValueNotifier<bool>(false);
@@ -56,6 +57,9 @@ class SyncQueueService {
 
     // Arrancar el Polling Automático (Cada 30 segundos si hay internet)
     _startPolling();
+    
+    // Configurar Realtime si hay sesión
+    _setupRealtime();
   }
 
   void _startPolling() {
@@ -88,6 +92,7 @@ class SyncQueueService {
   void stopListening() {
     _connectivitySubscription?.cancel();
     _stopPolling();
+    _realtimeChannel?.unsubscribe();
   }
 
   /// Evento lanzado cuando vuelve el internet
@@ -104,6 +109,10 @@ class SyncQueueService {
 
     // 2. Descarga lo más reciente (para tener el cache de lectura fresco)
     await refreshCache();
+    
+    // 3. Reconectar Realtime
+    _setupRealtime();
+    
     debugPrint('📡 Sincronización Completada.');
   }
 
@@ -265,6 +274,122 @@ class SyncQueueService {
       await LocalDbService.instance.saveCollection(tableName, List<Map<String, dynamic>>.from(resp), 'id');
     } catch (e) {
       debugPrint('Error en caching de tabla maestra $tableName: $e');
+    }
+  }
+
+  // ==========================================================
+  // 3. REALTIME (PUSH NOTIFICATIONS FROM SUPABASE)
+  // ==========================================================
+
+  void _setupRealtime() {
+    final client = Supabase.instance.client;
+    if (client.auth.currentSession == null) {
+      _realtimeChannel?.unsubscribe();
+      return;
+    }
+
+    // Si ya estamos suscritos, no duplicamos
+    if (_realtimeChannel != null) return;
+
+    debugPrint('🔌 Conectando a Supabase Realtime para cambios en DB...');
+
+    _realtimeChannel = client.channel('public:db-changes');
+    
+    // Escuchar cambios en activos
+    _realtimeChannel!.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'activo',
+      callback: (payload) => _handleRealtimePayload(payload, 'Activo'),
+    );
+
+    // Escuchar cambios en mantenimientos
+    _realtimeChannel!.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'mantenimiento',
+      callback: (payload) => _handleRealtimePayload(payload, 'Mantenimiento'),
+    );
+
+    _realtimeChannel!.subscribe((status, [error]) {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        debugPrint('✅ Suscrito a Cambios en Tiempo Real (Postgres)');
+      }
+      if (error != null) {
+        debugPrint('❌ Error en Suscripción Realtime: $error');
+      }
+    });
+  }
+
+  void _handleRealtimePayload(PostgresChangePayload payload, String source) {
+    final table = payload.table;
+    final event = payload.eventType;
+
+    if (event == PostgresChangeEvent.delete) {
+      final oldId = payload.oldRecord['id'];
+      if (oldId != null) {
+        debugPrint('🗑️ Realtime: Eliminando $source localmente ($oldId)');
+        LocalDbService.instance.removeFromCollection(table, oldId.toString()).then((_) {
+          onCacheUpdated.value = DateTime.now();
+        });
+      }
+    } else {
+      // Para Insert o Update, descargamos solo ese registro (Sincronización Quirúrgica)
+      final newId = payload.newRecord['id'];
+      if (newId != null) {
+        _refreshSingleRow(table, newId.toString(), source);
+      }
+    }
+  }
+
+  Future<void> _refreshSingleRow(String table, String id, String sourceName) async {
+    try {
+      Map<String, dynamic>? data;
+
+      if (table == 'activo') {
+        // Obtenemos el activo con todos sus joins necesarios para la UI
+        data = await Supabase.instance.client
+            .from('activo')
+            .select('''
+              *,
+              tipo_activo(tipo),
+              condicion_activo(condicion),
+              custodio(nombre_completo),
+              ciudad_activo(ciudad),
+              sede_activo(sede),
+              area_activo(area),
+              proveedor(nombre),
+              info_pc(*, marca(marca_proveedor)),
+              info_software(*),
+              info_equipo_comunicacion(*, marca(marca_proveedor)),
+              info_equipo_generico(*, marca(marca_proveedor))
+            ''')
+            .eq('id', id)
+            .maybeSingle();
+      } else if (table == 'mantenimiento') {
+        data = await Supabase.instance.client
+            .from('mantenimiento')
+            .select('*, activo(numero_serie, tipo_activo(tipo))')
+            .eq('id', id)
+            .maybeSingle();
+      } else {
+        // Tablas maestras
+        data = await Supabase.instance.client
+            .from(table)
+            .select()
+            .eq('id', id)
+            .maybeSingle();
+      }
+
+      if (data != null) {
+        debugPrint('✨ Realtime: Actualizando $sourceName localmente ($id)');
+        await LocalDbService.instance.upsertToCollection(table, data, id);
+        onCacheUpdated.value = DateTime.now();
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error en refresco quirúrgico ($table:$id): $e');
+      // Si falla el quirúrgico por alguna razón, usamos el refresh completo como salvavidas
+      refreshCache();
     }
   }
 }

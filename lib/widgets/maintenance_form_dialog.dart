@@ -201,24 +201,46 @@ class _MaintenanceFormDialogState extends State<MaintenanceFormDialog> {
                     }
                   },
                   child: InputDecorator(
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Fecha Programada *',
-                      border: OutlineInputBorder(),
-                      suffixIcon: Icon(Icons.calendar_today),
                       isDense: true,
+                      filled: true,
+                      fillColor: Colors.blue.withValues(alpha: 0.05),
+                      labelStyle: const TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.blue.shade300),
+                      ),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: const Icon(Icons.calendar_today),
+                      floatingLabelBehavior: FloatingLabelBehavior.auto,
                     ),
+                    isEmpty: _selectedDate == null,
                     child: Text(
-                      _selectedDate == null ? 'Seleccionar fecha' : AppDateUtils.formatYYYYMMDD(_selectedDate!),
+                      _selectedDate == null
+                          ? ''
+                          : AppDateUtils.formatYYYYMMDD(_selectedDate!),
                     ),
                   ),
                 ),
               ),
               DropdownButtonFormField<String>(
                 value: _selectedTipo,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Tipo de Mantenimiento *',
-                  border: OutlineInputBorder(),
                   isDense: true,
+                  filled: true,
+                  fillColor: Colors.blue.withValues(alpha: 0.05),
+                  labelStyle: const TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue.shade300),
+                  ),
+                  border: const OutlineInputBorder(),
                 ),
                 items: _tipoOptions
                     .map((t) => DropdownMenuItem(value: t, child: Text(t)))
@@ -231,10 +253,19 @@ class _MaintenanceFormDialogState extends State<MaintenanceFormDialog> {
               
               DropdownButtonFormField<String>(
                 value: _selectedEstado,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Estado *',
-                  border: OutlineInputBorder(),
                   isDense: true,
+                  filled: true,
+                  fillColor: Colors.blue.withValues(alpha: 0.05),
+                  labelStyle: const TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue.shade300),
+                  ),
+                  border: const OutlineInputBorder(),
                 ),
               items: _buildEstadoItems(),
                 onChanged: (v) {

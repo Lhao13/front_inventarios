@@ -111,19 +111,51 @@ class LocalDbService {
   /// Guarda una colección completa (útil para cuando llega la info de internet)
   Future<void> saveCollection(String collection, List<Map<String, dynamic>> items, String idKey) async {
     final db = await instance.database;
-    final batch = db.batch();
+    
+    await db.transaction((txn) async {
+      // 1. LIMPIAR lo que tenemos localmente para esta colección 
+      await txn.delete('cache_storage', where: 'collection = ?', whereArgs: [collection]);
 
-    // Eliminamos el batch.delete para prevenir listados vacíos concurrentes.
-    // Usamos ConflictAlgorithm.replace para hacer el upsert de los datos.
-    for (final item in items) {
-      batch.insert('cache_storage', {
-        'collection': collection,
-        'id': item[idKey].toString(),
-        'json_data': jsonEncode(item),
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
-    }
+      // 2. INSERTAR la data fresca
+      if (items.isNotEmpty) {
+        final batch = txn.batch();
+        for (final item in items) {
+          batch.insert('cache_storage', {
+            'collection': collection,
+            'id': item[idKey].toString(),
+            'json_data': jsonEncode(item),
+          });
+        }
+        await batch.commit(noResult: true);
+      }
 
-    await batch.commit(noResult: true);
+      // 3. RE-APLICAR cambios optimistas
+      final pending = await txn.query('sync_queue', where: 'status IN (?, ?)', whereArgs: ['pending', 'failed']);
+      for (final row in pending) {
+        final rpcName = row['rpc_name'] as String;
+        final params = jsonDecode(row['params_json'] as String) as Map<String, dynamic>;
+        await _applyOptimisticToTxn(txn, rpcName, params);
+      }
+    });
+  }
+
+  /// Inserta o actualiza un único registro en la caché local (Sincronización Quirúrgica)
+  Future<void> upsertToCollection(String collection, Map<String, dynamic> item, String idValue) async {
+    final db = await instance.database;
+    await db.insert('cache_storage', {
+      'collection': collection,
+      'id': idValue,
+      'json_data': jsonEncode(item),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  /// Elimina un único registro de la caché local
+  Future<void> removeFromCollection(String collection, String idValue) async {
+    final db = await instance.database;
+    await db.delete('cache_storage', 
+      where: 'collection = ? AND id = ?', 
+      whereArgs: [collection, idValue]
+    );
   }
 
   /// Recupera una colección desde el caché local offline
@@ -163,6 +195,13 @@ class LocalDbService {
 
     // --- LÓGICA OPTIMISTA (Actualización inmediata en Caché Local) ---
     // Inject fake row to reflect immediately in the UI.
+    await db.transaction((txn) async {
+      await _applyOptimisticToTxn(txn, rpcName, params);
+    });
+  }
+
+  /// Parcha la caché local con datos "falsos" mientras la operación se sincroniza.
+  Future<void> _applyOptimisticToTxn(DatabaseExecutor txn, String rpcName, Map<String, dynamic> params) async {
     try {
       if (rpcName.startsWith('crear_activo_')) {
         String cat = 'PC';
@@ -224,36 +263,34 @@ class LocalDbService {
           }];
         }
 
-        await db.insert('cache_storage', {
+        await txn.insert('cache_storage', {
           'collection': 'activo',
           'id': params['p_id_activo'],
           'json_data': jsonEncode(fakeRow),
         }, conflictAlgorithm: ConflictAlgorithm.replace);
 
       } else if (rpcName.startsWith('table:')) {
-        // Optimistic UI for generic tables (e.g. table:mantenimiento:insert)
         final parts = rpcName.split(':');
         if (parts.length >= 3) {
           final tableName = parts[1];
           final action = parts[2];
           
           if (action == 'insert' || action == 'update') {
-            await db.insert('cache_storage', {
+            await txn.insert('cache_storage', {
               'collection': tableName,
-              'id': params['id'], // Asumiendo que params tiene 'id' siempre (como en maintenance_page)
+              'id': params['id'].toString(), 
               'json_data': jsonEncode(params),
             }, conflictAlgorithm: ConflictAlgorithm.replace);
           } else if (action == 'delete') {
-            await db.delete('cache_storage', 
+            await txn.delete('cache_storage', 
               where: 'collection = ? AND id = ?', 
-              whereArgs: [tableName, params['id']]
+              whereArgs: [tableName, params['id'].toString()]
             );
           }
         }
       } else if (rpcName.startsWith('actualizar_activo_')) {
-        // En una app más grande haríamos merge, aquí reemplazamos los top keys.
         final id = params['p_id_activo'];
-        final existing = await db.query('cache_storage', where: 'collection = ? AND id = ?', whereArgs: ['activo', id]);
+        final existing = await txn.query('cache_storage', where: 'collection = ? AND id = ?', whereArgs: ['activo', id]);
         if (existing.isNotEmpty) {
           Map<String, dynamic> oldData = jsonDecode(existing.first['json_data'] as String);
           oldData['numero_serie'] = params['p_numero_serie'] ?? oldData['numero_serie'];
@@ -264,12 +301,11 @@ class LocalDbService {
           Future<void> injectNested(String paramKey, String table, String fieldKey) async {
             final fId = params[paramKey];
             if (fId != null) {
-              final nested = await db.query('cache_storage', where: 'collection = ? AND id = ?', whereArgs: [table, fId.toString()]);
+              final nested = await txn.query('cache_storage', where: 'collection = ? AND id = ?', whereArgs: [table, fId.toString()]);
               if (nested.isNotEmpty) oldData[fieldKey] = jsonDecode(nested.first['json_data'] as String);
             }
           }
  
-          // Resolver foráneas para mostrar instantáneamente la UI
           await injectNested('p_id_tipo_activo', 'tipo_activo', 'tipo_activo');
           await injectNested('p_id_area_activo', 'area_activo', 'area_activo');
           await injectNested('p_id_sede_activo', 'sede_activo', 'sede_activo');
@@ -278,14 +314,13 @@ class LocalDbService {
           await injectNested('p_id_custodio', 'custodio', 'custodio');
           await injectNested('p_id_proveedor', 'proveedor', 'proveedor');
           
-          // Simple optimistic update for top fields only
-          await db.update('cache_storage', {
+          await txn.update('cache_storage', {
             'json_data': jsonEncode(oldData),
           }, where: 'collection = ? AND id = ?', whereArgs: ['activo', id]);
         }
       } else if (rpcName == 'eliminar_activo') {
         final id = params['p_id_activo'];
-        await db.delete('cache_storage', where: 'collection = ? AND id = ?', whereArgs: ['activo', id]);
+        await txn.delete('cache_storage', where: 'collection = ? AND id = ?', whereArgs: ['activo', id]);
       }
     } catch (e) {
       debugPrint('Aviso: Error inyectando cache optimista: $e');

@@ -123,7 +123,7 @@ class SearchableDropdownFormField<T> extends FormField<T> {
   }) : super(
           initialValue: value,
           builder: (FormFieldState<T> state) {
-            String displayVal = 'Seleccione una opción';
+            String displayVal = ''; // Vacío para que el label se muestre dentro (como hint)
             if (state.value != null) {
               final selectedItem = items.cast<Map<String,dynamic>?>().firstWhere(
                 (item) => item != null && item['id'] == state.value,
@@ -155,29 +155,38 @@ class SearchableDropdownFormField<T> extends FormField<T> {
                   decoration: InputDecoration(
                     labelText: required ? '$label *' : label,
                     isDense: true,
+                    filled: required,
+                    fillColor: required ? Colors.blue.withValues(alpha: 0.05) : null,
+                    labelStyle: required
+                        ? const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)
+                        : null,
+                    enabledBorder: required
+                        ? OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.blue.shade300),
+                          )
+                        : const OutlineInputBorder(),
                     border: const OutlineInputBorder(),
                     errorText: state.errorText,
+                    floatingLabelBehavior: FloatingLabelBehavior.auto,
                   ),
+                  isEmpty: state.value == null,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
                           displayVal,
-                          style: TextStyle(
-                            color: state.value == null ? Colors.grey.shade600 : null,
-                            fontSize: 15,
-                          ),
+                          style: const TextStyle(fontSize: 15),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (state.value != null)
+                      if (state.value != null && !required)
                         InkWell(
-                          child: const Icon(Icons.clear, size: 20, color: Colors.grey),
                           onTap: () {
                             state.didChange(null);
                             onChanged(null);
                           },
+                          child: const Icon(Icons.clear, size: 20, color: Colors.grey),
                         )
                       else
                         const Icon(Icons.arrow_drop_down, color: Colors.grey),
