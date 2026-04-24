@@ -57,27 +57,143 @@ El modelo de datos emplea un patrón **polimórfico**. Existe una tabla núcleo 
 
 ```mermaid
 erDiagram
-    ACTIVO ||--o| INFO_PC : "es un"
-    ACTIVO ||--o| INFO_SOFTWARE : "es un"
-    ACTIVO ||--o| INFO_EQUIPO_COMUNICACION : "es un"
-    ACTIVO ||--o| INFO_EQUIPO_GENERICO : "es un"
-    ACTIVO ||--o{ MANTENIMIENTO : tiene
-    ACTIVO ||--o{ HISTORIAL_ACTIVO : audita
-    
-    ACTIVO }|--|| TIPO_ACTIVO : "categoría"
-    ACTIVO }|--|| SEDE_ACTIVO : "ubicación"
-    ACTIVO }|--|| CUSTODIO : "asignado a"
-    ACTIVO }|--|| PROVEEDOR : "adquirido en"
-    
-    USUARIO_ROL }|--|| ROL : define
-    
-    ACTIVO {
+    %% Tabla central
+    activo {
         uuid id PK
-        string numero_serie UK
-        string codigo
-        jsonb coordenada
-        string categoria_activo
+        varchar numero_serie
+        integer id_custodio FK
+        integer id_condicion_activo FK
+        integer id_tipo_activo FK
+        integer id_ciudad_activo FK
+        integer id_sede_activo FK
+        integer id_area_activo FK
+        integer id_provedor FK
+        varchar categoria_activo
+        varchar ip
+        varchar nombre
+        text codigo
+        date fecha_adquisicion
+        date fecha_entrega
     }
+
+    %% Tablas de catálogos / referencias de activo
+    area_activo {
+        integer id PK
+        varchar area
+    }
+    ciudad_activo {
+        integer id PK
+        varchar ciudad
+    }
+    condicion_activo {
+        integer id PK
+        varchar condicion
+    }
+    custodio {
+        integer id PK
+        varchar username
+        varchar nombre_completo
+    }
+    proveedor {
+        integer id PK
+        varchar nombre
+    }
+    sede_activo {
+        integer id PK
+        varchar sede
+    }
+    tipo_activo {
+        integer id PK
+        varchar tipo
+        varchar categoria
+    }
+
+    %% Extensiones / Información específica por tipo de activo
+    info_equipo_comunicacion {
+        integer id PK
+        uuid id_activo FK
+        integer id_marca FK
+        varchar modelo
+        integer num_puertos
+    }
+    info_equipo_generico {
+        integer id PK
+        uuid id_activo FK
+        integer id_marca FK
+        varchar modelo
+    }
+    info_pc {
+        integer id PK
+        uuid id_activo FK
+        integer id_marca FK
+        varchar modelo
+        varchar procesador
+        varchar ram
+    }
+    info_software {
+        integer id PK
+        uuid id_activo FK
+        varchar proveedor
+        date fecha_inicio
+        date fecha_fin
+    }
+    marca {
+        integer id PK
+        varchar marca_proveedor
+    }
+
+    %% Historial y Mantenimiento
+    historial_activo {
+        uuid id PK
+        uuid id_activo FK
+        varchar tipo_operacion
+        jsonb snapshot_json
+    }
+    mantenimiento {
+        uuid id PK
+        uuid id_activo FK
+        date fecha_programada
+        date fecha_realizada
+        varchar estado
+    }
+
+    %% Roles de usuario
+    rol {
+        integer id PK
+        varchar nombre
+    }
+    usuario_rol {
+        uuid user_id PK
+        integer rol_id PK
+    }
+
+    %% Relaciones de activo con sus catálogos
+    activo }o--|| custodio : "asignado a (id_custodio)"
+    activo }o--|| condicion_activo : "tiene (id_condicion_activo)"
+    activo }o--|| tipo_activo : "es de (id_tipo_activo)"
+    activo }o--|| ciudad_activo : "ubicado en (id_ciudad_activo)"
+    activo }o--|| sede_activo : "pertenece a (id_sede_activo)"
+    activo }o--|| area_activo : "asignado a (id_area_activo)"
+    activo }o--|| proveedor : "provisto por (id_provedor)"
+
+    %% Relaciones de información detallada (1 a 1 / 1 a muchos)
+    info_equipo_comunicacion |o--|| activo : "detalla (id_activo)"
+    info_equipo_comunicacion }o--|| marca : "fabricado por (id_marca)"
+
+    info_equipo_generico |o--|| activo : "detalla (id_activo)"
+    info_equipo_generico }o--|| marca : "fabricado por (id_marca)"
+
+    info_pc |o--|| activo : "detalla (id_activo)"
+    info_pc }o--|| marca : "fabricado por (id_marca)"
+
+    info_software |o--|| activo : "detalla (id_activo)"
+
+    %% Relaciones operativas
+    mantenimiento }o--|| activo : "aplica a (id_activo)"
+    historial_activo }o--|| activo : "registra (id_activo)"
+
+    %% Relación de roles
+    usuario_rol }o--|| rol : "asigna (rol_id)"
 ```
 
 ### Funciones RPC (Remote Procedure Calls)
