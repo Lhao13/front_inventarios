@@ -260,4 +260,89 @@ A lo largo del desarrollo, aplicamos un riguroso estándar de calidad que nos ll
 *   **Eliminación de Código Muerto**: Extracción de clases obsoletas (`global_asset_data_source`) generadas antes del refactor, y unificación de utilidades genéricas (`_formatDate`, `_getCategoryIcon`) para cumplir principios DRY (Don't Repeat Yourself).
 
 ---
-*Desarrollado con altos estándares de ingeniería para el Proyecto Integrador 2026.*
+´´´mermaid
+graph TD
+    %% Definición de colores basados en tu imagen original
+    classDef login fill:#f5f5f5,stroke:#333,stroke-width:1px
+    classDef main fill:#bbdefb,stroke:#1976d2,stroke-width:2px
+    classDef admin fill:#c8e6c9,stroke:#388e3c,stroke-width:1px
+    classDef scanner fill:#ffcdd2,stroke:#d32f2f,stroke-width:1px
+    classDef module fill:#ffe0b2,stroke:#f57c00,stroke-width:1px
+    classDef form fill:#e1bee7,stroke:#7b1fa2,stroke-width:1px
+
+    %% Nodos de Inicio
+    AppStart((Inicio de App))
+    AuthCheck{¿Sesión?}
+    
+    Login["Página de Login<br>(Auth / Supabase)"]:::login
+    LockScreen["Pantalla de Bloqueo<br>(Protección Local PIN)"]:::login
+    Onboarding["Onboarding<br>(Guía Inicial)"]:::login
+    
+    MainPage["Main Page<br>(Contenedor Principal + Drawer)"]:::main
+    
+    %% Flujo de Autenticación
+    AppStart --> AuthCheck
+    AuthCheck -->|No| Login
+    AuthCheck -->|Sí| LockScreen
+    
+    Login -->|Éxito 1er Ingreso| Onboarding
+    Login -->|Éxito| MainPage
+    Onboarding --> MainPage
+    LockScreen -->|Pin Correcto| MainPage
+
+    %% Nodos Principales (Drawer)
+    AdminTablas["Administración<br>Tablas Maestras"]:::admin
+    AdminUsuarios["Administración<br>Usuarios"]:::admin
+    Mantenimientos["Mantenimientos<br>(MaintenancePage)"]:::admin
+    GestionGlobal["Gestión Global de Activos<br>(AssetManagementPage)"]:::admin
+    Dashboard["Panel de Control<br>(Dashboard Inicial)"]:::main
+    
+    MainPage -->|Solo Admin| AdminTablas
+    MainPage -->|Solo Admin| AdminUsuarios
+    MainPage -->|Admin / TI| Mantenimientos
+    MainPage --> GestionGlobal
+    MainPage --> Dashboard
+    
+    %% Nodos de Escáner y Búsqueda
+    EscanerQR["Escáner QR/Código Barras<br>(BarcodeScannerScreen)"]:::scanner
+    BusquedaRapida["Búsqueda Rápida<br>(QuickSearchResultPage)"]:::scanner
+    
+    Dashboard --> EscanerQR
+    EscanerQR --> BusquedaRapida
+    
+    %% Módulos de Activos
+    ModPC["Módulo PCs<br>(PcAssetsPage)"]:::module
+    ModComms["Módulo Comunicaciones<br>(CommsAssetsPage)"]:::module
+    ModSoft["Módulo Software<br>(SoftwareAssetsPage)"]:::module
+    ModGen["Módulo Genérico<br>(GenericAssetsPage)"]:::module
+    
+    Dashboard --> ModPC
+    Dashboard --> ModComms
+    Dashboard --> ModSoft
+    Dashboard --> ModGen
+    
+    %% Flujo de Gestión de Datos
+    AssetDetail["Detalle del Activo<br>(AssetDetailPage)"]:::form
+    Formulario["Formulario Dinámico<br>(DynamicAssetForm)"]:::form
+    
+    BusquedaRapida --> AssetDetail
+    GestionGlobal --> AssetDetail
+    ModPC --> AssetDetail
+    ModComms --> AssetDetail
+    ModSoft --> AssetDetail
+    ModGen --> AssetDetail
+    
+    AssetDetail -->|Editar| Formulario
+    GestionGlobal -.->|Crear Activo| Formulario
+    ModPC -.->|Crear| Formulario
+    ModComms -.->|Crear| Formulario
+    ModSoft -.->|Crear| Formulario
+    ModGen -.->|Crear| Formulario
+    
+    %% Nodos Hijos del Formulario
+    VisorMapas["Visor de Mapas<br>(MapDialog / MapScreen)"]:::form
+    EscanerInputs["Escáner de Inputs<br>(BarcodeScannerScreen)"]:::scanner
+    
+    Formulario --> VisorMapas
+    Formulario --> EscanerInputs
+´´´
