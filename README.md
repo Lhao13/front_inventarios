@@ -259,8 +259,7 @@ A lo largo del desarrollo, aplicamos un riguroso estándar de calidad que nos ll
 *   **Igualdad de Objetos en Tablas**: En Dart, dos listas idénticas tienen referencias de memoria distintas. Esto provocaba que `AssetDataTable` borrara las configuraciones de columnas del usuario ante cualquier reconstrucción. Solucionado mediante el paquete Foundation o declarando constantes inmutables.
 *   **Eliminación de Código Muerto**: Extracción de clases obsoletas (`global_asset_data_source`) generadas antes del refactor, y unificación de utilidades genéricas (`_formatDate`, `_getCategoryIcon`) para cumplir principios DRY (Don't Repeat Yourself).
 
----
-´´´mermaid
+```mermaid
 graph TD
     %% Definición de colores basados en tu imagen original
     classDef login fill:#f5f5f5,stroke:#333,stroke-width:1px
@@ -345,4 +344,5 @@ graph TD
     
     Formulario --> VisorMapas
     Formulario --> EscanerInputs
-´´´
+
+```
