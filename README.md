@@ -1,118 +1,147 @@
 # 📦 Gestor de Inventarios Inteligente (Frontend)
 
-Bienvenido al repositorio oficial del **Sistema de Gestión de Activos Físicos**. Esta aplicación ha sido desarrollada para resolver problemas reales de inventario empresarial, enfocándose en la **robustez offline**, la trazabilidad mediante **geolocalización** y una arquitectura de datos escalable.
+Bienvenido al repositorio oficial del **Sistema de Gestión de Activos Físicos**. Esta aplicación ha sido desarrollada como parte del proyecto integrador, enfocándose en la robustez offline, la geolocalización de activos y la eficiencia técnica en la gestión de hardware y software empresarial.
 
 ---
 
-## 🛠️ Stack Tecnológico y Librerías Core
+## 🚀 Guía de Inicio Rápido
 
-La aplicación está construida con **Flutter** y utiliza dependencias específicas para interactuar profundamente con el hardware del dispositivo:
+### Requisitos Previos
+*   [Flutter SDK](https://docs.flutter.dev/get-started/install) (Versión 3.19 o superior recomendada).
+*   Un proyecto activo en [Supabase](https://supabase.com/).
+*   Dispositivo Android físico (Recomendado para pruebas de Cámara, Biometría y GPS).
 
-*   **Autenticación Biométrica (`local_auth`)**: Permite el desbloqueo de la aplicación mediante Face ID o Huella Dactilar tras el primer login, asegurando acceso rápido sin sacrificar seguridad.
-*   **Escaneo Inteligente (`mobile_scanner`)**: Controla la cámara del dispositivo para leer códigos QR y códigos de barras (números de serie), agilizando auditorías.
-*   **Geolocalización y Mapeo (`geolocator` & `flutter_map`)**: Captura las coordenadas GPS exactas del dispositivo al momento de registrar un activo y las renderiza en mapas interactivos sin depender de APIs de pago como Google Maps.
-*   **Almacenamiento Local (`sqflite` & `flutter_secure_storage`)**: Motor de base de datos local para operaciones offline y bóveda encriptada para tokens de sesión.
-*   **Backend as a Service (`supabase_flutter`)**: Sincronización en tiempo real, base de datos PostgreSQL en la nube y sistema de autenticación de usuarios.
+### Instalación
+1.  Clona este repositorio:
+    ```bash
+    git clone https://github.com/tu-usuario/front_inventarios.git
+    ```
+2.  Instala las dependencias:
+    ```bash
+    flutter pub get
+    ```
+3.  Configura el archivo `.env` en la raíz del proyecto (Nunca subas este archivo a repositorios públicos):
+    ```env
+    SUPABASE_URL=tu_url_de_supabase
+    SUPABASE_ANON_KEY=tu_anon_key
+    ```
+4.  Ejecuta la aplicación:
+    ```bash
+    flutter run --release
+    ```
 
 ---
 
-## 🔐 Autenticación y Sistema de Roles
+## 🛠️ Tecnologías y Módulos Críticos
 
-El sistema implementa un modelo de Control de Acceso Basado en Roles (RBAC) gestionado localmente por el `RoleService` y respaldado por una tabla `usuario_rol` en la nube.
+### 🔐 Autenticación y Seguridad Multinivel
+*   **Biometría y Pantalla de Bloqueo**: Uso de `local_auth` para integración con **Face ID y Huella Dactilar** del dispositivo. El sistema guarda un hash local de la sesión, permitiendo desbloqueos ultrarrápidos sin tener que ir a consultar a Supabase cada vez que la app pasa a segundo plano.
+*   **Sistema de Recuperación (`Deep Linking`)**: Si un usuario olvida su clave, Supabase envía un email mágico. Al hacer clic, la librería `supabase_flutter` intercepta la URL y abre directamente la `PasswordResetPage` dentro de la app móvil.
+*   **Control de Roles Basado en RBAC (Role-Based Access Control)**:
+    *   **`ADMIN`**: Acceso total. Puede ver/gestionar el estado de los equipos, crear usuarios y asignar roles.
+    *   **`TI`**: Acceso operativo. Puede crear y editar activos, además de programar y marcar mantenimientos como completados.
+    *   **`PRESTAMO`**: Acceso de solo lectura/edición superficial. Puede ver detalles, pero se le oculta el panel de creación de mantenimientos y la vista de administración.
 
-### Recuperación de Contraseña
-Se integra un flujo de "Password Recovery" automatizado. Supabase envía un correo con un token seguro (`deep link`). La app escucha el evento `AuthChangeEvent.passwordRecovery` e intercepta el enlace, abriendo directamente la pantalla de reseteo dentro de la aplicación, sin necesidad de usar el navegador web.
+### 📸 Escaneo QR y 📍 Mapas GPS
+*   **Inventariado Veloz**: A través de `mobile_scanner`, la cámara escanea directamente números de serie o códigos QR, saltando a la vista de detalles sin requerir búsqueda manual.
+*   **Georeferenciación**: Integración de `geolocator` para obtener las coordenadas exactas del teléfono al momento de registrar un activo y visualización en tiempo real usando `flutter_map` (mapas interactivos basados en OpenStreetMap).
 
-### Permisos por Rol
-1.  **ADMIN**: Control total. Puede crear/editar activos, realizar mantenimientos, acceder a los ajustes del sistema, y gestionar a otros usuarios (pantalla `admin_users_page`).
-2.  **TI (Tecnología)**: Nivel operativo. Puede escanear, crear y editar activos, así como ejecutar y firmar mantenimientos de hardware. No tiene acceso a la administración de usuarios.
-3.  **PRESTAMO**: Nivel básico. Únicamente puede consultar el catálogo de activos y editar algunos campos básicos del activo asignado. Tienen bloqueada la visualización y creación de mantenimientos.
+### 💡 Tutorial de Onboarding
+Flujo educativo que se muestra **solo la primera vez** tras el registro usando validación por bandera local (`has_seen_onboarding` en SQLite). Diseñado con imágenes PNG optimizadas (usando `cacheWidth`) para garantizar cero impacto en la RAM del teléfono (evitando los bloqueos ANR que provocaba el renderizado vectorial pesado).
 
 ---
 
-## 🗄️ Base de Datos y Supabase (Esquema Híbrido)
+## 🗄️ Arquitectura de Base de Datos (Supabase)
 
-El diseño de la base de datos se normalizó para separar los metadatos globales del activo de sus características técnicas específicas, permitiendo que la tabla principal sea muy ligera.
+El modelo de datos emplea un patrón **polimórfico**. Existe una tabla núcleo (`activo`) que almacena las características universales (serie, ubicación, custodia) y múltiples tablas satélite (`info_pc`, `info_comunicacion`, etc.) que almacenan metadatos específicos según la categoría.
 
-### Estructura Relacional (ER-Diagram)
 ```mermaid
 erDiagram
-    ACTIVO ||--o{ MANTENIMIENTO : recibe
-    ACTIVO ||--o| INFO_PC : "Categoria: PC"
-    ACTIVO ||--o| INFO_SOFTWARE : "Categoria: Software"
-    ACTIVO ||--o| INFO_EQUIPO_GENERICO : "Categoria: Genérico"
-    ACTIVO ||--o| INFO_EQUIPO_COMUNICACION : "Categoria: Comunicación"
+    ACTIVO ||--o| INFO_PC : "es un"
+    ACTIVO ||--o| INFO_SOFTWARE : "es un"
+    ACTIVO ||--o| INFO_EQUIPO_COMUNICACION : "es un"
+    ACTIVO ||--o| INFO_EQUIPO_GENERICO : "es un"
+    ACTIVO ||--o{ MANTENIMIENTO : tiene
+    ACTIVO ||--o{ HISTORIAL_ACTIVO : audita
+    
+    ACTIVO }|--|| TIPO_ACTIVO : "categoría"
+    ACTIVO }|--|| SEDE_ACTIVO : "ubicación"
+    ACTIVO }|--|| CUSTODIO : "asignado a"
+    ACTIVO }|--|| PROVEEDOR : "adquirido en"
+    
+    USUARIO_ROL }|--|| ROL : define
     
     ACTIVO {
         uuid id PK
-        string numero_serie
+        string numero_serie UK
+        string codigo
         jsonb coordenada
-    }
-    
-    INFO_PC {
-        integer id PK
-        uuid id_activo FK
-        string procesador
-        string ram
+        string categoria_activo
     }
 ```
 
 ### Funciones RPC (Remote Procedure Calls)
-Para evitar el "N+1 query problem" y reducir el consumo de red, se crearon funciones en la nube (ej. `get_activos_completos`). En lugar de que el celular haga 10 consultas para armar un activo con su custodio, marca y área, el RPC ejecuta los `JOIN` en el servidor de PostgreSQL y devuelve un JSON unificado listo para ser clonado en la caché de SQLite.
+Para evitar que el celular tenga que procesar millones de registros mediante múltiples consultas, delegamos la carga al servidor con **RPCs** como `get_activos_completos`. Estas funciones de PostgreSQL ejecutan todos los `JOINS` y devuelven un JSON consolidado ultra rápido, listo para inyectarse a SQLite.
 
 ---
 
-## 📡 Arquitectura de Sincronización Offline-First
+## 📡 Sincronización Offline-First (The Engine)
 
-El corazón tecnológico del proyecto es el **Demonio Sincronizador (`SyncQueueService`)**. La aplicación NUNCA escribe directamente en la nube. Toda acción del usuario pasa primero por la cola local.
+El "Demonio Sincronizador" (`SyncQueueService`) es el corazón de la aplicación. Convierte a la app en una herramienta 100% funcional sin internet.
 
-### Diagrama del Flujo de Sincronización
+### Comportamiento Online vs Offline
+1.  **Online**: Operaciones se envían a la base de datos (Supabase). Si hay éxito, se guardan en el historial local.
+2.  **Offline (Optimistic UI)**: Si no hay red, la app intercepta el guardado. Inserta la petición (ej. "Crear PC") en la tabla local `sync_queue`. Simultáneamente, inyecta un "clon" del activo en la tabla `cache_storage`. Para el usuario, el activo se creó mágicamente al instante, sin tiempos de carga (Optimistic Update).
+
+### Mecanismos de Resolución de Conflictos
+*   **"El último que llega gana" (Last Writer Wins)**: Cuando dos dispositivos editan el mismo activo, Supabase procesa las llamadas cronológicamente por milisegundo de llegada (`timestamp_updated_at`). Las peticiones antiguas se sobrescriben por la más reciente sin chocar.
+*   **Gestión de Errores Permanentes (Ej. Series Duplicadas)**: Si dos usuarios desconectados crean el *mismo* número de serie, y luego ambos recuperan internet, el servidor rechazará al segundo (Error 23505 - Unique Violation). La cola local intercepta el error, lo marca como "Fallido Permanente" para no bloquear la cola y lo notifica en UI.
+*   **Periodo de Silencio (Evitando Ecos)**: Dado que usamos `Broadcast (Realtime)` de Supabase para escuchar cambios globales, cuando el propio teléfono descarga su cola de subida, desactiva la escucha `Realtime` por **10 segundos**. Esto evita que el teléfono "escuche" sus propios ecos de inserción y se ponga en un bucle infinito de refresco.
+*   **Ajuste del Polling**: Se migró de una recarga de base de datos (`forceSyncAndRefresh()`) cada 30 segundos a una ventana de **5 minutos**. Dado que el inventario supera los 900+ activos con múltiples sub-tablas, esto salvó el rendimiento de batería y procesador.
+
 ```mermaid
 sequenceDiagram
-    actor Usuario
-    participant UI as Pantalla (Frontend)
-    participant SQLite as Cola (sync_queue)
+    participant UI as Pantalla (Usuario)
+    participant SQLite as Caché y Cola (LocalDbService)
     participant Daemon as Demonio Sincronizador
-    participant Supabase as Nube (Supabase DB)
+    participant Supabase as Base Centralizada
 
-    Usuario->>UI: Guarda activo (con o sin Internet)
-    UI->>SQLite: Inserta operación en cola
-    UI-->>Usuario: Pantalla de éxito inmediata
-    
-    Note right of Daemon: Conexión Detectada
-    Daemon->>SQLite: Lee operaciones pendientes
-    Daemon->>Supabase: Intenta inserción (RPC o Query)
-    
+    UI->>SQLite: 1. Guarda nuevo Activo Offline
+    SQLite-->>UI: 2. UI se actualiza inmediatamente (Optimista)
+    Note over Daemon: Retorna Conectividad
+    Daemon->>SQLite: 3. Lee 'sync_queue'
+    Daemon->>Supabase: 4. Ejecuta RPC Remoto
     alt Inserción Exitosa
         Supabase-->>Daemon: 200 OK
-        Daemon->>SQLite: Borra operación de la cola local
-    else Choque / Error de Integridad (ej. Serie duplicada)
-        Supabase-->>Daemon: 409 / 500 Constraint Violated
-        Daemon->>SQLite: Marca operación como "Failed" / Permanet Error
+        Daemon->>SQLite: Elimina de la cola
+    else Conflicto de Servidor (Ej. Unique Violado)
+        Supabase-->>Daemon: Error Constraints
+        Daemon->>SQLite: Marca como "Rejected" (Error visible)
     end
 ```
 
-### Mecanismos de Resolución de Conflictos
-1.  **"El último que llega gana" (Last Write Wins)**: Como cada activo tiene un UUID, si dos celulares editan el mismo activo estando offline, cuando recuperen la conexión, la nube aceptará la edición del que sincronice al último, sobrescribiendo el estado.
-2.  **Los 10 Segundos de Silencio**: Cuando la app sube una cola masiva de cambios a Supabase, la base de datos lanza eventos de confirmación (`Realtime Broadcast`). Para evitar que el celular procese en bucle sus propios ecos de confirmación, la app entra en un "Modo Silencio" de 10 segundos donde ignora los webhooks entrantes hasta estabilizarse.
-3.  **Delay de 5 Minutos (Polling)**: Para asegurar que la base de datos local es exacta, la app realiza una descarga total de datos (`get_activos_completos`) cada 5 minutos. Anteriormente se hacía cada 30 segundos, lo que causaba caídas de frames (UI Jank); el ajuste a 5 minutos equilibra la red y la batería.
-
 ---
 
-## 🛠️ Bitácora de Ingeniería: Errores Resueltos
+## 🛠️ Post-Mortem Técnico: Auditoría de Código y Bugs Resueltos
 
-Durante el ciclo de desarrollo se aplicaron severas correcciones de arquitectura para llevar el proyecto a estándares de producción. A continuación, los bugs críticos detectados y solucionados:
+A lo largo del desarrollo, aplicamos un riguroso estándar de calidad que nos llevó a refactorizar áreas críticas del código para garantizar nivel de producción:
 
-1.  **[CRÍTICO] Colisión de IDs por Timestamp**: Inicialmente, la cola offline (`enqueueOperation`) usaba `DateTime.now().millisecondsSinceEpoch` como ID principal en SQLite. Si un usuario creaba dos mantenimientos muy rápido, los IDs chocaban y el insert fallaba silenciosamente, perdiendo datos. **Solución**: Migración a `Uuid().v4()` como clave primaria garantizada.
-2.  **[CRÍTICO] Bypasseo del Modo Offline en Búsqueda Rápida**: La pantalla `QuickSearchResultPage` eliminaba activos llamando directamente al backend. Si no había internet, la app crasheaba y la base local quedaba desincronizada. **Solución**: Enrutamiento de todas las eliminaciones a través de la cola local (`LocalDbService.instance.enqueueOperation`).
-3.  **[CRÍTICO] ANR y Bloqueos en el Arranque (Signal 3)**: Al inicio de sesión, la UI intentaba renderizar SVGs pesados mientras competía por la base de datos local con la sincronización masiva inicial. **Solución**: Migración del Onboarding a PNGs, uso estricto de `cacheWidth` para minimizar el impacto en RAM, y encapsulación de las descargas pesadas en `Future.microtask`.
-4.  **[ALTO] Refactorización de Duplicación de Código**: Las 4 páginas de subcategorías de activos (PC, Software, etc.) compartían un 75% de código, dificultando el mantenimiento. **Solución**: Creación de clases abstractas, centralización de variables inmutables para filtros y estandarización del `AssetDataTable`.
-5.  **[MEDIO] Actualizaciones Optimistas (DELETE vs UPSERT)**: Al recargar datos, la app borraba la tabla entera (`DELETE`) para re-insertarla, causando pestañeos (flickering) en la interfaz. **Solución**: Implementación de `ConflictAlgorithm.replace` (Upsert) nativo de SQLite para inyecciones limpias de datos sin vaciar la caché.
+### 1. Colisiones Silenciosas de IDs (🔴 CRÍTICO)
+*   **El Problema**: Las operaciones offline en la cola (`sync_queue`) usaban `DateTime.now().millisecondsSinceEpoch` como Primary Key. En operaciones masivas o en un mismo frame de UI, se generaban llaves duplicadas, causando que SQLite abortara las peticiones silenciosamente y se perdiera la data del usuario.
+*   **La Solución**: Migración completa a identificadores universales seguros usando `Uuid().v4()`, garantizando unicidad estadística absoluta.
+
+### 2. Fractura de la Arquitectura Offline (🔴 CRÍTICO)
+*   **El Problema**: Durante auditorías, se descubrió que `QuickSearchResultPage` eliminaba activos *directamente* contra la API de Supabase (`await supabase.rpc(...)`). Si no había internet, la app crasheaba.
+*   **La Solución**: Re-enrutamiento del flujo hacia `LocalDbService.instance.enqueueOperation`. Ahora los borrados se encolan y respetan el estado offline, manteniendo la integridad arquitectónica.
+
+### 3. Estabilidad de Interfaz (Jank y Rendering)
+*   **El Problema (Cuelgues ANR - Signal 3)**: Al arrancar la app con cuentas nuevas, los hilos de parseo SVG chocaban con la sincronización pesada de datos, colgando la app por completo.
+*   **La Solución**: Reemplazo por assets PNG con constraints explícitos en memoria RAM (`cacheWidth`), envoltura de la sincronización en un bloque de protección `try-catch` dentro de un `Future.microtask`, y protección de lectura de la DB local con `timeout(2s)`.
+*   **Mutaciones Ilegales en Build()**: Se corrigieron antipatrones críticos donde variables de estado como la paginación (`_tableCurrentPage.clamp()`) se modificaban directamente dentro del ciclo `build()`, previniendo errores de estado inconsistente.
+
+### 4. Limpieza Estructural (Code Smells)
+*   **Igualdad de Objetos en Tablas**: En Dart, dos listas idénticas tienen referencias de memoria distintas. Esto provocaba que `AssetDataTable` borrara las configuraciones de columnas del usuario ante cualquier reconstrucción. Solucionado mediante el paquete Foundation o declarando constantes inmutables.
+*   **Eliminación de Código Muerto**: Extracción de clases obsoletas (`global_asset_data_source`) generadas antes del refactor, y unificación de utilidades genéricas (`_formatDate`, `_getCategoryIcon`) para cumplir principios DRY (Don't Repeat Yourself).
 
 ---
-
-## 📖 Tutorial Integrado (Onboarding)
-Se implementó un flujo explicativo de "Día Cero". El sistema lee la base de datos local `cache_storage` para detectar el flag `has_seen_onboarding`. La primera vez que un empleado inicia sesión, se le enseña cómo usar la categorización de activos y el escáner de códigos QR. Luego, el tutorial puede reabrirse desde el menú lateral en cualquier momento.
-
----
-*Documentación técnica del Sistema de Inventarios Offline-First — Proyecto Integrador 2026*
+*Desarrollado con altos estándares de ingeniería para el Proyecto Integrador 2026.*
