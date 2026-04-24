@@ -3,7 +3,7 @@ import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter/foundation.dart';
 
-enum UserRole { admin, ti, ayudante, unknown }
+enum UserRole { admin, ti, ayudante, prestamo, unknown }
 
 class RoleService {
   static final ValueNotifier<UserRole?> _currentRoleNotifier = ValueNotifier<UserRole?>(null);
@@ -73,6 +73,8 @@ class RoleService {
       case 'TI':
         return UserRole.ti;
       case 'PRESTAMO':
+        return UserRole.prestamo;
+      case 'AYUDANTE':
         return UserRole.ayudante;
       default:
         return UserRole.unknown;

@@ -253,8 +253,13 @@ class SyncQueueService {
       // -- 1. Tabla de Activos Principal (Full Query Vía RPC)
       try {
         final activosResponse = await Supabase.instance.client.rpc('get_activos_completos');
-        // Salvamos en la colección 'activo' (cuyo ID primario es 'id' tipo UUID)
-        await LocalDbService.instance.saveCollection('activo', List<Map<String, dynamic>>.from(activosResponse), 'id');
+        if (activosResponse != null) {
+          await LocalDbService.instance.saveCollection(
+            'activo', 
+            List<Map<String, dynamic>>.from(activosResponse as List), 
+            'id'
+          );
+        }
       } catch (e) { debugPrint('Error cacheando Activos: $e'); }
 
       // -- 2. Tabla Mantenimientos
@@ -262,7 +267,12 @@ class SyncQueueService {
         final mttoResponse = await Supabase.instance.client
             .from('mantenimiento')
             .select('*, activo(numero_serie, tipo_activo(tipo))');
-        await LocalDbService.instance.saveCollection('mantenimiento', List<Map<String, dynamic>>.from(mttoResponse), 'id');
+        
+        await LocalDbService.instance.saveCollection(
+          'mantenimiento', 
+          List<Map<String, dynamic>>.from(mttoResponse), 
+          'id'
+        );
       } catch (e) { debugPrint('Error cacheando Mantenimientos: $e'); }
 
       // -- 3. Tablas Maestras
@@ -290,7 +300,11 @@ class SyncQueueService {
   Future<void> _cacheSimpleTable(String tableName) async {
     try {
       final resp = await Supabase.instance.client.from(tableName).select();
-      await LocalDbService.instance.saveCollection(tableName, List<Map<String, dynamic>>.from(resp), 'id');
+      await LocalDbService.instance.saveCollection(
+        tableName, 
+        List<Map<String, dynamic>>.from(resp), 
+        'id'
+      );
     } catch (e) {
       debugPrint('Error en caching de tabla maestra $tableName: $e');
     }

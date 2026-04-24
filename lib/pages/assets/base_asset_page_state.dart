@@ -1091,7 +1091,7 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
           : null,
       customActionsBuilder: (asset) {
         final category = asset['categoria_activo']?.toString().toUpperCase();
-        if (category == 'SOFTWARE') return [];
+        if (category == 'SOFTWARE' || RoleService.currentRole == UserRole.prestamo || RoleService.currentRole == UserRole.ayudante) return [];
         return [
           Tooltip(
             message: 'Programar Mantenimiento',
@@ -1231,10 +1231,9 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                                   const SizedBox(height: 4),
                                 ],
                                 // Botón Mantenimiento
-                                if (a['categoria_activo']
-                                        ?.toString()
-                                        .toUpperCase() !=
-                                    'SOFTWARE') ...[
+                                if (a['categoria_activo']?.toString().toUpperCase() != 'SOFTWARE' && 
+                                    RoleService.currentRole != UserRole.prestamo && 
+                                    RoleService.currentRole != UserRole.ayudante) ...[
                                   InkWell(
                                     borderRadius: BorderRadius.circular(20),
                                     onTap: () {
@@ -1255,12 +1254,11 @@ abstract class BaseAssetPageState<T extends StatefulWidget> extends State<T> {
                                     ),
                                   ),
                                   if (RoleService.currentRole !=
-                                      UserRole.ayudante)
+                                      UserRole.ayudante && RoleService.currentRole != UserRole.prestamo)
                                     const SizedBox(height: 4),
                                 ],
                                 // Botón Eliminar
-                                if (RoleService.currentRole !=
-                                    UserRole.ayudante)
+                                if (RoleService.currentRole != UserRole.ayudante && RoleService.currentRole != UserRole.prestamo)
                                   InkWell(
                                     borderRadius: BorderRadius.circular(20),
                                     onTap: () =>

@@ -1155,16 +1155,21 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
           _loadAssets();
         }
       },
-      onEdit: (asset) async {
-        final String category = (asset['categoria_activo'] ?? 'PC').toString();
-        _showAssetFormDialog(category, asset: asset);
-      },
-      onDelete: RoleService.currentRole != UserRole.ayudante
+      onEdit: RoleService.currentRole != UserRole.ayudante
+          ? (asset) async {
+              final String category =
+                  (asset['categoria_activo'] ?? 'PC').toString();
+              _showAssetFormDialog(category, asset: asset);
+            }
+          : null,
+      onDelete: (RoleService.currentRole != UserRole.ayudante &&
+              RoleService.currentRole != UserRole.prestamo)
           ? (id) async => _deleteAsset(id)
           : null,
       customActionsBuilder: (asset) {
         final category = asset['categoria_activo']?.toString().toUpperCase();
         if (RoleService.currentRole == UserRole.ayudante ||
+            RoleService.currentRole == UserRole.prestamo ||
             category == 'SOFTWARE') {
           return [];
         }
@@ -1369,10 +1374,13 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 4),
+                                // Botón Mantenimiento
                                 if (asset['categoria_activo']
                                         ?.toString()
                                         .toUpperCase() !=
-                                    'SOFTWARE') ...[
+                                    'SOFTWARE' &&
+                                    RoleService.currentRole != UserRole.ayudante &&
+                                    RoleService.currentRole != UserRole.prestamo) ...[
                                   InkWell(
                                     borderRadius: BorderRadius.circular(20),
                                     onTap: () => showDialog(
@@ -1391,8 +1399,8 @@ class _AssetManagementPageState extends State<AssetManagementPage> {
                                     ),
                                   ),
                                 ],
-                                if (RoleService.currentRole !=
-                                    UserRole.ayudante) ...[
+                                if (RoleService.currentRole != UserRole.ayudante && 
+                                    RoleService.currentRole != UserRole.prestamo) ...[
                                   const SizedBox(height: 4),
                                   InkWell(
                                     borderRadius: BorderRadius.circular(20),

@@ -21,8 +21,12 @@ class RoleBadge extends StatelessWidget {
         badgeColor = Colors.green;
         break;
       case UserRole.ayudante:
-        roleText = 'PRESTAMO';
+        roleText = 'AYUDANTE';
         badgeColor = Colors.purple;
+        break;
+      case UserRole.prestamo:
+        roleText = 'PRESTAMO';
+        badgeColor = Colors.deepPurple;
         break;
       case UserRole.unknown:
         roleText = 'N/A';

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:front_inventarios/auth/auth_service.dart';
 import 'package:front_inventarios/auth/role_service.dart';
 import 'package:front_inventarios/pages/login_page.dart';
+import 'package:front_inventarios/pages/onboarding_page.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
 import 'package:front_inventarios/widgets/user_info_widget.dart';
 
@@ -91,8 +92,8 @@ class SideMenu extends StatelessWidget {
                     },
                   ),
 
-                  /// Elemento: Mantenimientos (Hidden for ayudante/PRESTADO)
-                  if (RoleService.currentRole != UserRole.ayudante)
+                  /// Elemento: Mantenimientos (Solo ADMIN y TI)
+                  if (RoleService.currentRole == UserRole.admin || RoleService.currentRole == UserRole.ti)
                     ListTile(
                       leading: const Icon(Icons.build),
                       title: const Text('Mantenimientos'),
@@ -140,6 +141,21 @@ class SideMenu extends StatelessWidget {
                   ],
                 ],
               ),
+            ),
+
+            const Divider(),
+
+            /// Elemento: Tutorial / Ayuda
+            ListTile(
+              leading: const Icon(Icons.help_outline, color: Color(0xFF1465bd)),
+              title: const Text('Tutorial / Ayuda'),
+              onTap: () {
+                Navigator.pop(context); // Cerrar drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const OnboardingPage()),
+                );
+              },
             ),
 
             /// Elemento: Cerrar Sesión (al fondo)

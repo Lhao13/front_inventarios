@@ -31,16 +31,26 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
 
   Future<void> _refreshAsset() async {
     try {
-      final updatedAssets = await LocalDbService.instance.getCollection('activo');
+      final updatedAssets = await LocalDbService.instance.getCollection(
+        'activo',
+      );
       final updatedMatch = updatedAssets.firstWhere(
         (a) => a['id'] == _currentAsset['id'],
         orElse: () => _currentAsset,
       );
 
       // Cargar historial de mantenimientos localmente
-      final allMaint = await LocalDbService.instance.getCollection('mantenimiento');
-      final assetMaint = allMaint.where((m) => m['id_activo'] == _currentAsset['id']).toList();
-      assetMaint.sort((a, b) => (b['fecha_programada'] ?? '').toString().compareTo((a['fecha_programada'] ?? '').toString()));
+      final allMaint = await LocalDbService.instance.getCollection(
+        'mantenimiento',
+      );
+      final assetMaint = allMaint
+          .where((m) => m['id_activo'] == _currentAsset['id'])
+          .toList();
+      assetMaint.sort(
+        (a, b) => (b['fecha_programada'] ?? '').toString().compareTo(
+          (a['fecha_programada'] ?? '').toString(),
+        ),
+      );
 
       if (mounted) {
         setState(() {
@@ -60,7 +70,10 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
         title: const Text('Eliminar Mantenimiento'),
         content: const Text('¿Estás seguro de eliminar este registro?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -73,7 +86,10 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
     if (confirm != true) return;
 
     try {
-      await LocalDbService.instance.enqueueOperation('table:mantenimiento:delete', {'id': id});
+      await LocalDbService.instance.enqueueOperation(
+        'table:mantenimiento:delete',
+        {'id': id},
+      );
       if (SyncQueueService.instance.isOnline) {
         SyncQueueService.instance.syncPendingOperations();
       }
@@ -318,7 +334,7 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                               context.showSnackBar(
                                 'Activo actualizado localmente.',
                               );
-                              
+
                               // Ya no necesitamos recargar manualmente aquí
                               // porque el listener de onCacheUpdated lo hará solo.
                               if (dialogContext.mounted) {
@@ -428,11 +444,17 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
               const SizedBox(height: 16),
               Text(
                 'Nombre: ${a['nombre']?.toString() ?? 'Sin Nombre'}',
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade800,
                   borderRadius: BorderRadius.circular(20),
@@ -461,7 +483,11 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
                           SizedBox(width: 8),
                           Text(
                             'Datos Generales',
@@ -564,9 +590,11 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                           _buildDetailRow(
                             'Marca:',
                             info['marca'] is Map
-                                ? (info['marca']['marca_proveedor']?.toString() ??
+                                ? (info['marca']['marca_proveedor']
+                                          ?.toString() ??
                                       'N/A')
-                                : (info['marca_proveedor']?.toString() ?? 'N/A'),
+                                : (info['marca_proveedor']?.toString() ??
+                                      'N/A'),
                           ),
                         if (info['modelo'] != null)
                           _buildDetailRow(
@@ -649,7 +677,9 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
               if (cat.toUpperCase() != 'SOFTWARE')
                 Card(
                   elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
@@ -661,7 +691,11 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                             SizedBox(width: 8),
                             Text(
                               'Historial de Mantenimientos',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
                             ),
                           ],
                         ),
@@ -669,26 +703,45 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                         if (_maintenanceHistory.isEmpty)
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text('No hay mantenimientos programados.', style: TextStyle(color: Colors.black54)),
+                            child: Text(
+                              'No hay mantenimientos programados.',
+                              style: TextStyle(color: Colors.black54),
+                            ),
                           )
                         else
                           ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: _maintenanceHistory.length,
-                            separatorBuilder: (_, __) => const Divider(),
+                            separatorBuilder: (_, _) => const Divider(),
                             itemBuilder: (context, index) {
                               final m = _maintenanceHistory[index];
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
-                                title: Text('${m['tipo']} - ${m['estado']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                subtitle: Text('Fecha: ${m['fecha_programada']}'),
-                                trailing: RoleService.currentRole != UserRole.ayudante 
-                                  ? IconButton(
-                                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                      onPressed: () => _deleteMaintenance(m['id'].toString()),
-                                    )
-                                  : null,
+                                title: Text(
+                                  '${m['tipo']} - ${m['estado']}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  'Fecha: ${m['fecha_programada']}',
+                                ),
+                                trailing:
+                                    (RoleService.currentRole !=
+                                            UserRole.ayudante &&
+                                        RoleService.currentRole !=
+                                            UserRole.prestamo)
+                                    ? IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.red,
+                                        ),
+                                        onPressed: () => _deleteMaintenance(
+                                          m['id'].toString(),
+                                        ),
+                                      )
+                                    : null,
                               );
                             },
                           ),
@@ -722,7 +775,8 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                         ),
                       ),
                     ),
-                    if (cat.toUpperCase() != 'SOFTWARE')
+                    if (cat.toUpperCase() != 'SOFTWARE' &&
+                        RoleService.currentRole != UserRole.prestamo)
                       Padding(
                         padding: const EdgeInsets.only(top: 12.0),
                         child: SizedBox(
@@ -731,8 +785,9 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                             onPressed: () {
                               showDialog(
                                 context: context,
-                                builder: (_) =>
-                                    MaintenanceFormDialog(initialAssetId: a['id']),
+                                builder: (_) => MaintenanceFormDialog(
+                                  initialAssetId: a['id'],
+                                ),
                               );
                             },
                             icon: const Icon(Icons.build_circle),
@@ -752,25 +807,26 @@ class _AssetDetailPageState extends State<AssetDetailPage> {
                         ),
                       ),
                     const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _deleteAsset(a['id']),
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text(
-                          'ELIMINAR ACTIVO',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    if (RoleService.currentRole != UserRole.prestamo)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _deleteAsset(a['id']),
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text(
+                            'ELIMINAR ACTIVO',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               const SizedBox(height: 40),

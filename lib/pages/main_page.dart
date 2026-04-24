@@ -48,6 +48,28 @@ class MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Seguridad: Si intentan entrar a mantenimiento sin ser TI/Admin, mostrar error o redirigir
+    Widget currentPage = _pages[currentPageIndex];
+    if (currentPageIndex == 2) {
+      final role = RoleService.currentRole;
+      if (role != UserRole.admin && role != UserRole.ti) {
+        currentPage = const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_outline, size: 64, color: Colors.red),
+              SizedBox(height: 16),
+              Text(
+                'Acceso Denegado',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              Text('No tienes permisos para esta sección.'),
+            ],
+          ),
+        );
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -248,7 +270,7 @@ class MainPageState extends State<MainPage> {
                   );
                 },
               ),
-              Expanded(child: _pages[currentPageIndex]),
+              Expanded(child: currentPage),
             ],
           ),
         ),
@@ -671,7 +693,7 @@ class _HomePageState extends State<_HomePage> {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  if (RoleService.currentRole != UserRole.ayudante)
+                  if (RoleService.currentRole == UserRole.admin || RoleService.currentRole == UserRole.ti)
                     _buildModernMenuCard(
                       context,
                       title: 'Agenda de Mantenimientos',

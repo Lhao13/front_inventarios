@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:front_inventarios/pages/onboarding_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -59,8 +60,39 @@ class _LoginPageState extends State<LoginPage> {
         context.showSnackBar('¡Login exitoso!');
         _emailController.clear();
         _passwordController.clear();
-        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainPage()));
-        SyncQueueService.instance.forceSyncAndRefresh();
+        
+        // Verificar si debe ver el onboarding (con timeout de seguridad)
+        bool hasSeenOnboarding = false;
+        try {
+          final db = await LocalDbService.instance.database;
+          final res = await db.query(
+            'cache_storage',
+            where: 'collection = ? AND id = ?',
+            whereArgs: ['auth_config', 'has_seen_onboarding'],
+          ).timeout(const Duration(seconds: 2));
+          
+          hasSeenOnboarding = res.isNotEmpty && res.first['json_data'] == 'true';
+        } catch (e) {
+          debugPrint('Aviso: Fallo al consultar onboarding, asumiendo visto: $e');
+          hasSeenOnboarding = true; 
+        }
+        
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => hasSeenOnboarding ? const MainPage() : const OnboardingPage(),
+            ),
+          );
+          
+          // Lanzar la sincronización en el siguiente frame para no bloquear la animación
+          Future.microtask(() async {
+            try {
+              await SyncQueueService.instance.forceSyncAndRefresh();
+            } catch (e) {
+              debugPrint('Error en sincronización inicial: $e');
+            }
+          });
+        }
       }
     } on AppException catch (error) {
       if (mounted) context.showSnackBar(error.message, isError: true);

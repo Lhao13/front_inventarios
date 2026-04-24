@@ -7,6 +7,7 @@ import 'package:front_inventarios/main.dart';
 import 'package:front_inventarios/pages/login_page.dart';
 import 'package:front_inventarios/pages/main_page.dart';
 import 'package:front_inventarios/services/local_db_service.dart';
+import 'package:front_inventarios/pages/onboarding_page.dart';
 import 'package:local_auth/local_auth.dart';
 
 class LockScreenPage extends StatefulWidget {
@@ -59,10 +60,7 @@ class _LockScreenPageState extends State<LockScreenPage> {
 
       if (authenticated) {
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MainPage()),
-          );
+          _navigateNext();
         }
       } else {
         if (mounted) {
@@ -102,10 +100,7 @@ class _LockScreenPageState extends State<LockScreenPage> {
 
         if (checkHash == storedHash) {
           if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const MainPage()),
-            );
+            _navigateNext();
           }
         } else {
           if (mounted) {
@@ -127,6 +122,32 @@ class _LockScreenPageState extends State<LockScreenPage> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _navigateNext() async {
+    bool hasSeenOnboarding = false;
+    try {
+      final db = await LocalDbService.instance.database;
+      final res = await db.query(
+        'cache_storage',
+        where: 'collection = ? AND id = ?',
+        whereArgs: ['auth_config', 'has_seen_onboarding'],
+      ).timeout(const Duration(seconds: 2));
+      
+      hasSeenOnboarding = res.isNotEmpty && res.first['json_data'] == 'true';
+    } catch (e) {
+      debugPrint('Error checking onboarding state: $e');
+      hasSeenOnboarding = true; 
+    }
+
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => hasSeenOnboarding ? const MainPage() : const OnboardingPage(),
+        ),
+      );
     }
   }
 

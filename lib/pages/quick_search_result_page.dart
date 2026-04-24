@@ -69,27 +69,35 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
 
       if (localMatch != null) {
         // Cargar historial de mantenimientos localmente
-        final allMaint = await LocalDbService.instance.getCollection('mantenimiento');
-        final assetMaint = allMaint.where((m) => m['id_activo'] == localMatch!['id']).toList();
-        assetMaint.sort((a, b) => (b['fecha_programada'] ?? '').toString().compareTo((a['fecha_programada'] ?? '').toString()));
+        final allMaint = await LocalDbService.instance.getCollection(
+          'mantenimiento',
+        );
+        final assetMaint = allMaint
+            .where((m) => m['id_activo'] == localMatch!['id'])
+            .toList();
+        assetMaint.sort(
+          (a, b) => (b['fecha_programada'] ?? '').toString().compareTo(
+            (a['fecha_programada'] ?? '').toString(),
+          ),
+        );
 
-      if (!mounted) return;
-      setState(() {
-        _assetData = localMatch;
-        _maintenanceHistory = assetMaint;
-        _isLoading = false;
-      });
+        if (!mounted) return;
+        setState(() {
+          _assetData = localMatch;
+          _maintenanceHistory = assetMaint;
+          _isLoading = false;
+        });
         return;
       }
 
       // --- Paso 2: fallback a Supabase (solo si hay conexión) ---
       if (!SyncQueueService.instance.isOnline) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage =
-            'No se encontró el activo en el caché local y no hay conexión a internet.';
-        _isLoading = false;
-      });
+        if (!mounted) return;
+        setState(() {
+          _errorMessage =
+              'No se encontró el activo en el caché local y no hay conexión a internet.';
+          _isLoading = false;
+        });
         return;
       }
 
@@ -116,12 +124,12 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
       }
 
       if (response.isEmpty) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage =
-            'No se encontró ningún activo con este valor: ${widget.searchValue}';
-        _isLoading = false;
-      });
+        if (!mounted) return;
+        setState(() {
+          _errorMessage =
+              'No se encontró ningún activo con este valor: ${widget.searchValue}';
+          _isLoading = false;
+        });
         return;
       }
 
@@ -146,7 +154,10 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
         title: const Text('Eliminar Mantenimiento'),
         content: const Text('¿Estás seguro de eliminar este registro?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -159,7 +170,10 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
     if (confirm != true) return;
 
     try {
-      await LocalDbService.instance.enqueueOperation('table:mantenimiento:delete', {'id': id});
+      await LocalDbService.instance.enqueueOperation(
+        'table:mantenimiento:delete',
+        {'id': id},
+      );
       if (SyncQueueService.instance.isOnline) {
         SyncQueueService.instance.syncPendingOperations();
       }
@@ -351,10 +365,11 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                                 params,
                               );
                               if (SyncQueueService.instance.isOnline) {
-                                SyncQueueService.instance.syncPendingOperations();
+                                SyncQueueService.instance
+                                    .syncPendingOperations();
                               }
                             }
-                            
+
                             if (!mounted) return;
                             context.showSnackBar(
                               'Activo actualizado localmente.',
@@ -594,36 +609,76 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                       _buildDetailRow(
                         'Marca:',
                         info['marca'] is Map
-                            ? (info['marca']['marca_proveedor']?.toString() ?? 'N/A')
+                            ? (info['marca']['marca_proveedor']?.toString() ??
+                                  'N/A')
                             : (info['marca_proveedor']?.toString() ?? 'N/A'),
                       ),
                     if (info['modelo'] != null)
-                      _buildDetailRow('Modelo:', info['modelo']?.toString() ?? 'N/A'),
+                      _buildDetailRow(
+                        'Modelo:',
+                        info['modelo']?.toString() ?? 'N/A',
+                      ),
                     if (info['procesador'] != null)
-                      _buildDetailRow('Procesador:', info['procesador']?.toString() ?? 'N/A'),
+                      _buildDetailRow(
+                        'Procesador:',
+                        info['procesador']?.toString() ?? 'N/A',
+                      ),
                     if (info['ram'] != null)
                       _buildDetailRow('RAM:', info['ram']?.toString() ?? 'N/A'),
                     if (info['almacenamiento'] != null)
-                      _buildDetailRow('Almacenamiento:', info['almacenamiento']?.toString() ?? 'N/A'),
+                      _buildDetailRow(
+                        'Almacenamiento:',
+                        info['almacenamiento']?.toString() ?? 'N/A',
+                      ),
                     if (info['cargador_codigo'] != null)
-                      _buildDetailRow('Código Cargador:', info['cargador_codigo']?.toString() ?? 'N/A'),
+                      _buildDetailRow(
+                        'Código Cargador:',
+                        info['cargador_codigo']?.toString() ?? 'N/A',
+                      ),
                     if (info['num_puertos'] != null)
-                      _buildDetailRow('Num. Puertos:', info['num_puertos']?.toString() ?? 'N/A'),
+                      _buildDetailRow(
+                        'Num. Puertos:',
+                        info['num_puertos']?.toString() ?? 'N/A',
+                      ),
                     if (info['tipo_extension'] != null)
-                      _buildDetailRow('Tipo Extensión:', info['tipo_extension']?.toString() ?? 'N/A'),
+                      _buildDetailRow(
+                        'Tipo Extensión:',
+                        info['tipo_extension']?.toString() ?? 'N/A',
+                      ),
                     if (info['num_conexiones'] != null)
-                      _buildDetailRow('Num. Conexiones:', info['num_conexiones']?.toString() ?? 'N/A'),
+                      _buildDetailRow(
+                        'Num. Conexiones:',
+                        info['num_conexiones']?.toString() ?? 'N/A',
+                      ),
                     if (info['var_impresora_color'] != null)
-                      _buildDetailRow('Impresora Color:', info['var_impresora_color']?.toString() ?? 'N/A'),
+                      _buildDetailRow(
+                        'Impresora Color:',
+                        info['var_impresora_color']?.toString() ?? 'N/A',
+                      ),
                     if (info['var_monitor_tipo_conexion'] != null)
-                      _buildDetailRow('Tipo Conexión (Monitor):', info['var_monitor_tipo_conexion']?.toString() ?? 'N/A'),
+                      _buildDetailRow(
+                        'Tipo Conexión (Monitor):',
+                        info['var_monitor_tipo_conexion']?.toString() ?? 'N/A',
+                      ),
                     if (info['proveedor'] != null)
-                      _buildDetailRow('Proveedor (Software):', info['proveedor']?.toString() ?? 'N/A'),
+                      _buildDetailRow(
+                        'Proveedor (Software):',
+                        info['proveedor']?.toString() ?? 'N/A',
+                      ),
                     if (info['fecha_inicio'] != null)
-                      _buildDetailRow('Fecha Inicio (Licencia):', info['fecha_inicio']?.toString() ?? 'N/A'),
+                      _buildDetailRow(
+                        'Fecha Inicio (Licencia):',
+                        info['fecha_inicio']?.toString() ?? 'N/A',
+                      ),
                     if (info['fecha_fin'] != null)
-                      _buildDetailRow('Fecha Fin (Licencia):', info['fecha_fin']?.toString() ?? 'N/A'),
-                    _buildDetailRow('Observaciones Extras:', info['observaciones']?.toString() ?? 'N/A'),
+                      _buildDetailRow(
+                        'Fecha Fin (Licencia):',
+                        info['fecha_fin']?.toString() ?? 'N/A',
+                      ),
+                    _buildDetailRow(
+                      'Observaciones Extras:',
+                      info['observaciones']?.toString() ?? 'N/A',
+                    ),
                   ],
                 ),
               ),
@@ -635,7 +690,9 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
           if (cat.toUpperCase() != 'SOFTWARE')
             Card(
               elevation: 3,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -647,7 +704,11 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                         SizedBox(width: 8),
                         Text(
                           'Historial de Mantenimientos',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
                         ),
                       ],
                     ),
@@ -655,26 +716,41 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                     if (_maintenanceHistory.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8.0),
-                        child: Text('No hay mantenimientos programados.', style: TextStyle(color: Colors.black54)),
+                        child: Text(
+                          'No hay mantenimientos programados.',
+                          style: TextStyle(color: Colors.black54),
+                        ),
                       )
                     else
                       ListView.separated(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: _maintenanceHistory.length,
-                        separatorBuilder: (_, __) => const Divider(),
+                        separatorBuilder: (_, _) => const Divider(),
                         itemBuilder: (context, index) {
                           final m = _maintenanceHistory[index];
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
-                            title: Text('${m['tipo']} - ${m['estado']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            title: Text(
+                              '${m['tipo']} - ${m['estado']}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             subtitle: Text('Fecha: ${m['fecha_programada']}'),
-                            trailing: RoleService.currentRole != UserRole.ayudante 
-                              ? IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                  onPressed: () => _deleteMaintenance(m['id'].toString()),
-                                )
-                              : null,
+                            trailing:
+                                (RoleService.currentRole != UserRole.ayudante &&
+                                    RoleService.currentRole !=
+                                        UserRole.prestamo)
+                                ? IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed: () =>
+                                        _deleteMaintenance(m['id'].toString()),
+                                  )
+                                : null,
                           );
                         },
                       ),
@@ -694,16 +770,22 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                   child: ElevatedButton.icon(
                     onPressed: _showUpdateDialog,
                     icon: const Icon(Icons.edit),
-                    label: const Text('ACTUALIZAR DATOS', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'ACTUALIZAR DATOS',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       backgroundColor: Colors.blue.shade700,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
-                if (cat.toUpperCase() != 'SOFTWARE')
+                if (cat.toUpperCase() != 'SOFTWARE' &&
+                    RoleService.currentRole != UserRole.prestamo)
                   Padding(
                     padding: const EdgeInsets.only(top: 12.0),
                     child: SizedBox(
@@ -712,35 +794,47 @@ class _QuickSearchResultPageState extends State<QuickSearchResultPage> {
                         onPressed: () {
                           showDialog(
                             context: context,
-                            builder: (_) => MaintenanceFormDialog(initialAssetId: a['id']),
+                            builder: (_) =>
+                                MaintenanceFormDialog(initialAssetId: a['id']),
                           );
                         },
                         icon: const Icon(Icons.build_circle),
-                        label: const Text('PROGRAMAR MANTENIMIENTO', style: TextStyle(fontWeight: FontWeight.bold)),
+                        label: const Text(
+                          'PROGRAMAR MANTENIMIENTO',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           backgroundColor: Colors.blueGrey.shade700,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _deleteAsset(a['id']),
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('ELIMINAR ACTIVO', style: TextStyle(fontWeight: FontWeight.bold)),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                if (RoleService.currentRole != UserRole.prestamo)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _deleteAsset(a['id']),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text(
+                        'ELIMINAR ACTIVO',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           const SizedBox(height: 40),
