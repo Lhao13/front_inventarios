@@ -1,0 +1,825 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:panel_web/main.dart';
+import 'package:panel_web/auth/role_service.dart';
+import 'package:panel_web/widgets/multi_select_dialog.dart';
+import 'package:panel_web/widgets/asset_data_table.dart';
+import 'package:panel_web/widgets/maintenance_form_dialog.dart';
+import 'package:panel_web/utils/date_utils.dart';
+import 'package:panel_web/utils/asset_filter.dart';
+import 'package:panel_web/pages/asset_detail_page.dart';
+
+/// Página de Mantenimientos.
+///
+/// Esta página permite al usuario gestionar los mantenimientos de los activos.
+class MaintenancePage extends StatefulWidget {
+  final GlobalKey<ScaffoldState>? scaffoldKey;
+  const MaintenancePage({super.key, this.scaffoldKey});
+
+  @override
+  State<MaintenancePage> createState() => _MaintenancePageState();
+}
+
+class _MaintenancePageState extends State<MaintenancePage> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<Map<String, dynamic>> _maintenances = [];
+  List<Map<String, dynamic>> _assets = [];
+
+  // Variables for view and filters
+  bool _isTableView = false;
+  List<Map<String, dynamic>> _filteredMaintenances = [];
+  int? _sortColumnIndex;
+  bool _sortAscending = true;
+
+  // Filter models
+  final List<String> _selectedTipos = [];
+  final List<String> _selectedEstados = [];
+  final List<String> _selectedActivosStr = [];
+  DateTimeRange? _rangoProgramada;
+  DateTimeRange? _rangoRealizada;
+
+  final ScrollController _listScrollController = ScrollController();
+
+  late final List<AssetColumnDef> _columns = [
+    AssetColumnDef(label: 'Activo', getValue: (m) => _getAssetDisplayInfo(m)),
+    AssetColumnDef(
+      label: 'Tipo',
+      getValue: (m) => m['tipo']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Estado',
+      getValue: (m) => m['estado']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Fecha Programada',
+      getValue: (m) => m['fecha_programada']?.toString() ?? 'N/A',
+    ),
+    AssetColumnDef(
+      label: 'Fecha Realizada',
+      getValue: (m) => m['fecha_realizada']?.toString() ?? 'N/A',
+      visibleByDefault: false,
+    ),
+    AssetColumnDef(
+      label: 'Observaciones',
+      getValue: (m) => m['observacion']?.toString() ?? 'N/A',
+      visibleByDefault: false,
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final cachedSort = FilterMemoryCache.tableSortCache['Maintenance'];
+    if (cachedSort != null) {
+      _sortColumnIndex = cachedSort.columnIndex;
+      _sortAscending = cachedSort.ascending;
+    }
+    _loadMaintenances();
+    _loadAssets();
+  }
+
+  @override
+  void dispose() {
+    _listScrollController.dispose();
+    super.dispose();
+  }
+
+  String _getAssetDisplayInfo(Map<String, dynamic> m) {
+    if (m['activo'] != null) {
+      if (m['activo']['categoria_activo'] == 'SOFTWARE') {
+        return m['activo']['nombre']?.toString() ?? 'Software Sin Nombre';
+      }
+      if (m['activo']['numero_serie'] != null) {
+        return m['activo']['numero_serie'];
+      }
+    }
+    // Búsqueda en los arreglos cargados offline
+    final asset = _assets.firstWhere(
+      (a) => a['id'] == m['id_activo'],
+      orElse: () => <String, dynamic>{}, // Provide empty Map<String, dynamic>
+    );
+    if (asset.isNotEmpty) {
+      if (asset['categoria_activo'] == 'SOFTWARE') {
+        return asset['nombre']?.toString() ?? 'Software Sin Nombre';
+      }
+      if (asset['numero_serie'] != null) {
+        return asset['numero_serie'];
+      }
+    }
+    return 'ID: ${m['id_activo']}';
+  }
+
+  Future<void> _loadMaintenances({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+    try {
+      final res = await Supabase.instance.client
+          .from('mantenimiento')
+          .select('id, id_activo, tipo, estado, fecha_programada, fecha_realizada, observacion, activo(id, nombre, numero_serie, categoria_activo)')
+          .order('fecha_programada', ascending: false);
+
+      if (!mounted) return;
+      setState(() {
+        _maintenances = List<Map<String, dynamic>>.from(res);
+      });
+      _applyFilters();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Error al cargar mantenimientos: $e';
+      });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadAssets() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('activo')
+          .select('id, nombre, numero_serie, categoria_activo')
+          .order('numero_serie');
+      if (mounted) {
+        setState(() {
+          _assets = List<Map<String, dynamic>>.from(res);
+        });
+        _applyFilters();
+      }
+    } catch (e) {
+      if (mounted) debugPrint('Error loading assets: $e');
+    }
+  }
+
+  bool _maintenanceMatches(Map<String, dynamic> m, {String? ignoreField}) {
+    final activoStr = _getAssetDisplayInfo(m);
+
+    bool matchesTipo =
+        ignoreField == 'tipo' ||
+        _selectedTipos.isEmpty ||
+        _selectedTipos.contains((m['tipo'] ?? '').toString());
+    bool matchesEstado =
+        ignoreField == 'estado' ||
+        _selectedEstados.isEmpty ||
+        _selectedEstados.contains((m['estado'] ?? '').toString());
+    bool matchesActivo =
+        ignoreField == 'activo' ||
+        _selectedActivosStr.isEmpty ||
+        _selectedActivosStr.contains(activoStr);
+
+    bool matchesProgramada = true;
+    if (ignoreField != 'fecha_programada' &&
+        _rangoProgramada != null &&
+        m['fecha_programada'] != null) {
+      try {
+        final dt = DateTime.parse(m['fecha_programada'].toString());
+        if (dt.isBefore(_rangoProgramada!.start) ||
+            dt.isAfter(_rangoProgramada!.end)) {
+          matchesProgramada = false;
+        }
+      } catch (_) {}
+    }
+
+    bool matchesRealizada = true;
+    if (ignoreField != 'fecha_realizada' &&
+        _rangoRealizada != null &&
+        m['fecha_realizada'] != null) {
+      try {
+        final dt = DateTime.parse(m['fecha_realizada'].toString());
+        if (dt.isBefore(_rangoRealizada!.start) ||
+            dt.isAfter(_rangoRealizada!.end)) {
+          matchesRealizada = false;
+        }
+      } catch (_) {}
+    }
+
+    return matchesTipo &&
+        matchesEstado &&
+        matchesActivo &&
+        matchesProgramada &&
+        matchesRealizada;
+  }
+
+  void _applyFilters() {
+    setState(() {
+      _filteredMaintenances = _maintenances
+          .where((m) => _maintenanceMatches(m))
+          .toList();
+    });
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _selectedTipos.clear();
+      _selectedEstados.clear();
+      _selectedActivosStr.clear();
+      _rangoProgramada = null;
+      _rangoRealizada = null;
+    });
+    _applyFilters();
+  }
+
+  int _getFilterCount() {
+    int count = 0;
+    if (_selectedTipos.isNotEmpty) count++;
+    if (_selectedEstados.isNotEmpty) count++;
+    if (_selectedActivosStr.isNotEmpty) count++;
+    if (_rangoProgramada != null) count++;
+    if (_rangoRealizada != null) count++;
+    return count;
+  }
+
+  List<Map<String, dynamic>> _getUniquePredictiveList(String key) {
+    if (_maintenances.isEmpty) return [];
+    final possibleMains = _maintenances.where(
+      (m) => _maintenanceMatches(m, ignoreField: key),
+    );
+
+    final items = possibleMains
+        .map((m) {
+          if (key == 'activo') return _getAssetDisplayInfo(m);
+          return m[key]?.toString();
+        })
+        .where((val) => val != null && val.trim().isNotEmpty)
+        .toSet()
+        .toList();
+    items.sort();
+    return items.map((val) => {'id': val, 'valor': val}).toList();
+  }
+
+  Widget _buildDrawerFilterButton<T>(
+    String label,
+    List<T> selectedIds,
+    List<Map<String, dynamic>> items,
+    String displayKey,
+  ) {
+    final bool isActive = selectedIds.isNotEmpty;
+    return ListTile(
+      tileColor: isActive ? Colors.blue.shade200 : null,
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(
+        selectedIds.isEmpty ? 'Todos' : '${selectedIds.length} seleccionados',
+      ),
+      trailing: const Icon(Icons.arrow_drop_down),
+      onTap: () async {
+        final result = await showDialog<List<T>>(
+          context: context,
+          builder: (_) => MultiSelectDialog<T>(
+            title: label,
+            items: items,
+            initialSelectedIds: selectedIds,
+            displayKey: displayKey,
+          ),
+        );
+        if (result != null) {
+          setState(() {
+            selectedIds.clear();
+            selectedIds.addAll(result);
+          });
+          _applyFilters();
+        }
+      },
+    );
+  }
+
+  Widget _buildDrawerDateFilter(
+    String label,
+    DateTimeRange? currentRange,
+    ValueChanged<DateTimeRange?> onChanged,
+  ) {
+    final bool isActive = currentRange != null;
+    return ListTile(
+      tileColor: isActive ? Colors.blue.shade50 : null,
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(
+        currentRange == null
+            ? 'Cualquier fecha'
+            : '${currentRange.start.toLocal().toString().split(' ')[0]} - ${currentRange.end.toLocal().toString().split(' ')[0]}',
+      ),
+      trailing: currentRange != null
+          ? IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () {
+                onChanged(null);
+                _applyFilters();
+              },
+            )
+          : const Icon(Icons.calendar_today),
+      onTap: () async {
+        final range = await showDateRangePicker(
+          context: context,
+          firstDate: DateTime(2000),
+          lastDate: DateTime(2100),
+          initialDateRange: currentRange,
+        );
+        if (range != null) {
+          onChanged(range);
+          _applyFilters();
+        }
+      },
+    );
+  }
+
+  Future<void> _completeMaintenance(String id) async {
+    try {
+      await Supabase.instance.client
+          .from('mantenimiento')
+          .update({
+            'estado': 'Completado',
+            'fecha_realizada': AppDateUtils.formatYYYYMMDD(DateTime.now()),
+          })
+          .eq('id', id);
+
+      if (!mounted) return;
+      context.showSnackBar('Mantenimiento marcado como completado.');
+      _loadMaintenances();
+    } catch (e) {
+      if (mounted) context.showSnackBar('Error: $e', isError: true);
+    }
+  }
+
+  Future<void> _deleteMaintenance(String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar Mantenimiento'),
+        content: const Text(
+          '¿Estás seguro de que deseas eliminar este registro?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await Supabase.instance.client.from('mantenimiento').delete().eq('id', id);
+      if (!mounted) return;
+      context.showSnackBar('Mantenimiento eliminado correctamente.');
+      _loadMaintenances();
+    } catch (e) {
+      if (mounted) context.showSnackBar('Error: $e', isError: true);
+    }
+  }
+
+  void _showAddMaintenanceDialog({Map<String, dynamic>? initialData}) {
+    showDialog(
+      context: context,
+      builder: (_) => MaintenanceFormDialog(
+        initialData: initialData,
+        onSaved: () {
+          _loadMaintenances();
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      key: widget.scaffoldKey,
+      appBar: AppBar(
+        toolbarHeight: 0,
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      endDrawer: Drawer(
+        width: MediaQuery.of(context).size.width * 0.6,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.only(
+                  top: 10,
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                ),
+                color: Colors.blue.shade50,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const Text(
+                          'Filtros',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'Filtros: ${_getFilterCount()}',
+                          style: const TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          icon: const Icon(Icons.delete),
+                          label: const Text('Limpiar'),
+                          onPressed: _clearFilters,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Buscar por ID de Activo',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    _buildDrawerFilterButton<String>(
+                      'Por Serial / Nombre',
+                      _selectedActivosStr,
+                      _getUniquePredictiveList('activo'),
+                      'valor',
+                    ),
+
+                    const Divider(),
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Filtros de Estado',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    _buildDrawerFilterButton(
+                      'Tipo',
+                      _selectedTipos,
+                      _getUniquePredictiveList('tipo'),
+                      'valor',
+                    ),
+                    _buildDrawerFilterButton(
+                      'Estado',
+                      _selectedEstados,
+                      _getUniquePredictiveList('estado'),
+                      'valor',
+                    ),
+
+                    const Divider(),
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Rango de Fechas',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    _buildDrawerDateFilter(
+                      'Fecha Programada',
+                      _rangoProgramada,
+                      (r) => setState(() => _rangoProgramada = r),
+                    ),
+                    _buildDrawerDateFilter(
+                      'Fecha Realizada',
+                      _rangoRealizada,
+                      (r) => setState(() => _rangoRealizada = r),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Mantenimientos',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Sincronizar de la Nube',
+                  onPressed: () async {
+                    await _loadMaintenances();
+                    await _loadAssets();
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _showAddMaintenanceDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Programar'),
+                ),
+
+                SegmentedButton<bool>(
+                  style: SegmentedButton.styleFrom(
+                    selectedForegroundColor: Colors.white,
+                    selectedBackgroundColor: Colors.blue,
+                  ),
+                  segments: const [
+                    ButtonSegment<bool>(
+                      value: false,
+                      icon: Icon(Icons.view_list),
+                      label: Text('Lista'),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      icon: Icon(Icons.table_chart),
+                      label: Text('Tabla'),
+                    ),
+                  ],
+                  selected: {_isTableView},
+                  onSelectionChanged: (Set<bool> newSelection) {
+                    setState(() {
+                      _isTableView = newSelection.first;
+                    });
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _errorMessage != null
+                  ? Center(child: Text(_errorMessage!))
+                  : _filteredMaintenances.isEmpty
+                  ? const Center(child: Text('No hay mantenimientos. Modifique los filtros.'))
+                  : _isTableView
+                  ? _buildTableSection()
+                  : _buildListSection(),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 60),
+        child: Builder(
+          builder: (context) => FloatingActionButton.extended(
+            onPressed: () => Scaffold.of(context).openEndDrawer(),
+            tooltip: 'Abrir Filtros',
+            backgroundColor: _getFilterCount() > 0 ? Colors.orange : null,
+            icon: const Icon(Icons.filter_list),
+            label: Text('Filtros (${_getFilterCount()})'),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTableSection() {
+    return AssetDataTable(
+      assets: _filteredMaintenances,
+      columns: _columns,
+      initialSortColumnIndex: _sortColumnIndex,
+      initialSortAscending: _sortAscending,
+      onRowTap: (m) async {
+        // Encontrar el activo asociado al mantenimiento
+        Map<String, dynamic>? asset = m['activo'] is Map ? m['activo'] : null;
+        asset ??= _assets.firstWhere(
+          (a) => a['id'] == m['id_activo'],
+          orElse: () => {},
+        );
+
+        if (asset.isNotEmpty) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => AssetDetailPage(asset: asset!)),
+          );
+          _loadMaintenances(showLoading: false);
+        }
+      },
+      onSortChanged: (index, ascending) {
+        setState(() {
+          _sortColumnIndex = index;
+          _sortAscending = ascending;
+        });
+        FilterMemoryCache.tableSortCache['Maintenance'] = TableSortState(
+          index,
+          ascending,
+        );
+      },
+      onEdit: (m) async => _showAddMaintenanceDialog(initialData: m),
+      onDelete: (id) => _deleteMaintenance(id),
+      customActionsBuilder: (m) => [
+        if (m['estado'] != 'Completado')
+          IconButton(
+            icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+            tooltip: 'Marcar como Completado',
+            onPressed: () => _completeMaintenance(m['id'] as String),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildListSection() {
+    return Scrollbar(
+      controller: _listScrollController,
+      thumbVisibility: true,
+      trackVisibility: true,
+      thickness: 8,
+      child: ListView.builder(
+        padding: EdgeInsets.zero,
+        controller: _listScrollController,
+        itemCount: _filteredMaintenances.length,
+        itemBuilder: (context, index) {
+          final m = _filteredMaintenances[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Container(
+              padding: const EdgeInsets.all(12.0),
+              constraints: const BoxConstraints(minHeight: 70),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Parte izquierda: Icono/Estado
+                    Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: m['estado'] == 'Pendiente'
+                              ? Colors.orange
+                              : m['estado'] == 'Completado'
+                                  ? Colors.green
+                                  : Colors.blue,
+                          child: Icon(
+                            m['estado'] == 'Completado' ? Icons.check : Icons.build,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 12),
+                    // Parte central: Información del Activo
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${_getAssetDisplayInfo(m)} - ${m['tipo']}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Programado: ${m['fecha_programada']} | Estado: ${m['estado']}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          if (m['fecha_realizada'] != null &&
+                              m['estado'] == 'Completado')
+                            Text(
+                              'Realizado: ${m['fecha_realizada']}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.green,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Parte derecha: Acciones (Iconos arriba, Botón abajo)
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Iconos en la parte superior
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (RoleService.currentRole != UserRole.unknown)
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(Icons.edit,
+                                    color: Colors.blue, size: 20),
+                                tooltip: 'Editar',
+                                onPressed: () =>
+                                    _showAddMaintenanceDialog(initialData: m),
+                              ),
+                            if (RoleService.currentRole != UserRole.unknown) ...[
+                              const SizedBox(width: 12),
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(Icons.delete,
+                                    color: Colors.red, size: 20),
+                                tooltip: 'Eliminar',
+                                onPressed: () =>
+                                    _deleteMaintenance(m['id'] as String),
+                              ),
+                            ],
+                          ],
+                        ),
+                        // Botón de estado en la parte inferior
+                        if (m['estado'] != 'Completado' &&
+                            RoleService.currentRole != UserRole.unknown)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
+                                minimumSize: const Size(90, 28),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                elevation: 2,
+                              ),
+                              onPressed: () =>
+                                  _completeMaintenance(m['id'] as String),
+                              child: const Text(
+                                'Completar',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          )
+                        else if (m['estado'] == 'Completado')
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8.0),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle,
+                                    color: Colors.green, size: 14),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Mantenimiento\ncompletado',
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+
+

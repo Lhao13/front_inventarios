@@ -1,0 +1,40 @@
+name: panel_web
+description: "Panel web administrativo del sistema de inventarios"
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_localizations:
+    sdk: flutter
+  supabase_flutter: ^2.12.2
+  flutter_map: ^8.3.0
+  latlong2: ^0.9.1
+  uuid: ^4.5.3
+  flutter_dotenv: ^6.0.0
+  crypto: ^3.0.3
+  fl_chart: ^0.69.0
+  pdf: ^3.11.1
+  printing: ^5.13.2
+  url_launcher: ^6.3.1
+  google_fonts: ^6.2.1
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+    - assets/icon/
+
