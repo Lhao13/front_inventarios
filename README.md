@@ -485,10 +485,46 @@ graph TD
     Formulario --> VisorMapas
     Formulario --> EscanerInputs
 
-```
+`
+
+### Interacción y Flujo del Usuario
+
+El diagrama superior ilustra cómo la aplicación evita crear pilas infinitas de navegación y organiza las pantallas de manera modular:
+
+1.  **Arranque y Seguridad (Auth Flow)**: El usuario inicia en la validación de sesión. Si es su primera vez, pasa por el **Login** y el **Onboarding**. Si ya tiene sesión, el sistema exige un PIN o biometría en la **Pantalla de Bloqueo** antes de inyectarlo en el contenedor seguro.
+2.  **El Hub Central (MainPage)**: Actúa como el esqueleto inmutable de la app. A través del **Menú Lateral (Drawer)**, el usuario intercambia la vista central de forma instantánea (IndexedStack) entre el **Dashboard** (métricas y accesos rápidos), la **Gestión Global** (tabla maestra de equipos), la vista de **Mantenimientos** y, si tiene permisos de administrador, los paneles de configuración de **Tablas Maestras** y **Usuarios**.
+3.  **Profundidad por Módulos**: Desde el Dashboard, los usuarios pueden ingresar a contenedores especializados (**Módulos PCs, Software, etc.**), diseñados para mostrar únicamente las columnas relevantes a la naturaleza de esos activos polimórficos.
+4.  **Atajos Transversales (Escáner y Búsqueda)**: El flujo más común para los auditores. Desde el Dashboard, activan el **Escáner QR**, el cual intercepta el código y navega directamente a la vista de **Búsqueda Rápida** y, consecuentemente, al **Detalle del Activo**. Este atajo reduce drásticamente el número de clics para identificar hardware en campo.
+5.  **Formularios y Módulos de Apoyo**: La creación o edición detona el **Formulario Dinámico**, el cual no es una pantalla simple, sino un controlador que sub-invoca flujos adicionales como el **Visor de Mapas** (para asentar coordenadas GPS) o el **Escáner de Inputs** (para leer MAC Addresses o Números de Serie directamente con la cámara dentro del formulario).
+``
 
 
 ---
+
+
+---
+
+## Post-Mortem Técnico y Retos Resueltos
+
+A lo largo del desarrollo, aplicamos un riguroso estándar de calidad que nos llevó a auditar y refactorizar áreas críticas del código para garantizar un nivel de producción estable:
+
+### 1. Colisiones Silenciosas de IDs (CRÍTICO)
+*   **El Problema**: Las operaciones offline en la cola (sync_queue) usaban DateTime.now().millisecondsSinceEpoch como Primary Key. En operaciones masivas o en un mismo frame de UI, se generaban llaves temporales duplicadas, causando que SQLite abortara las peticiones silenciosamente y se perdiera la data del usuario.
+*   **La Solución**: Migración completa a identificadores universales seguros empleando la especificación Uuid().v4(), garantizando unicidad estadística absoluta en la caché.
+
+### 2. Fractura de la Arquitectura Offline (CRÍTICO)
+*   **El Problema**: Durante las auditorías de código, se descubrió que la pantalla de búsqueda rápida (QuickSearchResultPage) intentaba eliminar activos *directamente* contra la API de Supabase (wait supabase.rpc(...)). Si el dispositivo perdía conexión, la app crasheaba de forma no controlada.
+*   **La Solución**: Re-enrutamiento estricto del flujo hacia LocalDbService.instance.enqueueOperation. Ahora las operaciones destructivas (DELETE) se encolan, actúan localmente primero y respetan el estado offline, manteniendo la integridad arquitectónica en todas las vistas.
+
+### 3. Estabilidad de Interfaz (Jank y Rendering)
+*   **El Problema (Cuelgues ANR - Signal 3)**: Al arrancar la app con cuentas nuevas (sin caché), los pesados hilos de parseo vectorial de imágenes SVG chocaban con la primera sincronización masiva de datos (JSON decodes), saturando el hilo principal y colgando la app por completo.
+*   **La Solución**: Reemplazo total de assets vectoriales pesados por PNGs con restricciones explícitas de memoria RAM en su renderizado (cacheWidth). Además, se envolvió la capa de sincronización en bloques 	ry-catch dentro de colas asíncronas (Future.microtask), liberando el hilo principal de la UI.
+*   **Mutaciones Ilegales en Build()**: Se corrigieron antipatrones críticos donde variables de estado, como los cálculos de paginación (_tableCurrentPage.clamp()), se modificaban directamente dentro de las funciones asíncronas del ciclo uild(), previniendo errores de estado inconsistente y ciclos de reconstrucción infinitos.
+
+### 4. Limpieza Estructural y Análisis Estático (Code Smells)
+*   **Igualdad de Objetos en Tablas**: En Dart, dos listas idénticas tienen referencias de memoria distintas. Esto provocaba que el AssetDataTable reconstruyera y perdiera las configuraciones de columnas del usuario constantemente. Solucionado declarando constantes inmutables y controlando referencias de memoria.
+*   **Eliminación de Código Muerto**: Extracción de clases obsoletas y saneamiento de advertencias del análisis estático (ej. parámetros residuales no utilizados en la carga de vistas de maintenance_page.dart), reforzando los principios DRY (Don't Repeat Yourself).
+*   **Aseguramiento Condicional de Roles (UI Leaking)**: Se corrigió una vulnerabilidad visual menor donde ciertos paneles cargaban acciones transaccionales antes de que la seguridad local lograra restringirlas. La lógica se delegó centralmente al RoleService antes de inflar el árbol de widgets, evitando que usuarios de modo lectura (Préstamo) tuvieran accesos efímeros a botones no autorizados.
 
 ## Roadmap y Trabajo Futuro
 
@@ -501,3 +537,15 @@ Dentro de la estructura de este repositorio, en el directorio panel_web/, se enc
 *   **Exportación Avanzada de Reportes**: Generación automática de reportes ejecutivos en formatos Excel/PDF directamente desde la aplicación o el Panel Web para presentar en auditorías.
 *   **Auditorías Cíclicas Automatizadas**: Módulo inteligente que cruce las fechas de escaneo y alerte si un activo de alto valor no ha sido verificado visualmente en más de 6 meses.
 *   **SSO (Single Sign-On)**: Integración con Microsoft Entra ID (Active Directory) o Google Workspace para que el personal ingrese con sus credenciales corporativas directamente.
+
+---
+
+## Autores y Agradecimientos
+
+Este proyecto integrador fue desarrollado como culminación de estudios académicos, aplicando arquitecturas de software modernas y resolución de problemas del mundo real.
+
+*   **Desarrollador Principal**: Leandro Ilan Coral Morales
+*   **Asesor Académico**: Jose David Vega Sánchez, Ph.D.
+*   **Contacto**: [leandrocoral.m@gmail.com](mailto:leandrocoral.m@gmail.com)
+
+Agradecimientos especiales al equipo docente y asesores por la orientación técnica durante el desarrollo de esta arquitectura Offline-First.
