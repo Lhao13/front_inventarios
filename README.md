@@ -496,10 +496,7 @@ El diagrama superior ilustra cómo la aplicación evita crear pilas infinitas de
 3.  **Profundidad por Módulos**: Desde el Dashboard, los usuarios pueden ingresar a contenedores especializados (**Módulos PCs, Software, etc.**), diseñados para mostrar únicamente las columnas relevantes a la naturaleza de esos activos polimórficos.
 4.  **Atajos Transversales (Escáner y Búsqueda)**: El flujo más común para los auditores. Desde el Dashboard, activan el **Escáner QR**, el cual intercepta el código y navega directamente a la vista de **Búsqueda Rápida** y, consecuentemente, al **Detalle del Activo**. Este atajo reduce drásticamente el número de clics para identificar hardware en campo.
 5.  **Formularios y Módulos de Apoyo**: La creación o edición detona el **Formulario Dinámico**, el cual no es una pantalla simple, sino un controlador que sub-invoca flujos adicionales como el **Visor de Mapas** (para asentar coordenadas GPS) o el **Escáner de Inputs** (para leer MAC Addresses o Números de Serie directamente con la cámara dentro del formulario).
-``
 
-
----
 
 
 ---
