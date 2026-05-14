@@ -50,6 +50,39 @@ Este proyecto aborda la necesidad crítica de mantener un control preciso sobre 
     flutter run --release
     ```
 
+### Comandos Útiles
+
+Durante la auditoría, despliegue o pruebas locales, puedes utilizar los siguientes comandos:
+
+*   **Ejecutar la suite de pruebas (QA)**:
+    ```bash
+    flutter test
+    ```
+*   **Compilar el APK de producción (Android)**:
+    ```bash
+    flutter build apk --release
+    ```
+
+### Estructura de Directorios Principal
+
+Para facilitar la navegación del código fuente a los evaluadores, la arquitectura de carpetas está dividida de la siguiente manera:
+
+```text
+front_inventarios/
+├── lib/
+│   ├── auth/           # Capa de seguridad: Autenticación y RBAC (RoleService)
+│   ├── components/     # Componentes estructurales (ej. SideMenu)
+│   ├── exceptions/     # Manejo centralizado de excepciones
+│   ├── pages/          # Pantallas de la aplicación organizadas por módulo
+│   ├── services/       # Core de negocio (SyncQueueService, LocalDbService)
+│   ├── utils/          # Helpers de filtrado y utilidades matemáticas/fechas
+│   └── widgets/        # Elementos UI reutilizables (Escáner, Formularios, Tablas)
+├── supabase/
+│   └── migrations/     # Source of truth: Scripts SQL (Schema y RPCs)
+├── test/               # Suite de Pruebas: Unitarias, Integración y Widgets
+└── panel_web/          # Implementación base para un panel administrativo web
+```
+
 ---
 
 ## Arquitectura de Software y Decisiones Técnicas
