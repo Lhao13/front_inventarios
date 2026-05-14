@@ -9,10 +9,10 @@ Este proyecto aborda la necesidad crítica de mantener un control preciso sobre 
 ## Interfaz de Usuario y Flujos Principales
 
 <p align="center">
-  <img src="[Ruta_a_la_imagen_de_Login_Biometrico]" alt="Login Biometrico" width="22%">
-  <img src="[Ruta_a_la_imagen_del_Escaner_QR]" alt="Escaner QR" width="22%">
-  <img src="[Ruta_a_la_imagen_del_Mapa_GPS]" alt="Mapa GPS" width="22%">
-  <img src="[Ruta_a_la_imagen_del_Modo_Offline]" alt="Modo Offline" width="22%">
+  <img src="images\biometrico.jpeg" alt="Login Biometrico" width="22%">
+  <img src="images\qr.png" alt="Escaner QR" width="22%">
+  <img src="images\ubicacion.png" alt="Mapa GPS" width="22%">
+  <img src="images\principal.jpeg" alt="Modo Offline" width="22%">
 </p>
 
 ## Características Principales
@@ -485,7 +485,7 @@ graph TD
     Formulario --> VisorMapas
     Formulario --> EscanerInputs
 
-`
+```
 
 ### Interacción y Flujo del Usuario
 
@@ -537,15 +537,3 @@ Dentro de la estructura de este repositorio, en el directorio panel_web/, se enc
 *   **Exportación Avanzada de Reportes**: Generación automática de reportes ejecutivos en formatos Excel/PDF directamente desde la aplicación o el Panel Web para presentar en auditorías.
 *   **Auditorías Cíclicas Automatizadas**: Módulo inteligente que cruce las fechas de escaneo y alerte si un activo de alto valor no ha sido verificado visualmente en más de 6 meses.
 *   **SSO (Single Sign-On)**: Integración con Microsoft Entra ID (Active Directory) o Google Workspace para que el personal ingrese con sus credenciales corporativas directamente.
-
----
-
-## Autores y Agradecimientos
-
-Este proyecto integrador fue desarrollado como culminación de estudios académicos, aplicando arquitecturas de software modernas y resolución de problemas del mundo real.
-
-*   **Desarrollador Principal**: Leandro Ilan Coral Morales
-*   **Asesor Académico**: Jose David Vega Sánchez, Ph.D.
-*   **Contacto**: [leandrocoral.m@gmail.com](mailto:leandrocoral.m@gmail.com)
-
-Agradecimientos especiales al equipo docente y asesores por la orientación técnica durante el desarrollo de esta arquitectura Offline-First.
