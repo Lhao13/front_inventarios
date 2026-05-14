@@ -534,3 +534,58 @@ Dentro de la estructura de este repositorio, en el directorio panel_web/, se enc
 *   **Exportación Avanzada de Reportes**: Generación automática de reportes ejecutivos en formatos Excel/PDF directamente desde la aplicación o el Panel Web para presentar en auditorías.
 *   **Auditorías Cíclicas Automatizadas**: Módulo inteligente que cruce las fechas de escaneo y alerte si un activo de alto valor no ha sido verificado visualmente en más de 6 meses.
 *   **SSO (Single Sign-On)**: Integración con Microsoft Entra ID (Active Directory) o Google Workspace para que el personal ingrese con sus credenciales corporativas directamente.
+
+
+## Pruebas y Aseguramiento de Calidad (QA)
+
+Para garantizar la fiabilidad del sistema en entornos inestables (Offline-First) y asegurar la integridad de la base de datos, el proyecto incorpora una suite de pruebas automatizadas y manuales estructurada en el directorio `test/`.
+
+### Tipos de Pruebas Implementadas
+
+1.  **Pruebas Unitarias (Unit Tests)**:
+    *   **Lógica de Negocio y Permisos (`role_service_test.dart`)**: Valida que la asignación de roles (ADMIN, TI, PRESTAMO) sea determinista, asegurando que el motor de UI construya las pantallas con la segregación correcta.
+    *   **Filtrado de Activos (`asset_filter_test.dart`)**: Comprueba que los algoritmos de búsqueda local (en memoria) devuelvan los resultados exactos basados en queries complejos (ej. buscar por marca, estado o custodio).
+
+2.  **Pruebas de Integración (Integration Tests)**:
+    *   **Motor Offline (`local_db_service_test.dart` y `sync_queue_service_test.dart`)**: Simula el comportamiento del patrón Document Store en SQLite, asegurando que las operaciones CRUD se guarden en disco duro local de forma segura y que la cola detecte correctamente los fallos de red simulados.
+    *   **Conectividad Backend (`rpc_test.dart`)**: Evalúa el puente de comunicación con Supabase, validando que los Remote Procedure Calls (RPC) devuelvan los diccionarios JSON esperados para evitar fallos de parseo.
+
+3.  **Pruebas Funcionales y de Interfaz (Widget Tests)**:
+    *   Pruebas base (`widget_test.dart`) enfocadas en validar que el árbol de widgets se infle correctamente, que los flujos asíncronos no provoquen desbordamientos de RenderFlex, y que las transiciones de estado respondan a interacciones del usuario de manera fluida.
+
+### Pruebas Funcionales de Validación (Casos de Uso)
+
+*(Esta sub-sección documenta los escenarios de prueba funcionales en vivo que demuestran la robustez de la aplicación durante auditorías).*
+
+*   **Caso 1: Resiliencia Offline (Sincronización Diferida)**
+    *   *Acción*: Apagar el WiFi/Datos del dispositivo, crear 2 equipos completos e intentar guardarlos.
+    *   *Resultado Esperado*: La UI se actualiza inmediatamente (Optimistic UI). Al recuperar el internet, el `SyncQueueService` sube los registros en background sin interrumpir la experiencia del usuario y desaparece el icono de advertencia.
+*   **Caso 2: Bloqueo de Inyección de Interfaz por Rol**
+    *   *Acción*: Iniciar sesión con un usuario de rol `PRESTAMO` e intentar forzar el acceso a la ruta oculta de Tablas Maestras o el Panel de Mantenimientos.
+    *   *Resultado Esperado*: El contenedor de estado reemplaza el componente por una pantalla visual de "Acceso Denegado" sin colapsar la app, blindando el acceso al nivel superior de Supabase.
+*   **Caso 3: Resolución de Conflictos (Last Writer Wins)**
+    *   *Acción*: Insertar en modo Offline un activo con un número de serie que ya fue registrado simultáneamente por otro empleado online.
+    *   *Resultado Esperado*: Al volver a tener internet, el servidor rechaza la transacción por Primary Key Constraint. La cola local marca el registro como fallido y genera una notificación visual interactiva alertando al empleado para descartar su inserción, sin afectar el resto de las descargas en realtime.
+
+
+### Pruebas de Aceptación de Usuario (UAT) y Usabilidad
+
+Durante la validación final del proyecto, la aplicación fue sometida a pruebas con profesionales de TI comparando su rendimiento frente al caso base tradicional (hojas de cálculo de Excel). 
+
+*(Inserta aquí las gráficas o tablas comparativas de tus resultados estadísticos)*
+`[Espacio para Gráfica de Tiempos de Ejecución]`
+`[Espacio para Gráfica de Resultados SUS]`
+
+**1. Validación Funcional y Usabilidad (Escala SUS)**
+Los resultados del cuestionario *System Usability Scale* (SUS) demostraron que la aplicación móvil generó una drástica reducción de la carga cognitiva y fricción operativa:
+*   **Puntuación Final**: La aplicación desarrollada alcanzó el grado de excelencia con **82.6/100**, contrastando fuertemente con la calificación reprobatoria del sistema tradicional (39.3/100).
+*   **Tiempo Medio de Ejecución (TME)**: Tareas recurrentes como la "Búsqueda Rápida" tomaron 77 segundos, demostrando gran agilidad. El "Alta de Hardware Completo" promedió 208 segundos, lo cual garantiza un ingreso altamente estructurado y sanitizado de la información.
+*   **Confiabilidad**: El panel de profesionales validó con las notas más altas la funcionalidad del sistema sin internet (4/5) y la confiabilidad de la sincronización de datos hacia la nube (4.75/5).
+
+**2. Validación de Resiliencia (Modo Offline)**
+En pruebas de estrés simulando caídas de red (modo avión), el TME para registro ininterrumpido fue de 136s (superando los 206s del caso base). Al recuperar la conexión, el algoritmo en segundo plano sincronizó la cola de datos en 38s de forma limpia y transparente, evitando los fallos críticos de concurrencia que experimentó la plataforma tradicional de línea base.
+
+**3. Consistencia y Optimizaciones Post-UAT**
+Las sesiones UAT brindaron retroalimentación crítica que guio refactorizaciones clave de la arquitectura:
+*   **Optimización de Red (De Polling a Eventos)**: El testeo de estrés con grandes volúmenes de registros evidenció latencia en el frontend generada por sondeos temporales cada 30 segundos. El motor se refactorizó hacia eventos de tiempo real (`WebSockets`), reduciendo drásticamente el payload al descargar únicamente los registros modificados.
+*   **Refinamiento UX/UI**: Se mejoró la jerarquía visual de los activos mediante codificación de colores y se implementaron alertas claras para los rechazos transaccionales (ej. restricciones `UNIQUE` de base de datos), permitiendo al usuario entender el error de forma amigable.
