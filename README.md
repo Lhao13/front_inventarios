@@ -501,40 +501,6 @@ El diagrama superior ilustra cómo la aplicación evita crear pilas infinitas de
 
 ---
 
-## Post-Mortem Técnico y Retos Resueltos
-
-A lo largo del desarrollo, aplicamos un riguroso estándar de calidad que nos llevó a auditar y refactorizar áreas críticas del código para garantizar un nivel de producción estable:
-
-### 1. Colisiones Silenciosas de IDs (CRÍTICO)
-*   **El Problema**: Las operaciones offline en la cola (sync_queue) usaban DateTime.now().millisecondsSinceEpoch como Primary Key. En operaciones masivas o en un mismo frame de UI, se generaban llaves temporales duplicadas, causando que SQLite abortara las peticiones silenciosamente y se perdiera la data del usuario.
-*   **La Solución**: Migración completa a identificadores universales seguros empleando la especificación Uuid().v4(), garantizando unicidad estadística absoluta en la caché.
-
-### 2. Fractura de la Arquitectura Offline (CRÍTICO)
-*   **El Problema**: Durante las auditorías de código, se descubrió que la pantalla de búsqueda rápida (QuickSearchResultPage) intentaba eliminar activos *directamente* contra la API de Supabase (wait supabase.rpc(...)). Si el dispositivo perdía conexión, la app crasheaba de forma no controlada.
-*   **La Solución**: Re-enrutamiento estricto del flujo hacia LocalDbService.instance.enqueueOperation. Ahora las operaciones destructivas (DELETE) se encolan, actúan localmente primero y respetan el estado offline, manteniendo la integridad arquitectónica en todas las vistas.
-
-### 3. Estabilidad de Interfaz (Jank y Rendering)
-*   **El Problema (Cuelgues ANR - Signal 3)**: Al arrancar la app con cuentas nuevas (sin caché), los pesados hilos de parseo vectorial de imágenes SVG chocaban con la primera sincronización masiva de datos (JSON decodes), saturando el hilo principal y colgando la app por completo.
-*   **La Solución**: Reemplazo total de assets vectoriales pesados por PNGs con restricciones explícitas de memoria RAM en su renderizado (cacheWidth). Además, se envolvió la capa de sincronización en bloques 	ry-catch dentro de colas asíncronas (Future.microtask), liberando el hilo principal de la UI.
-*   **Mutaciones Ilegales en Build()**: Se corrigieron antipatrones críticos donde variables de estado, como los cálculos de paginación (_tableCurrentPage.clamp()), se modificaban directamente dentro de las funciones asíncronas del ciclo uild(), previniendo errores de estado inconsistente y ciclos de reconstrucción infinitos.
-
-### 4. Limpieza Estructural y Análisis Estático (Code Smells)
-*   **Igualdad de Objetos en Tablas**: En Dart, dos listas idénticas tienen referencias de memoria distintas. Esto provocaba que el AssetDataTable reconstruyera y perdiera las configuraciones de columnas del usuario constantemente. Solucionado declarando constantes inmutables y controlando referencias de memoria.
-*   **Eliminación de Código Muerto**: Extracción de clases obsoletas y saneamiento de advertencias del análisis estático (ej. parámetros residuales no utilizados en la carga de vistas de maintenance_page.dart), reforzando los principios DRY (Don't Repeat Yourself).
-*   **Aseguramiento Condicional de Roles (UI Leaking)**: Se corrigió una vulnerabilidad visual menor donde ciertos paneles cargaban acciones transaccionales antes de que la seguridad local lograra restringirlas. La lógica se delegó centralmente al RoleService antes de inflar el árbol de widgets, evitando que usuarios de modo lectura (Préstamo) tuvieran accesos efímeros a botones no autorizados.
-
-## Roadmap y Trabajo Futuro
-
-### Panel Web Administrativo
-Dentro de la estructura de este repositorio, en el directorio panel_web/, se encuentra una implementación parcial de un **Panel de Administración Web** diseñado para ejecutarse en navegadores de escritorio. Aunque la solución actual se enfoca en la aplicación móvil con capacidades offline-first, este panel sienta las bases técnicas para una futura escalabilidad, donde los administradores y coordinadores de TI podrán visualizar reportes masivos y gestionar la configuración global desde una interfaz de escritorio conectada a la misma base de datos Supabase.
-
-### Mejoras Propuestas a Futuro
-*   **Firmas Digitales de Custodia**: Implementar un pad de firma digital nativo en la app móvil para que el usuario firme en la pantalla al momento de recibir o devolver un equipo, generando un certificado en PDF con validez legal.
-*   **Notificaciones Push (FCM)**: Integración con Firebase Cloud Messaging para alertar al equipo de TI sobre mantenimientos programados que están por vencer, o notificar a los custodios cuando se les ha asignado un nuevo equipo.
-*   **Exportación Avanzada de Reportes**: Generación automática de reportes ejecutivos en formatos Excel/PDF directamente desde la aplicación o el Panel Web para presentar en auditorías.
-*   **Auditorías Cíclicas Automatizadas**: Módulo inteligente que cruce las fechas de escaneo y alerte si un activo de alto valor no ha sido verificado visualmente en más de 6 meses.
-*   **SSO (Single Sign-On)**: Integración con Microsoft Entra ID (Active Directory) o Google Workspace para que el personal ingrese con sus credenciales corporativas directamente.
-
 
 ## Pruebas y Aseguramiento de Calidad (QA)
 
@@ -572,9 +538,33 @@ Para garantizar la fiabilidad del sistema en entornos inestables (Offline-First)
 
 Durante la validación final del proyecto, la aplicación fue sometida a pruebas con profesionales de TI comparando su rendimiento frente al caso base tradicional (hojas de cálculo de Excel). 
 
-*(Inserta aquí las gráficas o tablas comparativas de tus resultados estadísticos)*
-`[Espacio para Gráfica de Tiempos de Ejecución]`
-`[Espacio para Gráfica de Resultados SUS]`
+### Resultados de pruebas en la aplicacion base (excel)
+
+<p align="center">
+  <img src="images\Code_Generated_Image (3).png"  width="22%">
+  <img src="images\Code_Generated_Image (4).png"  width="22%">
+</p>
+
+### Resultados de pruebas en la aplicacion desarrollada (flutter)
+
+<p align="center">
+  <img src="images\Code_Generated_Image (1).png" width="22%">
+  <img src="images\Code_Generated_Image (2).png" width="22%">
+
+</p>
+
+
+
+
+### Comparativa de Usabilidad (System Usability Scale - SUS)
+
+| Métrica de Evaluación | Sistema Base (Excel) | Aplicación Desarrollada (Flutter) | Mejora / Diferencia |
+| :--- | :---: | :---: | :---: |
+| **Puntuación Final (SUS)** | **39.3 / 100** | **82.6 / 100** | **+ 110% (Mejora sustancial)** |
+| **Categorización UX** | Pobre (Alta fricción operativa) | Excelente (Solución intuitiva) | Salto de Calidad |
+| **TME Registro (Modo Offline)** | 206 segundos | 136 segundos | **- 34% de tiempo** |
+| **Sincronización y Concurrencia** | Fallos críticos (imposible finalizar) | Resolución exitosa en 38s | Alta Fiabilidad |
+
 
 **1. Validación Funcional y Usabilidad (Escala SUS)**
 Los resultados del cuestionario *System Usability Scale* (SUS) demostraron que la aplicación móvil generó una drástica reducción de la carga cognitiva y fricción operativa:
@@ -589,3 +579,38 @@ En pruebas de estrés simulando caídas de red (modo avión), el TME para regist
 Las sesiones UAT brindaron retroalimentación crítica que guio refactorizaciones clave de la arquitectura:
 *   **Optimización de Red (De Polling a Eventos)**: El testeo de estrés con grandes volúmenes de registros evidenció latencia en el frontend generada por sondeos temporales cada 30 segundos. El motor se refactorizó hacia eventos de tiempo real (`WebSockets`), reduciendo drásticamente el payload al descargar únicamente los registros modificados.
 *   **Refinamiento UX/UI**: Se mejoró la jerarquía visual de los activos mediante codificación de colores y se implementaron alertas claras para los rechazos transaccionales (ej. restricciones `UNIQUE` de base de datos), permitiendo al usuario entender el error de forma amigable.
+
+## Post-Mortem Técnico y Retos Resueltos
+
+A lo largo del desarrollo, aplicamos un riguroso estándar de calidad que nos llevó a auditar y refactorizar áreas críticas del código para garantizar un nivel de producción estable:
+
+### 1. Colisiones Silenciosas de IDs (CRÍTICO)
+*   **El Problema**: Las operaciones offline en la cola (sync_queue) usaban DateTime.now().millisecondsSinceEpoch como Primary Key. En operaciones masivas o en un mismo frame de UI, se generaban llaves temporales duplicadas, causando que SQLite abortara las peticiones silenciosamente y se perdiera la data del usuario.
+*   **La Solución**: Migración completa a identificadores universales seguros empleando la especificación Uuid().v4(), garantizando unicidad estadística absoluta en la caché.
+
+### 2. Fractura de la Arquitectura Offline (CRÍTICO)
+*   **El Problema**: Durante las auditorías de código, se descubrió que la pantalla de búsqueda rápida (QuickSearchResultPage) intentaba eliminar activos *directamente* contra la API de Supabase (wait supabase.rpc(...)). Si el dispositivo perdía conexión, la app crasheaba de forma no controlada.
+*   **La Solución**: Re-enrutamiento estricto del flujo hacia LocalDbService.instance.enqueueOperation. Ahora las operaciones destructivas (DELETE) se encolan, actúan localmente primero y respetan el estado offline, manteniendo la integridad arquitectónica en todas las vistas.
+
+### 3. Estabilidad de Interfaz (Jank y Rendering)
+*   **El Problema (Cuelgues ANR - Signal 3)**: Al arrancar la app con cuentas nuevas (sin caché), los pesados hilos de parseo vectorial de imágenes SVG chocaban con la primera sincronización masiva de datos (JSON decodes), saturando el hilo principal y colgando la app por completo.
+*   **La Solución**: Reemplazo total de assets vectoriales pesados por PNGs con restricciones explícitas de memoria RAM en su renderizado (cacheWidth). Además, se envolvió la capa de sincronización en bloques 	ry-catch dentro de colas asíncronas (Future.microtask), liberando el hilo principal de la UI.
+*   **Mutaciones Ilegales en Build()**: Se corrigieron antipatrones críticos donde variables de estado, como los cálculos de paginación (_tableCurrentPage.clamp()), se modificaban directamente dentro de las funciones asíncronas del ciclo uild(), previniendo errores de estado inconsistente y ciclos de reconstrucción infinitos.
+
+### 4. Limpieza Estructural y Análisis Estático (Code Smells)
+*   **Igualdad de Objetos en Tablas**: En Dart, dos listas idénticas tienen referencias de memoria distintas. Esto provocaba que el AssetDataTable reconstruyera y perdiera las configuraciones de columnas del usuario constantemente. Solucionado declarando constantes inmutables y controlando referencias de memoria.
+*   **Eliminación de Código Muerto**: Extracción de clases obsoletas y saneamiento de advertencias del análisis estático (ej. parámetros residuales no utilizados en la carga de vistas de maintenance_page.dart), reforzando los principios DRY (Don't Repeat Yourself).
+*   **Aseguramiento Condicional de Roles (UI Leaking)**: Se corrigió una vulnerabilidad visual menor donde ciertos paneles cargaban acciones transaccionales antes de que la seguridad local lograra restringirlas. La lógica se delegó centralmente al RoleService antes de inflar el árbol de widgets, evitando que usuarios de modo lectura (Préstamo) tuvieran accesos efímeros a botones no autorizados.
+
+## Roadmap y Trabajo Futuro
+
+### Panel Web Administrativo
+Dentro de la estructura de este repositorio, en el directorio panel_web/, se encuentra una implementación parcial de un **Panel de Administración Web** diseñado para ejecutarse en navegadores de escritorio. Aunque la solución actual se enfoca en la aplicación móvil con capacidades offline-first, este panel sienta las bases técnicas para una futura escalabilidad, donde los administradores y coordinadores de TI podrán visualizar reportes masivos y gestionar la configuración global desde una interfaz de escritorio conectada a la misma base de datos Supabase.
+
+### Mejoras Propuestas a Futuro
+*   **Firmas Digitales de Custodia**: Implementar un pad de firma digital nativo en la app móvil para que el usuario firme en la pantalla al momento de recibir o devolver un equipo, generando un certificado en PDF con validez legal.
+*   **Notificaciones Push (FCM)**: Integración con Firebase Cloud Messaging para alertar al equipo de TI sobre mantenimientos programados que están por vencer, o notificar a los custodios cuando se les ha asignado un nuevo equipo.
+*   **Exportación Avanzada de Reportes**: Generación automática de reportes ejecutivos en formatos Excel/PDF directamente desde la aplicación o el Panel Web para presentar en auditorías.
+*   **Auditorías Cíclicas Automatizadas**: Módulo inteligente que cruce las fechas de escaneo y alerte si un activo de alto valor no ha sido verificado visualmente en más de 6 meses.
+*   **SSO (Single Sign-On)**: Integración con Microsoft Entra ID (Active Directory) o Google Workspace para que el personal ingrese con sus credenciales corporativas directamente.
+
